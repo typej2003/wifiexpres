@@ -1,0 +1,118 @@
+﻿.bg-white-lg-none {
+    background-color: #db0032;
+    padding: 0.74rem 0.95rem;
+}
+
+body {
+    margin: 0;
+    font-family: Poppins, "Helvetica Neue", sans-serif;
+    background-color: ghostwhite;
+}
+
+.navbar-white {
+    margin: 0px;
+    padding: 0px;
+    background-color: #fff;
+}
+
+#spinner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 999;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(255, 255, 255, 0.8);
+    transition: opacity 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    visibility: hidden;
+    opacity: 0;
+}
+
+#spinner.show {
+    visibility: visible;
+    opacity: 1;
+}
+
+html, body {
+    margin: 0;
+}
+
+.btn-primary {
+    color: #fff !important;
+    background-color: #db0032 !important;
+    border-color: #db0032 !important;
+}
+
+    .btn-primary:hover {
+        background-color: #ED6D8F !important;
+        border-color: #ED6D8F !important;
+    }
+
+    .btn-primary:active {
+        background-color: #db0032 !important;
+        border-color: #ED6D8F !important;
+    }
+
+    .btn-primary:focus {
+        background-color: #db0032 !important;
+        border-color: #ED6D8F !important;
+        box-shadow: 0 0 0 0.2rem rgba(239, 117, 117, 0.5) !important;
+    }
+
+.form-control:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.form-select:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.form-check-input:focus {
+    outline: none;
+    box-shadow: none;
+    border-color: black;
+}
+
+.form-check-input:checked {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.link {
+    color: #0d6efd;
+}
+
+.link:hover {
+    color: #0d6efd;
+}
+
+.link:active {
+    color: #0d6efd !important;
+}
+
+.nounderline {
+    text-decoration: none !important
+}
+
+.brand-logo > img {
+    margin-left: 20px;
+}
+
+.form-control.is-valid:focus, .was-validated :valid.form-control {
+    border-color: #dddddd !important;
+    background-image: inherit !important;
+    box-shadow: inherit !important;
+}
+
+textarea {
+    resize: none;
+}
+
+.form-check-input {
+    font-size: x-large;
+}

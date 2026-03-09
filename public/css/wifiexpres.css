@@ -1,0 +1,124 @@
+/* Ajuste de scroll para el Navbar fijo */
+section[id] {
+    scroll-margin-top: 110px; 
+}
+
+.profileImage {
+    width: 45px;
+}
+/* Forzar que cada sección ocupe el alto de pantalla disponible */
+.full-page-section {
+    width: 100%;
+    /* Calculamos: 100% del alto de pantalla menos la altura de tu Navbar */
+    min-height: calc(100vh - 125px); 
+    
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Centra el contenido verticalmente */
+    align-items: center;     /* Centra el contenido horizontalmente */
+    
+    padding: 2rem 0;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Suavizar el movimiento del scroll */
+html {
+    scroll-behavior: smooth;
+}
+
+main {
+    margin-top: 25px;
+}
+
+/* Contenedor principal del dropdown */
+.dropdown-rednet {
+    position: relative;
+    display: inline-block;
+}
+
+.nav-link-custom {
+    text-decoration: none;
+    display: block;
+    padding: 5px 0;
+}
+
+/* El menú oculto por defecto */
+.dropdown-menu-custom {
+    display: none;
+    position: absolute;
+    background-color: #ffffff;
+    min-width: 200px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border-top: 3px solid #00d1d6; /* Detalle estético arriba */
+    z-index: 1000;
+}
+
+/* Items del menú */
+.dropdown-item-custom {
+    color: #333;
+    padding: 10px 15px;
+    text-decoration: none;
+    display: block;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+}
+
+.dropdown-item-custom:hover {
+    background-color: #f8f9fa;
+    color: #009b9f;
+}
+
+/* Mostrar menú al hacer HOVER */
+.dropdown-rednet:hover > .dropdown-menu-custom {
+    display: block;
+}
+
+/* --- SUBMENÚ MULTINIVEL --- */
+.dropdown-submenu-custom {
+    position: relative;
+}
+
+/* Posiciona el submenú a la derecha del padre */
+.dropdown-submenu-custom > .dropdown-menu-custom {
+    top: 0;
+    left: 100%;
+    margin-top: -3px; /* Alinea con el borde superior */
+}
+
+/* Muestra el submenú al hacer hover en el item padre */
+.dropdown-submenu-custom:hover > .dropdown-menu-custom {
+    display: block;
+}
+
+/* Flechas pequeñas */
+.bi-chevron-down, .bi-chevron-right {
+    font-size: 0.7rem;
+    margin-left: 5px;
+}
+
+/* ---------------------------------- */
+/* BOTÓN DE CHAT FLOTANTE             */
+/* ---------------------------------- */
+.chat-btn {
+    position: fixed;
+    bottom: 60px;
+    right: 20px;
+    z-index: 1030;
+    width: 55px;
+    height: 55px;
+    border: grey 2px solid;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.8rem;
+    text-decoration: none;
+    transition: background-color 0.3s ease;
+}
+
+.chat-btn:hover {
+    background-color: #c47b4b !important; 
+}

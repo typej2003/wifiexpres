@@ -1,0 +1,400 @@
+/* ---------------------------------- */
+/* CONFIGURACIÓN GENERAL Y SCROLL     */
+/* ---------------------------------- */
+html {
+    /* Altura para el scroll limpio (debe coincidir con la altura de la navbar fija) */
+    scroll-padding-top: 90px; 
+    scroll-behavior: smooth;
+    font-family: 'Inter', sans-serif;
+}
+
+:root {
+    --color-primary: #f78634; /* naranja principal */
+    --color-primary-dark: #682b08; /* hover/darker */
+    --color-secondary: #6700da; /* morado principal */
+    --color-secondary-dark: #5a00c9; /* morado oscuro */
+    --color-on-primary: #ffffff;
+}
+
+/* ---------------------------------- */
+/* IMÁGENES RESPONSIVE                 */
+/* ---------------------------------- */
+/* Regla global: hace que las imágenes y elementos <picture> se adapten
+   al ancho de su contenedor manteniendo la proporción. Esto no afecta
+   a las imágenes que explícitamente usan clases como `.section-img`
+   que controlan `width/height` y `object-fit` para comportamiento "cover". */
+img, picture, .img-responsive {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Clase para mostrar la imagen completa dentro de un contenedor
+   Mantiene la proporción y evita recortes (letterbox si las proporciones difieren) */
+.section-img--contain,
+.section-img.contain {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* muestra la imagen completa dentro del contenedor */
+    object-position: center;
+    display: block;
+    background-color: transparent; /* puedes cambiar si quieres un color de fondo */
+}
+
+.mi-div-quienes-somos {
+  width: 100%;
+  height: 400px;
+  background-image: url('img/quienes_somos.jpg');
+  background-size: 100% auto;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* ---------------------------------- */
+/* SECCIONES PRINCIPALES (MAIN)       */
+/* ---------------------------------- */
+/* CAMBIADO: Altura de las secciones para ocupar la pantalla completa menos la navbar */
+.vh-70 {
+    /* height: calc(100vh - 90px); 100% de la pantalla menos la altura del header fijo */
+    /* min-height: 400px; */
+    overflow: hidden;
+}
+
+/* Colores de fondo intercalados para diferenciar secciones */
+.bg-section-1 {
+    background-color: #f8f9fa; /* Gris claro */
+}
+
+.bg-section-2 {
+    background-color: #ffffff; /* Blanco */
+}
+
+.bg-orange-dark {
+    background-color: var(--color-primary);
+    color: var(--color-primary-dark);
+}
+
+.bg-purple {
+    background-color: var(--color-secondary);
+    color: var(--color-on-primary);
+}
+
+/* Estilo para las imágenes de sección */
+.section-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* cubre el contenedor sin distorsionar */
+    object-position: center;
+    display: block;
+}
+
+/* Overlay para texto sobre imágenes */
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.45); /* Oscuro más notorio */
+}
+
+
+/* ---------------------------------- */
+/* NAVBAR (SUBRAYADO ACTIVO ÚNICO)    */
+/* ---------------------------------- */
+/* NUEVA REGLA: Estilo para el logo */
+.navbar-brand img {
+    height: 45px; /* Altura aumentada para el logo */
+    width: auto;
+    transition: height 0.3s ease;
+}
+
+/* Icono pequeño usado en la barra de navegación junto al texto */
+.nav-icon {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    vertical-align: middle;
+    margin-right: 8px; /* separación respecto al texto (icono al inicio) */
+    display: inline-block;
+}
+
+.navbar-nav .nav-link {
+    position: relative;
+    padding-bottom: 5px; 
+    color: #ffffff;
+    transition: color 0.3s ease;
+    font-size: x-large;
+}
+
+.navbar-nav .nav-purple {
+    position: relative;
+    padding-bottom: 5px; 
+    color: var(--color-primary);
+    transition: color 0.3s ease;
+    font-size: x-large;
+    text-decoration: none;
+}
+
+
+/* Subrayado (inicialmente oculto) */
+.navbar-nav .nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%; 
+    width: 0;
+    height: 3px; /* Subrayado ligeramente más grueso */
+    background-color: var(--color-secondary);
+    transition: width 0.3s ease, left 0.3s ease;
+}
+
+/* Solo cambia el color en hover, NO activa el subrayado */
+.navbar-nav .nav-link:hover {
+    color: var(--color-secondary);
+}
+
+/* Subrayado COMPLETO (100% ancho) SOLO al estado activo */
+.navbar-nav .nav-link.active {
+    color: var(--color-secondary); /* Asegura el color activo */
+    font-weight: 600; /* Hace que el texto activo sea más audaz */
+}
+
+.navbar-nav .nav-link.active::after {
+    width: 100%;
+    left: 0;
+}
+
+/* Mostrar un caret (icono) junto a los enlaces desplegables en lugar del subrayado */
+.navbar-nav .nav-link.dropdown-toggle {
+    display: inline-flex;
+    align-items: center; /* alinea el icono con el texto */
+}
+
+/* Remove pseudo-element caret (we use an inline SVG .dropdown-icon instead) */
+.navbar-nav .nav-link.dropdown-toggle::after {
+    display: none;
+}
+
+/* Inline SVG caret that sits to the right of the link text */
+.dropdown-icon {
+    width: 16px;
+    height: 16px;
+    margin-left: 0px;
+    display: inline-block;
+    vertical-align: middle;
+    fill: none;
+    stroke: #6c757d; /* gray */
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.15s ease, stroke 0.15s ease;
+}
+
+/* Rotate caret up when dropdown is open (Bootstrap adds .show to .nav-item) */
+.navbar-nav .nav-item.show > .nav-link .dropdown-icon,
+.navbar-nav .nav-link.dropdown-toggle[aria-expanded="true"] .dropdown-icon {
+    transform: rotate(180deg);
+}
+
+/* Allow dropdown links to show the same underline as regular links when open/active */
+.navbar-nav .nav-link.dropdown-toggle::after {
+    /* re-enable visual pseudo-element (we'll control width when open) */
+    display: block;
+}
+
+/* When dropdown is open (Bootstrap adds .show to nav-item) or aria-expanded is true, show underline */
+.navbar-nav .nav-item.show > .nav-link::after,
+.navbar-nav .nav-link.dropdown-toggle[aria-expanded="true"]::after {
+    width: 100%;
+    left: 0;
+}
+
+/* Ensure dropdown toggle receives the active color when open */
+.navbar-nav .nav-item.show > .nav-link,
+.navbar-nav .nav-link.dropdown-toggle[aria-expanded="true"] {
+    color: #007bff;
+    font-weight: 600;
+}
+
+/* ---------------------------------- */
+/* BOTÓN DE CHAT FLOTANTE             */
+/* ---------------------------------- */
+.chat-btn {
+    position: fixed;
+    bottom: 60px;
+    right: 20px;
+    z-index: 1030;
+    width: 55px;
+    height: 55px;
+    border: grey 2px solid;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.8rem;
+    text-decoration: none;
+    transition: background-color 0.3s ease;
+}
+
+.chat-btn:hover {
+    background-color: #c47b4b !important; 
+}
+
+/* Estilo para los iconos de redes sociales en el footer */
+.footer-social-icon {
+    transition: color 0.3s ease;
+}
+
+.footer-social-icon:hover {
+    color: var(--color-secondary) !important;
+}
+
+/* Social icons as orange circles with white icons */
+.social-circle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: var(--color-primary); /* naranja */
+    color: var(--color-on-primary); /* icono blanco */
+    text-decoration: none;
+    margin-left: 6px;
+    margin-right: 6px;
+    transition: transform 0.12s ease, background-color 0.12s ease;
+}
+
+.social-circle i {
+    /* Use font-size to size the icon and ensure it's vertically centered inside the flex box */
+    font-size: 18px;
+    display: inline-block;
+    line-height: 1;
+    color: var(--color-on-primary);
+    vertical-align: middle;
+}
+
+.social-circle:hover {
+    transform: translateY(-2px);
+    background-color: var(--color-primary-dark); /* un poco más oscuro al hover */
+}
+
+/* Ajuste para que el logo DDR no sea demasiado grande en el footer */
+.footer-logo.ddr {
+    max-width: 140px;
+}
+
+/* ---------------------------------- */
+/* FOOTER LOGO                        */
+/* ---------------------------------- */
+/* Reduce el logo del footer sin afectar al logo del navbar */
+.footer-logo {
+    max-width: 120px; /* tamaño por defecto */
+    height: auto;
+    display: block;
+    margin: 0 auto;
+}
+
+/* Footer rows: first row white, second row morado */
+footer .footer-top {
+    background-color: #ffffff;
+    color: #333333;
+}
+footer .footer-top a {
+    color: #333333 !important;
+}
+footer .footer-top .text-warning {
+    /* mantener el estilo de los títulos en la fila blanca usando morado */
+    color: var(--color-secondary) !important;
+}
+
+/* Iconos en los títulos h5 de la primera fila del footer en color naranja */
+.footer-top h5 i,
+.footer-top h5 .fa {
+    color: var(--color-primary);
+}
+
+footer .footer-ddr {
+    background-color: var(--color-secondary);
+    color: #ffffff;
+}
+footer .footer-ddr p {
+    color: rgba(255,255,255,0.95);
+    margin-bottom: 0;
+}
+footer .footer-ddr .social-circle {
+    /* sobre fondo morado los círculos naranjas mantienen contraste */
+}
+
+/* Si el HTML no usa clases específicas, aplicar a la primera fila del footer
+   para asegurar que el primer bloque tenga fondo blanco y texto oscuro. */
+footer > .container > .row:first-of-type {
+    background-color: #ffffff;
+    color: #333333;
+}
+
+footer > .container > .row:first-of-type a,
+footer > .container > .row:first-of-type p,
+footer > .container > .row:first-of-type h5 {
+    color: #333333 !important;
+}
+
+/* Mantener títulos con la variable morada si usan .text-warning */
+footer > .container > .row:first-of-type .text-warning {
+    color: var(--color-secondary) !important;
+}
+
+/* Header: segunda fila (barra naranja) y fila superior */
+.nav-orange{
+    background-color: var(--color-primary) !important;
+}
+.nav-orange .nav-link{
+    color: var(--color-on-primary) !important;
+}
+.nav-orange .nav-link:hover,
+.nav-orange .nav-link:focus{
+    color: rgba(255,255,255,0.95) !important;
+}
+.nav-orange .navbar-toggler{
+    border-color: rgba(255,255,255,0.2);
+}
+.nav-orange .navbar-toggler-icon{
+    filter: invert(1) grayscale(1) brightness(2);
+}
+
+.header-top{
+    background: #ffffff;
+}
+.header-right-text{
+    font-weight: 600;
+    color: #222;
+}
+
+/* Dropdown menu on orange navbar should use light background */
+.nav-orange .dropdown-menu{
+    background: #fff;
+}
+
+@media (max-width: 576px) {
+    .footer-logo {
+        max-width: 90px; /* más pequeño en móviles */
+    }
+}
+
+/* Styles for plan buttons with two-line labels */
+.plan-btn {
+    text-align: left;
+    padding: 0.7rem 0.9rem;
+}
+.plan-btn .btn-title {
+    display: block;
+    font-weight: 700;
+    font-size: 0.95rem;
+    line-height: 1.05;
+}
+.plan-btn .btn-subtitle {
+    display: block;
+    font-size: 0.78rem;
+    line-height: 1;
+}

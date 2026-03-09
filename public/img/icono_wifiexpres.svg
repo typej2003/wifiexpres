@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Icono Mi Rednet">
+  <title>Mi Rednet</title>
+  <!-- Fondo transparente, solo trazos para la silueta -->
+  <g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Cabeza (círculo en stroke) -->
+    <circle cx="12" cy="8" r="2.6" />
+    <!-- Cuerpo / hombros (silueta en stroke) -->
+    <path d="M6.5 18c0-2.5 3.5-4 5.5-4s5.5 1.5 5.5 4v0" />
+    <path d="M6.5 18h11" />
+  </g>
+</svg>

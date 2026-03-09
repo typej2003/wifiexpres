@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>MikroTik Control Panel</title>
+    <script src="socket.io.min.js"></script>
+    <style>
+        body { text-align:center; padding:40px; font-family: sans-serif; background:#f0f2f5; }
+        .card { background: white; padding: 30px; border-radius: 15px; display: inline-block; box-shadow: 0 4px 15px rgba(0,0,0,0.1); min-width: 500px; }
+        .btn { padding:15px; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; width: 48%; margin-top:10px; }
+        .btn-primary { background:#007bff; }
+        .btn-secondary { background:#6c757d; }
+        .monitor-val { margin-top:20px; padding:20px; border:2px solid #28a745; color:#28a745; display:none; background:#e9f7ef; border-radius: 10px; font-family: monospace; text-align: left; white-space: pre-wrap; }
+        #status-box { margin-top:20px; padding:10px; border-radius:5px; font-size:12px; background:#eee; transition: all 0.3s ease; }
+        textarea, input { width: 90%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #ddd; font-family: monospace; }
+        textarea { resize: vertical; min-height: 100px; }
+        .label-info { display: block; text-align: left; margin-left: 5%; font-size: 11px; color: #666; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Router Remote Control</h2>
+        
+        <span class="label-info">Dirección MAC (Auto-detectada):</span>
+        <input type="text" id="targetMac" placeholder="Esperando reporte de MikroTik...">
+        
+        <span class="label-info">Comando o Script:</span>
+        <textarea id="inputComando" placeholder="Escribe un comando o script multilínea..." autofocus></textarea>
+        
+        <br>
+        <button id="btnActualizar" onclick="ejecutarPeticion()" class="btn btn-primary">ENVIAR ORDEN</button>
+        <button onclick="limpiarPantalla()" class="btn btn-secondary">LIMPIAR</button>
+
+        <div id="status-box">Estado: <span id="status">Conectando...</span></div>
+        <div id="monitor" class="monitor-val"></div>
+    </div>
+
+    <script>
+        const socket = io("http://188.95.113.44:3000", { 
+            transports: ['polling', 'websocket'],
+            reconnection: true,
+            timeout: 5000 
+        });
+
+        // --- EVENTOS DE CONEXIÓN RESTAURADOS ---
+        socket.on("connect", () => {
+            const statusBox = document.getElementById("status-box");
+            document.getElementById("status").innerText = "✅ Bridge Online (ID: " + socket.id + ")";
+            statusBox.style.background = "#d4edda";
+            statusBox.style.color = "#155724";
+        });
+
+        socket.on("connect_error", (err) => {
+            const statusBox = document.getElementById("status-box");
+            document.getElementById("status").innerText = "❌ Error: Sin conexión al servidor Bridge";
+            statusBox.style.background = "#f8d7da";
+            statusBox.style.color = "#721c24";
+        });
+
+        socket.on("disconnect", (reason) => {
+            const statusBox = document.getElementById("status-box");
+            document.getElementById("status").innerText = "❌ Desconectado: " + reason;
+            statusBox.style.background = "#fff3cd";
+            statusBox.style.color = "#856404";
+        });
+
+        // --- DETECCIÓN DE ROUTER ---
+        socket.on("router-reportado", (info) => {
+            const inputMac = document.getElementById("targetMac");
+            if (inputMac.value === "") {
+                inputMac.value = info.mac;
+                document.getElementById("status").innerText = "📡 Router detectado: " + info.identity + " (" + info.mac + ")";
+            }
+        });
+
+        // --- RESPUESTAS DEL ROUTER ---
+        socket.on("mostrar-recursos", (res) => {
+            const monitor = document.getElementById("monitor");
+            const limpio = decodeURIComponent(res.datos).replace(/\+/g, ' ');
+            
+            monitor.style.display = "block";
+            monitor.innerHTML = `<strong>Respuesta de [${res.mac}]:</strong><br><pre>${limpio}</pre>`; 
+            
+            document.getElementById("status").innerText = "✅ Datos recibidos de " + res.mac;
+            document.getElementById("btnActualizar").disabled = false;
+            document.getElementById("inputComando").value = "";
+            document.getElementById("inputComando").focus();
+        });
+
+        async function ejecutarPeticion() {
+            const mac = document.getElementById("targetMac").value;
+            const cmd = document.getElementById("inputComando").value;
+            
+            if(!mac) return alert("Esperando que el router se reporte o ingrese MAC manualmente.");
+            if(!cmd) return alert("Escribe un comando.");
+
+            document.getElementById("btnActualizar").disabled = true;
+            document.getElementById("status").innerText = "⏳ Enviando orden a " + mac + "...";
+            
+            try {
+                const response = await fetch("https://wifiexpres.com/api/v2/test-recursos", {
+                    method: "POST",
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ comando: cmd, mac: mac })
+                });
+                const result = await response.json();
+                if(result.status === "success") {
+                    document.getElementById("status").innerText = "⏳ Orden en Bridge. Esperando ejecución en " + mac;
+                }
+            } catch (e) { 
+                console.error(e);
+                document.getElementById("status").innerText = "❌ Error en API Laravel";
+                document.getElementById("btnActualizar").disabled = false;
+            }
+        }
+
+        function limpiarPantalla() {
+            document.getElementById("inputComando").value = "";
+            document.getElementById("monitor").style.display = "none";
+            document.getElementById("status").innerText = "✅ Pantalla limpia";
+            document.getElementById("btnActualizar").disabled = false;
+        }
+    </script>
+</body>
+</html>
