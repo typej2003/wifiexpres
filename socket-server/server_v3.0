@@ -1,4 +1,4 @@
-// Bridge Server v3.1 (Fixed Blade Error & Tolerance)
+// Bridge Server v3.1 (Fixed for Laravel Auditor)
 const express = require('express');
 const app = express();
 
@@ -18,7 +18,7 @@ const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 setInterval(() => {
     const ahora = Date.now();
 
-    // 1. Limpieza de Comandos en Tránsito (TIMEOUT)
+    // 1. Limpieza de Comandos en Tránsito (TIMEOUT 55s)
     Object.keys(comandosEnTransito).forEach(tid => {
         const item = comandosEnTransito[tid];
         if (ahora - item.timestampInicio > 55000) {
@@ -28,7 +28,7 @@ setInterval(() => {
         }
 
         if (ahora - item.timestampUltimoEnvio > 10000) { 
-            log(`⚠️ REINTENTO: [${item.mac}] TID: ${tid}.`);
+            log(`⚠️ REINTENTO: [${item.mac}] TID: ${tid}. Reencolando...`);
             item.timestampUltimoEnvio = ahora;
             if (!colasPorRouter[item.mac]) colasPorRouter[item.mac] = [];
             
@@ -43,17 +43,17 @@ setInterval(() => {
         }
     });
 
-    // 2. Limpieza de Buzón
+    // 2. Limpieza de Buzón de Resultados (5 min)
     Object.keys(buzonResultados).forEach(llave => {
         if (ahora - buzonResultados[llave].timestamp > 300000) { 
             delete buzonResultados[llave];
         }
     });
 
-    // 3. Limpieza de Routers Offline (Tolerancia aumentada a 5 min para evitar desconexiones falsas)
+    // 3. Limpieza de Routers Offline (Tolerancia aumentada a 5 min)
     Object.keys(routersEnLinea).forEach(mac => {
         if (ahora - routersEnLinea[mac].lastSeen > 300000) { 
-            log(`💀 OFFLINE: [${mac}]`);
+            log(`💀 OFFLINE: Limpiando [${mac}]`);
             delete routersEnLinea[mac];
             delete colasPorRouter[mac];
             delete comandosLargos[mac];
@@ -148,46 +148,36 @@ app.all('/post-result', (req, res) => {
     }
 });
 
-app.get('/api/check-task-result', (req, res) => {
-    const { mac, tid } = req.query;
-    const llave = `${mac?.toUpperCase()}_${tid}`;
-    const r = buzonResultados[llave];
-    if (r) {
-        delete buzonResultados[llave]; 
-        res.json({ status: 'ready', data: r.data });
-    } else {
-        res.json({ status: 'waiting' });
-    }
-});
-
 app.get('/api/routers-online', (req, res) => {
     try {
         const ahora = Date.now();
-        const MARGEN_ONLINE = 60000;
+        const lista = Object.keys(routersEnLinea).map(mac => {
+            const macKey = mac.toUpperCase();
+            const comandos = (colasPorRouter[macKey] || []);
+            const enTransito = Object.values(comandosEnTransito).filter(i => i.mac === macKey);
+            const resultados = Object.keys(buzonResultados)
+                .filter(llave => llave.startsWith(`${macKey}_`))
+                .map(llave => ({
+                    tid: llave.split('_')[1],
+                    data: buzonResultados[llave].data
+                }));
 
-        const lista = Object.keys(routersEnLinea)
-            .filter(mac => (ahora - routersEnLinea[mac].lastSeen) < MARGEN_ONLINE)
-            .map(mac => {
-                const macKey = mac.toUpperCase();
-                const comandos = (colasPorRouter[macKey] || []);
-                const enTransito = Object.values(comandosEnTransito).filter(i => i.mac === macKey);
-
-                return {
-                    mac: macKey,
-                    identity: routersEnLinea[macKey].identity,
-                    ip: routersEnLinea[macKey].ip,
-                    lastSeen: Math.round((ahora - routersEnLinea[macKey].lastSeen) / 1000) + 's ago',
-                    queueSize: comandos.length,
-                    transitSize: enTransito.length,
-                    // CORRECCIÓN AQUÍ: Enviamos el cmd para evitar el error de Blade
-                    comandosDetalle: comandos.map(c => ({ tid: c.tid, cmd: c.cmd })),
-                    transitoDetalle: enTransito.map(i => ({ 
-                        tid: i.tid, 
-                        cmd: i.cmd, // <--- CAMPO CRÍTICO PARA EL AUDITOR
-                        age: Math.round((ahora - i.timestampInicio) / 1000) + 's' 
-                    }))
-                };
-            });
+            return {
+                mac: macKey,
+                identity: routersEnLinea[macKey].identity,
+                ip: routersEnLinea[macKey].ip,
+                lastSeen: Math.round((ahora - routersEnLinea[macKey].lastSeen) / 1000) + 's ago',
+                queueSize: comandos.length,
+                transitSize: enTransito.length,
+                comandosDetalle: comandos.map(c => ({ tid: c.tid, cmd: c.cmd })),
+                transitoDetalle: enTransito.map(i => ({ 
+                    tid: i.tid, 
+                    cmd: i.cmd, 
+                    age: Math.round((ahora - i.timestampInicio) / 1000) + 's' 
+                })),
+                resultadosDetalle: resultados
+            };
+        });
         res.json(lista);
     } catch (e) {
         res.status(500).json([]);

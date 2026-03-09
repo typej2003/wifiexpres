@@ -12,11 +12,10 @@
             <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
                     <i class="bi bi-cpu-fill text-info me-2"></i> 
-                    Monitor de Tráfico en Tiempo Real (Bridge v2.5)
+                    Monitor de Tráfico en Tiempo Real (Bridge v3.1)
                 </h5>
                 <div>
-                    <span class="badge bg-primary me-2">Reintento: 60s</span>
-                    {{-- FIX: Se agregó wire:click para que el botón funcione --}}
+                    <span class="badge bg-primary me-2">Tolerancia: 5m</span>
                     <button wire:click="refreshData" class="btn btn-sm btn-outline-light">
                         <i class="bi bi-arrow-clockwise"></i>
                     </button>
@@ -35,9 +34,9 @@
                         <thead class="table-dark small text-center text-uppercase">
                             <tr>
                                 <th style="width: 18%;">Router / Acciones</th>
-                                <th style="width: 27%;" class="bg-warning text-dark border-warning">📥 1. Salida (Pendientes)</th>
-                                <th style="width: 28%;" class="bg-info text-dark border-info">🚀 2. En Tránsito (Enviado)</th>
-                                <th style="width: 27%;" class="bg-success text-white border-success">📤 3. Entrada (Confirmado)</th>
+                                <th style="width: 27%;" class="bg-warning text-dark border-warning">📥 1. Salida (En Cola)</th>
+                                <th style="width: 28%;" class="bg-info text-dark border-info">🚀 2. En Tránsito (MikroTik)</th>
+                                <th style="width: 27%;" class="bg-success text-white border-success">📤 3. Entrada (Resultados)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -57,8 +56,9 @@
                                                 <i class="bi bi-play-fill"></i> Test Script
                                             </button>
 
-                                            <div class="mt-2 pt-2 border-top small text-muted">
-                                                IP: {{ $router['ip'] ?? 'N/A' }}
+                                            <div class="mt-2 pt-2 border-top small text-muted" style="font-size: 0.65rem;">
+                                                IP: {{ $router['ip'] ?? 'N/A' }}<br>
+                                                Visto: {{ $router['lastSeen'] ?? '?' }}
                                             </div>
                                         </div>
                                     </td>
@@ -66,13 +66,13 @@
                                     {{-- COLUMNA 1: PENDIENTES --}}
                                     <td class="p-0 align-top">
                                         <div style="max-height: 350px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.7rem;">
-                                            @forelse($router['comandosDetalle'] ?? [] as $index => $cmd)
+                                            @forelse($router['comandosDetalle'] ?? [] as $index => $item)
                                                 <div class="list-group-item list-group-item-warning border-bottom p-2">
                                                     <span class="badge bg-dark me-1">{{ $index + 1 }}</span> 
-                                                    {{ Str::limit($cmd, 120) }}
+                                                    {{ Str::limit(is_array($item) ? ($item['cmd'] ?? 'N/A') : $item, 100) }}
                                                 </div>
                                             @empty
-                                                <div class="p-4 text-center text-muted small italic opacity-50">Vacío</div>
+                                                <div class="p-4 text-center text-muted small italic opacity-50">Cola vacía</div>
                                             @endforelse
                                         </div>
                                     </td>
@@ -83,36 +83,34 @@
                                             @forelse($router['transitoDetalle'] ?? [] as $item)
                                                 <div class="list-group-item list-group-item-info border-bottom p-2 shadow-sm">
                                                     <div class="d-flex justify-content-between align-items-center mb-1">
-                                                        <span class="badge bg-primary">TID: {{ $item['tid'] }}</span>
-                                                        <span class="text-primary fw-bold"><i class="bi bi-stopwatch"></i> {{ $item['age'] }}</span>
+                                                        <span class="badge bg-primary">TID: {{ $item['tid'] ?? 'N/A' }}</span>
+                                                        <span class="text-primary fw-bold"><i class="bi bi-stopwatch"></i> {{ $item['age'] ?? '0s' }}</span>
                                                     </div>
-                                                    <div class="text-muted small" style="line-height: 1;">{{ Str::limit($item['cmd'], 80) }}</div>
+                                                    <div class="text-muted small" style="line-height: 1.2;">
+                                                        {{ Str::limit(is_array($item) ? ($item['cmd'] ?? '...') : $item, 80) }}
+                                                    </div>
                                                 </div>
                                             @empty
-                                                <div class="p-4 text-center text-muted small italic opacity-50">Esperando...</div>
+                                                <div class="p-4 text-center text-muted small italic opacity-50">Esperando petición del router...</div>
                                             @endforelse
                                         </div>
                                     </td>
 
-                                    {{-- COLUMNA 3: RESULTADOS (Limitado a los últimos 5) --}}
+                                    {{-- COLUMNA 3: RESULTADOS --}}
                                     <td class="p-0 align-top">
                                         <div style="max-height: 350px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.7rem;">
-                                            {{-- Se usa array_reverse para mostrar el más nuevo arriba y array_slice para limitar a 5 --}}
-                                            @php 
-                                                $resultados = $router['resultadosDetalle'] ?? [];
-                                                $ultimosResultados = array_slice(array_reverse($resultados), 0, 5);
-                                            @endphp
-
-                                            @forelse($ultimosResultados as $res)
+                                            @forelse(array_slice(array_reverse($router['resultadosDetalle'] ?? []), 0, 5) as $res)
                                                 <div class="list-group-item list-group-item-success border-bottom p-2">
                                                     <div class="d-flex justify-content-between">
-                                                        <b class="text-success">TID: {{ $res['tid'] }}</b>
+                                                        <b class="text-success">TID: {{ $res['tid'] ?? 'N/A' }}</b>
                                                         <i class="bi bi-check-all text-success"></i>
                                                     </div>
-                                                    <div class="text-dark bg-white p-1 mt-1 border rounded">{{ $res['data'] }}</div>
+                                                    <div class="text-dark bg-white p-1 mt-1 border rounded" style="word-break: break-all;">
+                                                        {{ $res['data'] ?? 'Sin respuesta' }}
+                                                    </div>
                                                 </div>
                                             @empty
-                                                <div class="p-4 text-center text-muted small italic opacity-50">Sin datos</div>
+                                                <div class="p-4 text-center text-muted small italic opacity-50">Sin resultados recientes</div>
                                             @endforelse
                                         </div>
                                     </td>
@@ -121,7 +119,7 @@
                                 <tr>
                                     <td colspan="4" class="text-center py-5">
                                         <div class="spinner-border text-primary mb-2" role="status"></div>
-                                        <p class="mb-0 text-muted">Buscando Routers activos en el puerto 3000...</p>
+                                        <p class="mb-0 text-muted">Buscando Routers activos...</p>
                                     </td>
                                 </tr>
                             @endforelse
@@ -131,11 +129,8 @@
             </div>
             
             <div class="card-footer bg-light d-flex justify-content-between align-items-center py-3">
-                <div class="small">
-                    <strong>Estados:</strong> 
-                    <span class="ms-2"><i class="bi bi-circle-fill text-warning"></i> En Cola</span>
-                    <span class="ms-2"><i class="bi bi-circle-fill text-info"></i> En MikroTik</span>
-                    <span class="ms-2"><i class="bi bi-circle-fill text-success"></i> Confirmado (Top 5)</span>
+                <div class="small text-muted">
+                    <i class="bi bi-info-circle me-1"></i> Los comandos en tránsito se reintentan cada 10s si el MikroTik no confirma.
                 </div>
                 <div class="text-muted small fw-bold">
                     <i class="bi bi-clock me-1"></i> Sync: {{ now()->format('H:i:s') }}
