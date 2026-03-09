@@ -7,20 +7,20 @@ app.use(express.json());
 // --- ESTADO GLOBAL ---
 let colasPorRouter = {};      
 let comandosEnTransito = {};  
-let buzonResultados = {};     // AHORA: { 'MAC_TID': { data, timestamp } }
+let buzonResultados = {};     
 let routersEnLinea = {};      
 
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 
-// --- LIMPIADOR Y REINTENTO ---
+// --- LIMPIADOR INTEGRAL (Cada 5 segundos) ---
 setInterval(() => {
     const ahora = Date.now();
 
-    // 1. Limpieza de Comandos en Tránsito (Lógica existente)
+    // 1. Limpieza de Comandos en Tránsito (TIMEOUT)
     Object.keys(comandosEnTransito).forEach(tid => {
         const item = comandosEnTransito[tid];
         if (ahora - item.timestampInicio > 55000) {
-            log(`🗑️ EXPIRADO (TIMEOUT): [${item.mac}] TID: ${tid}. Limpiando cola.`);
+            log(`🗑️ EXPIRADO (TIMEOUT): [${item.mac}] TID: ${tid}.`);
             delete comandosEnTransito[tid];
             return;
         }
@@ -29,20 +29,39 @@ setInterval(() => {
             log(`⚠️ REINTENTO (10s): [${item.mac}] TID: ${tid}. Reencolando...`);
             item.timestampUltimoEnvio = ahora;
             if (!colasPorRouter[item.mac]) colasPorRouter[item.mac] = [];
-            colasPorRouter[item.mac].unshift({ 
-                tid: item.tid, 
-                cmd: item.cmd, 
-                timestampInicio: item.timestampInicio 
-            });
+            
+            // Verificamos que los datos existan antes de reencolar
+            if(item.cmd) {
+                colasPorRouter[item.mac].unshift({ 
+                    tid: item.tid, 
+                    cmd: item.cmd, 
+                    timestampInicio: item.timestampInicio 
+                });
+            }
             delete comandosEnTransito[tid];
         }
     });
 
-    // 2. MEJORA: Limpieza de Buzón de Resultados (Max 5 minutos de vida)
+    // 2. Limpieza de Buzón de Resultados
     Object.keys(buzonResultados).forEach(llave => {
-        if (ahora - buzonResultados[llave].timestamp > 300000) { // 5 minutos
+        if (ahora - buzonResultados[llave].timestamp > 300000) { 
             log(`🧹 LIMPIEZA BUZÓN: Borrando resultado huérfano ${llave}`);
             delete buzonResultados[llave];
+        }
+    });
+
+    // 3. NUEVO: Limpieza de Routers Offline y sus Colas (Mantenimiento de RAM)
+    Object.keys(routersEnLinea).forEach(mac => {
+        // Si el router no ha hecho "check-task" en 2 minutos, lo consideramos muerto
+        if (ahora - routersEnLinea[mac].lastSeen > 120000) {
+            log(`💀 OFFLINE CRÍTICO: Limpiando rastro de [${mac}]`);
+            delete routersEnLinea[mac];
+            delete colasPorRouter[mac]; // <-- IMPORTANTE: Borra la cola acumulada
+            
+            // Borramos también sus comandos en tránsito específicos
+            Object.keys(comandosEnTransito).forEach(tid => {
+                if (comandosEnTransito[tid].mac === mac) delete comandosEnTransito[tid];
+            });
         }
     });
 
@@ -71,7 +90,12 @@ app.get('/check-task', (req, res) => {
     if (!mac) return res.send("WAIT");
     const macKey = mac.toUpperCase();
     
-    routersEnLinea[macKey] = { identity, lastSeen: Date.now(), ip: req.ip.replace('::ffff:', '') };
+    // REGISTRO DE ACTIVIDAD (Heartbeat)
+    routersEnLinea[macKey] = { 
+        identity, 
+        lastSeen: Date.now(), 
+        ip: req.ip.replace('::ffff:', '') 
+    };
 
     if (colasPorRouter[macKey] && colasPorRouter[macKey].length > 0) {
         const item = colasPorRouter[macKey].shift();
@@ -99,7 +123,6 @@ app.all('/post-result', (req, res) => {
     if (mac && tid && data) {
         log(`📩 RESULTADO [${mac}] TID: ${tid}`);
         delete comandosEnTransito[tid];
-        // MEJORA: Guardamos con timestamp
         buzonResultados[`${mac}_${tid}`] = {
             data: data,
             timestamp: Date.now()
@@ -117,7 +140,7 @@ app.get('/api/check-task-result', (req, res) => {
 
     if (r) {
         delete buzonResultados[llave]; 
-        res.json({ status: 'ready', data: r.data }); // Extraemos .data
+        res.json({ status: 'ready', data: r.data });
     } else {
         res.json({ status: 'waiting' });
     }
@@ -125,39 +148,31 @@ app.get('/api/check-task-result', (req, res) => {
 
 app.get('/api/routers-online', (req, res) => {
     try {
-        const lista = Object.keys(routersEnLinea).map(mac => {
-            const macKey = mac.toUpperCase();
-            const comandos = (colasPorRouter[macKey] || []).map(c => c.cmd);
-            const enTransito = Object.values(comandosEnTransito)
-                .filter(item => item.mac === macKey)
-                .map(item => ({
-                    tid: item.tid,
-                    cmd: item.cmd,
-                    age: Math.round((Date.now() - item.timestampInicio) / 1000) + 's'
-                }));
+        const ahora = Date.now();
+        const MARGEN_ONLINE = 45000; // 45 segundos
 
-            const resultados = Object.keys(buzonResultados)
-                .filter(key => key.startsWith(macKey + "_"))
-                .map(key => ({
-                    tid: key.split('_')[1],
-                    data: String(buzonResultados[key].data).substring(0, 50) // Extraemos .data
-                }));
+        const lista = Object.keys(routersEnLinea)
+            .filter(mac => (ahora - routersEnLinea[mac].lastSeen) < MARGEN_ONLINE)
+            .map(mac => {
+                const macKey = mac.toUpperCase();
+                const comandos = (colasPorRouter[macKey] || []);
+                const enTransito = Object.values(comandosEnTransito).filter(i => i.mac === macKey);
 
-            return {
-                mac: macKey,
-                identity: routersEnLinea[macKey].identity,
-                ip: routersEnLinea[macKey].ip,
-                queueSize: comandos.length,
-                transitSize: enTransito.length,
-                comandosDetalle: comandos,
-                transitoDetalle: enTransito,
-                resultadosDetalle: resultados
-            };
-        });
+                return {
+                    mac: macKey,
+                    identity: routersEnLinea[macKey].identity,
+                    ip: routersEnLinea[macKey].ip,
+                    lastSeen: Math.round((ahora - routersEnLinea[macKey].lastSeen) / 1000) + 's ago',
+                    queueSize: comandos.length,
+                    transitSize: enTransito.length,
+                    comandosDetalle: comandos.map(c => c.cmd),
+                    transitoDetalle: enTransito.map(i => ({ tid: i.tid, age: Math.round((ahora - i.timestampInicio) / 1000) + 's' }))
+                };
+            });
         res.json(lista);
     } catch (e) {
         res.status(500).json([]);
     }
 });
 
-app.listen(3000, '0.0.0.0', () => log(`🚀 BRIDGE v2.8 (CLEAN BUZON) ONLINE`));
+app.listen(3000, '0.0.0.0', () => log(`🚀 BRIDGE v2.9 (COLAS LIMPIAS) ONLINE`));
