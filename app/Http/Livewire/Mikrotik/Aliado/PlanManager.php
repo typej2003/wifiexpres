@@ -190,27 +190,27 @@ class PlanManager extends Component
      * SOLICITAR IDENTIDAD (PRUEBA DE CONEXIÓN)
      */
     public function solicitarIdentity()
-    {
-        $macActual = strtoupper($this->router->macAddress);
-        $tid = "IDN" . time();
+{
+    $macActual = strtoupper($this->router->macAddress);
+    $tid = "IDN" . time();
 
-        // Cambiamos el comando para que sea más robusto en MikroTik
-        // Usamos /tool fetch enviando el dato en el body correctamente
-        $comando = ":local sname [/system identity get name]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"\$sname\" keep-result=no;";
+    // Cambiamos el comando para que sea más robusto en MikroTik
+    // Usamos /tool fetch enviando el dato en el body correctamente
+    $comando = ":local sname [/system identity get name]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"\$sname\" keep-result=no;";
 
-        try {
-            $this->emitirAlSocket($comando, $macActual, $tid);
-            $respuesta = $this->esperarRespuesta($macActual, $tid);
+    try {
+        $this->emitirAlSocket($comando, $macActual, $tid);
+        $respuesta = $this->esperarRespuesta($macActual, $tid);
 
-            if ($respuesta) {
-                session()->flash('message', "Respuesta del Router: " . $respuesta);
-            } else {
-                session()->flash('error', "El Router no respondió. Verifique si el comando llegó al Bridge.");
-            }
-        } catch (\Exception $e) {
-            session()->flash('error', $e->getMessage());
+        if ($respuesta) {
+            session()->flash('message', "Respuesta del Router: " . $respuesta);
+        } else {
+            session()->flash('error', "El Router no respondió. Verifique si el comando llegó al Bridge.");
         }
+    } catch (\Exception $e) {
+        session()->flash('error', $e->getMessage());
     }
+}
 
     public function syncDatabase($depurar = false) 
     {
