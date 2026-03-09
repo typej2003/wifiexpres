@@ -1,0 +1,1 @@
+:foreach i in=[/ip hotspot user find profile="cortesialimitado"] do={ /ip hotspot user reset-counters $i }

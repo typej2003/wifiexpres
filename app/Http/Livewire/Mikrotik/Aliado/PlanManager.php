@@ -194,7 +194,9 @@ class PlanManager extends Component
         $macActual = strtoupper($this->router->macAddress);
         $tid = "IDN" . time();
 
-        $comando = ":local sysName [/system identity get name]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"\$sysName\" keep-result=no;";
+        // Cambiamos el comando para que sea más robusto en MikroTik
+        // Usamos /tool fetch enviando el dato en el body correctamente
+        $comando = ":local sname [/system identity get name]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"\$sname\" keep-result=no;";
 
         try {
             $this->emitirAlSocket($comando, $macActual, $tid);
@@ -203,7 +205,7 @@ class PlanManager extends Component
             if ($respuesta) {
                 session()->flash('message', "Respuesta del Router: " . $respuesta);
             } else {
-                session()->flash('error', "El Router no respondió a la solicitud de identidad.");
+                session()->flash('error', "El Router no respondió. Verifique si el comando llegó al Bridge.");
             }
         } catch (\Exception $e) {
             session()->flash('error', $e->getMessage());
