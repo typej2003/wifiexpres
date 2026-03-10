@@ -74,94 +74,62 @@ class ConfigurarRemoto extends Component
         return null;
     }
 
-    public function ejecutarConfiguracion()
-    {
-        $this->validate(['router_id' => 'required']);
-        $this->logs = []; // Limpieza de logs al iniciar
-        
-        $router = Router::findOrFail($this->router_id);
-        $mac = strtoupper($router->macAddress);
-        $tid = "CONF" . time();
-
-        $this->isConfiguring = true;
-        $this->logs[] = "🚀 Iniciando Provisión en: " . ($router->identity ?? $mac);
-
-        $script = "
-            :local m \"$mac\"; :local t \"$tid\"; :local r \"REP:\";
-            :do { /user add name=\"soporte\" password=\"123\" group=full; :set r (\$r . \"User_OK,\") } on-error={ :set r (\$r . \"User_Exists/Err,\") };
-            :do { /interface bridge add name=bridge-lan; :set r (\$r . \"Bridge_OK,\") } on-error={ :set r (\$r . \"Bridge_Exists/Err,\") };
-            :do { 
-                :foreach i in=[/interface ethernet find where name!=\"ether1\"] do={
-                    :local en [/interface ethernet get \$i name];
-                    :do { /interface bridge port add bridge=bridge-lan interface=\$en } on-error={};
-                };
-                :set r (\$r . \"Ports_Attached,\");
-            } on-error={ :set r (\$r . \"Ports_Err,\") };
-            :do { /ip address add address=192.168.88.1/24 interface=bridge-lan; :set r (\$r . \"IP_OK,\") } on-error={ :set r (\$r . \"IP_Err,\") };
-            :do { /ip pool add name=dhcp_pool1 ranges=192.168.88.10-192.168.88.254; :set r (\$r . \"Pool_OK,\") } on-error={ :set r (\$r . \"Pool_Err,\") };
-            :do { /ip dhcp-server add address-pool=dhcp_pool1 disabled=no interface=bridge-lan name=dhcp-remoto; :set r (\$r . \"DHCP_OK,\") } on-error={ :set r (\$r . \"DHCP_Err,\") };
-            :do { /ip dhcp-server network add address=192.168.88.0/24 gateway=192.168.88.1 dns-server=8.8.8.8; :set r (\$r . \"Net_OK\") } on-error={ :set r (\$r . \"Net_Err\") };
-            /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$r keep-result=no;
-        ";
-
-        if ($this->emitirAlSocket($script, $mac, $tid)) {
-            $res = $this->esperarRespuesta($mac, $tid);
-            $this->procesarLogs($res, "REP:");
-        }
-        $this->isConfiguring = false;
-    }
-
     public function ejecutarResetSelectivo()
     {
         $this->validate(['router_id' => 'required']);
-        $this->logs = []; // Limpieza de logs al iniciar
-
+        $this->logs = []; // Limpiar logs antes de empezar
+        
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper($router->macAddress);
         $tid = "RESET" . time();
 
         $this->isConfiguring = true;
-        $this->logs[] = "⚠️ Ejecutando Limpieza Selectiva en: " . ($router->identity ?? $mac);
+        $this->logs[] = "⚠️ Iniciando limpieza de Bridges en: " . ($router->identity ?? $mac);
 
+        // Script ultra simplificado: Borra Puertos, luego Bridges
         $script = "
             :local m \"$mac\"; :local t \"$tid\"; :local r \"RES:\";
-            :do { /ip hotspot user remove [find]; /ip hotspot remove [find]; /ip hotspot server profile remove [find where name!=\"default\"]; :set r (\$r . \"Hotspot_Del,\") } on-error={ :set r (\$r . \"Hotspot_Skip,\") };
-            :do { /ip hotspot walled-garden remove [find]; /ip hotspot walled-garden ip remove [find]; /ip hotspot ip-binding remove [find]; :set r (\$r . \"Walled_Del,\") } on-error={ :set r (\$r . \"Walled_Skip,\") };
-            :do { /ip dhcp-server remove [find]; /ip dhcp-server network remove [find]; /ip pool remove [find]; :set r (\$r . \"DHCP_Pool_Del,\") } on-error={ :set r (\$r . \"DHCP_Skip,\") };
-            :do { /interface bridge port remove [find]; /interface bridge remove [find]; :set r (\$r . \"Bridges_Del,\") } on-error={ :set r (\$r . \"Bridges_Skip,\") };
-            :do { /ip address remove [find where interface!=\"ether1\"]; :set r (\$r . \"IPs_Del,\") } on-error={ :set r (\$r . \"IPs_Skip,\") };
-            :do { /ip firewall nat remove [find where out-interface!=\"ether1\"]; :set r (\$r . \"NAT_Del,\") } on-error={ :set r (\$r . \"NAT_Skip,\") };
-            :do { /queue simple remove [find]; :set r (\$r . \"Queues_Del,\") } on-error={ :set r (\$r . \"Queues_Skip,\") };
-            :do { /user remove [find name!=\"jose\" and name!=\"admin\"]; :set r (\$r . \"Users_Clean\") } on-error={ :set r (\$r . \"Users_Err\") };
+            
+            # 1. Borrar Puertos
+            :do { 
+                /interface bridge port remove [find]; 
+                :set r (\$r . \"Puertos_Eliminados,\") 
+            } on-error={ :set r (\$r . \"Error_Puertos,\") };
+
+            # 2. Borrar Bridges
+            :do { 
+                /interface bridge remove [find]; 
+                :set r (\$r . \"Bridges_Eliminados\") 
+            } on-error={ :set r (\$r . \"Error_Bridges\") };
+
             /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$r keep-result=no;
         ";
 
         if ($this->emitirAlSocket($script, $mac, $tid)) {
+            $this->logs[] = "📡 Comando enviado. Esperando confirmación...";
             $res = $this->esperarRespuesta($mac, $tid);
-            $this->procesarLogs($res, "RES:");
-        }
-        $this->isConfiguring = false;
-    }
-
-    private function procesarLogs($resultado, $prefix)
-    {
-        if ($resultado) {
-            $limpio = str_replace($prefix, '', $resultado);
-            $pasos = explode(',', $limpio);
-            foreach ($pasos as $paso) {
-                $item = trim($paso);
-                if (empty($item)) continue;
-
-                if (str_contains($item, 'Err') || str_contains($item, 'Skip')) {
-                    $this->logs[] = "🔸 Info: $item";
-                } else {
-                    $this->logs[] = "🔹 Success: $item";
+            
+            if ($res) {
+                $limpio = str_replace("RES:", "", $res);
+                $pasos = explode(',', $limpio);
+                foreach ($pasos as $paso) {
+                    $item = trim($paso);
+                    if (empty($item)) continue;
+                    
+                    if (str_contains($item, 'Error')) {
+                        $this->logs[] = "🔸 Info: $item";
+                    } else {
+                        $this->logs[] = "🔹 Success: $item";
+                    }
                 }
+            } else {
+                $this->logs[] = "❌ Error: Timeout (El router no respondió).";
             }
-            $this->logs[] = "🏁 Operación finalizada.";
         } else {
-            $this->logs[] = "❌ Error: Sin respuesta del equipo (Timeout).";
+            $this->logs[] = "❌ Error: No se pudo conectar con el Bridge.";
         }
+
+        $this->isConfiguring = false;
     }
 
     public function render()
@@ -172,7 +140,7 @@ class ConfigurarRemoto extends Component
 
         return view('livewire.mikrotik.herramientas.configurar-remoto', [
             'routers' => $query->get(),
-            'aliados' => $aliados,
+            'aliados' => $aliados
         ]);
     }
 }
