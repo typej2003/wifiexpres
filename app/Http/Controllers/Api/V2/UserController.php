@@ -178,45 +178,64 @@ class UserController extends Controller
             $identity = $request->input('identity'); 
             $mac = $this->getMacByIdentity($identity);
 
-            if (!$mac) return response()->json(['success' => false, 'message' => 'Router no identificado'], 404);
-
-            $tid = "PRE" . time();
-
-            /**
-             * COMANDO UNIFICADO (Más eficiente para el Bridge v3.5)
-             * Intentamos buscar al usuario. 
-             * - Si existe: Lo actualizamos.
-             * - Si no existe: Lo creamos.
-             * Luego enviamos una ÚNICA respuesta al Bridge.
-             */
-            $cmd = ":do { " .
-                ":local userExist [/ip hotspot user find name=\"$username\"]; " .
-                ":if ([:len \$userExist] > 0) do={ " .
-                "/ip hotspot user set \$userExist password=\"$password\" profile=\"neutro\" limit-uptime=0s; " .
-                "} else={ " .
-                "/ip hotspot user add name=\"$username\" password=\"$password\" profile=\"neutro\"; " .
-                "}; " .
-                "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no; " .
-                "} on-error={ " .
-                "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"ERROR\" keep-result=no; " .
-                "};";
-
-            // Enviamos al socket (esto limpia espacios extra gracias a tu función emitirAlSocket)
-            $enviado = $this->emitirAlSocket($cmd, $mac, $tid);
-
-            if (!$enviado) {
-                return response()->json(['success' => false, 'message' => 'Bridge fuera de línea']);
+            if (!$mac) {
+                return response()->json(['success' => false, 'message' => 'Router no identificado'], 404);
             }
 
-            // Esperamos la confirmación (esperarConfirmacion ya hace el bucle de 60s)
-            if ($this->esperarConfirmacion($mac, $tid)) {
+            // --- PASO 1: VERIFICAR SI EL USUARIO EXISTE ---
+            $tidCheck = "CHK" . time();
+            $cmdCheck = ":local id [/ip hotspot user find name=\"$username\"]; " .
+                        ":if ([:len \$id]>0) do={ " .
+                        "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidCheck\" http-method=post http-data=\"EXISTE\" keep-result=no; " .
+                        "} else={ " .
+                        "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidCheck\" http-method=post http-data=\"NO_EXISTE\" keep-result=no; " .
+                        "}";
+
+            $this->emitirAlSocket($cmdCheck, $mac, $tidCheck);
+
+            $existe = false;
+            // Espera de hasta 60 segundos para el chequeo
+            for ($i = 0; $i < 60; $i++) {
+                sleep(1);
+                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tidCheck]);
+                if ($res->successful() && $res->json('status') === 'ready') { 
+                    $existe = (trim($res->json('data')) === 'EXISTE'); 
+                    break; 
+                }
+            }
+
+            // --- PASO 2: EJECUTAR ACCIÓN SEGÚN EL RESULTADO ---
+            $tidFinal = "PRE" . time();
+            
+            if ($existe) {
+                // Si existe, actualizamos password y perfil
+                $cmdFinal = ":do { " .
+                            "/ip hotspot user set [find name=\"$username\"] password=\"$password\" profile=\"neutro\" limit-uptime=0s; " .
+                            "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidFinal\" http-method=post http-data=\"OK\" keep-result=no; " .
+                            "} on-error={ " .
+                            "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidFinal\" http-method=post http-data=\"ERROR\" keep-result=no; " .
+                            "}";
+            } else {
+                // Si no existe, lo creamos
+                $cmdFinal = ":do { " .
+                            "/ip hotspot user add name=\"$username\" password=\"$password\" profile=\"neutro\"; " .
+                            "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidFinal\" http-method=post http-data=\"OK\" keep-result=no; " .
+                            "} on-error={ " .
+                            "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidFinal\" http-method=post http-data=\"ERROR\" keep-result=no; " .
+                            "}";
+            }
+
+            $this->emitirAlSocket($cmdFinal, $mac, $tidFinal);
+
+            // Espera de hasta otros 60 segundos para la confirmación final
+            if ($this->esperarConfirmacion($mac, $tidFinal)) {
                 return response()->json(['success' => true]);
             }
 
             return response()->json(['success' => false, 'message' => 'El router no respondió al pre-registro']);
 
         } catch (\Exception $e) { 
-            Log::error("Error en preAdd: " . $e->getMessage());
+            Log::error("Error en preAdd (Doble Paso): " . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Error interno'], 500); 
         }
     }
