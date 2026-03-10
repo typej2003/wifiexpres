@@ -205,6 +205,11 @@
                 <span class="menu-text">Monitor de usuarios</span>
             </a>
 
+            <a href="{{ route('mikrotik.remoto') }}" class="sidebar-link {{ request()->routeIs('mikrotik.remoto') ? 'active' : '' }}">
+                <i class="bi bi-terminal"></i> 
+                <span class="menu-text">Conf Remoto</span>
+            </a>
+
             <a href="{{ route('admin.diagnostico') }}" class="sidebar-link {{ request()->routeIs('admin.diagnostico') ? 'active' : '' }}">
                 <i class="bi bi-terminal"></i> 
                 <span class="menu-text">Diagnóstico</span>
