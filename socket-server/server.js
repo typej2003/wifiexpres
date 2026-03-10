@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 
+// Configuración de middlewares para capturar datos planos y JSON
 app.use(express.text({ type: '*/*', limit: '10mb' }));
 app.use(express.json());
 
@@ -9,7 +10,7 @@ let colasPorRouter = {};
 let comandosEnTransito = {};  
 let buzonResultados = {};    
 let routersEnLinea = {};      
-let comandosLargos = {}; // Almacén para comandos que van a disco
+let comandosLargos = {}; 
 
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 
@@ -24,6 +25,7 @@ setInterval(() => {
             delete comandosEnTransito[tid];
             return;
         }
+        // Re-encolar si no hubo respuesta en 10s
         if (ahora - item.timestampUltimoEnvio > 10000) {
             item.timestampUltimoEnvio = ahora;
             if (!colasPorRouter[item.mac]) colasPorRouter[item.mac] = [];
@@ -43,16 +45,13 @@ setInterval(() => {
         if (ahora - buzonResultados[llave].timestamp > 300000) delete buzonResultados[llave];
     });
 
-    // 3. RUTINA DE LIMPIEZA DE ROUTERS (2 minutos de espera)
+    // 3. Limpieza de Routers por inactividad (2 minutos)
     Object.keys(routersEnLinea).forEach(mac => {
         if (ahora - routersEnLinea[mac].lastSeen > 120000) {
             log(`💀 OFFLINE: Eliminando [${mac}] por inactividad.`);
             delete routersEnLinea[mac];
             delete colasPorRouter[mac];
             delete comandosLargos[mac];
-            Object.keys(comandosEnTransito).forEach(tid => {
-                if (comandosEnTransito[tid].mac === mac) delete comandosEnTransito[tid];
-            });
         }
     });
 }, 5000);
@@ -83,19 +82,17 @@ app.get('/check-task', (req, res) => {
             timestampInicio: item.timestampInicio, timestampUltimoEnvio: Date.now()
         };
 
-        // LÓGICA DE PROTECCIÓN DE DISCO
         if (item.cmd.length > 2500) {
             comandosLargos[macKey] = item.cmd;
-            res.send("FILE:task.txt"); // Indicamos al MikroTik que debe leer de archivo
+            res.send("FILE:task.txt");
         } else {
-            res.send(item.cmd); // Comando corto, va directo a RAM
+            res.send(item.cmd);
         }
     } else {
         res.send("WAIT");
     }
 });
 
-// Endpoint para descargar el comando pesado
 app.get('/get-long-task', (req, res) => {
     const mac = req.query.mac?.toUpperCase();
     if (mac && comandosLargos[mac]) {
@@ -107,23 +104,26 @@ app.get('/get-long-task', (req, res) => {
     }
 });
 
+/**
+ * ENDPOINT CRÍTICO: Recibe los resultados de MikroTik
+ * Corregido para detectar mac/tid en Query y Body simultáneamente
+ */
 app.all('/post-result', (req, res) => {
-    const mac = req.query.mac?.toUpperCase();
-    const tid = req.query.tid;
+    // Intenta obtener MAC y TID de la URL o del cuerpo (en caso de que venga como JSON/Form)
+    const mac = (req.query.mac || req.body?.mac)?.toUpperCase();
+    const tid = req.query.tid || req.body?.tid;
     
-    // LOG DE DEPURACIÓN
-    console.log(`[DEBUG] Recibido resultado de MAC: ${mac}, TID: ${tid}`);
-    console.log(`[DEBUG] Body Type: ${typeof req.body}, Body Length: ${req.body?.length}`);
-
+    // Captura el contenido: Si el body es texto plano, lo usa; si no, busca en query.data
     const data = (typeof req.body === 'string' && req.body.length > 0) ? req.body : req.query.data;
     
     if (mac && tid && data) {
         delete comandosEnTransito[tid];
         buzonResultados[`${mac}_${tid}`] = { data, timestamp: Date.now() };
-        console.log(`[DEBUG] Resultado guardado exitosamente.`);
+        log(`✅ RESULTADO OK: MAC:${mac} | TID:${tid} | Len:${data.length}`);
         res.send("OK");
     } else { 
-        console.log(`[DEBUG] ERROR: Faltan datos (mac:${!!mac}, tid:${!!tid}, data:${!!data})`);
+        // Log detallado para diagnosticar qué falta exactamente
+        log(`⚠️ RESULTADO INCOMPLETO: MAC:${mac || 'FALTA'}, TID:${tid || 'FALTA'}, DATA:${data ? 'PRESENTE' : 'FALTA'}`);
         res.send("ERROR"); 
     }
 });
@@ -132,30 +132,30 @@ app.get('/api/check-task-result', (req, res) => {
     const { mac, tid } = req.query;
     const llave = `${mac?.toUpperCase()}_${tid}`;
     const r = buzonResultados[llave];
-    if (r) { delete buzonResultados[llave]; res.json({ status: 'ready', data: r.data }); }
-    else { res.json({ status: 'waiting' }); }
+    if (r) { 
+        delete buzonResultados[llave]; 
+        res.json({ status: 'ready', data: r.data }); 
+    } else { 
+        res.json({ status: 'waiting' }); 
+    }
 });
 
 app.get('/api/routers-online', (req, res) => {
     try {
         const ahora = Date.now();
-        const lista = Object.keys(routersEnLinea)
-            .filter(mac => (ahora - routersEnLinea[mac].lastSeen) < 60000)
-            .map(mac => {
-                const macKey = mac.toUpperCase();
-                return {
-                    mac: macKey,
-                    identity: routersEnLinea[macKey].identity,
-                    ip: routersEnLinea[macKey].ip,
-                    lastSeen: Math.round((ahora - routersEnLinea[macKey].lastSeen) / 1000) + 's ago',
-                    queueSize: (colasPorRouter[macKey] || []).length,
-                    transitSize: Object.values(comandosEnTransito).filter(i => i.mac === macKey).length,
-                    comandosDetalle: (colasPorRouter[macKey] || []).map(c => c.cmd),
-                    transitoDetalle: Object.values(comandosEnTransito).filter(i => i.mac === macKey).map(i => ({ tid: i.tid, cmd: i.cmd, age: Math.round((ahora - i.timestampInicio) / 1000) + 's' }))
-                };
-            });
+        const lista = Object.keys(routersEnLinea).map(mac => {
+            const macKey = mac.toUpperCase();
+            return {
+                mac: macKey,
+                identity: routersEnLinea[macKey].identity,
+                ip: routersEnLinea[macKey].ip,
+                lastSeen: Math.round((ahora - routersEnLinea[macKey].lastSeen) / 1000) + 's ago',
+                queueSize: (colasPorRouter[macKey] || []).length,
+                transitCount: Object.values(comandosEnTransito).filter(i => i.mac === macKey).length
+            };
+        });
         res.json(lista);
     } catch (e) { res.status(500).json([]); }
 });
 
-app.listen(3000, '0.0.0.0', () => log(`🚀 BRIDGE v3.5 (DUAL-FLOW & AUTO-CLEAN) ONLINE`));
+app.listen(3000, '0.0.0.0', () => log(`🚀 BRIDGE v3.6 (HYBRID-PARSE) ONLINE`));
