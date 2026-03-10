@@ -172,81 +172,81 @@ class UserController extends Controller
     }
 
     public function preAdd(Request $request) {
-        try {
-            $username = $request->input('username');
-            $password = $request->input('password');
-            $identity = $request->input('identity'); 
-            $router = Router::where('identity', $identity)->first();
+    try {
+        $username = $request->input('username');
+        $password = $request->input('password');
+        $identity = $request->input('identity'); 
+        $router = Router::where('identity', $identity)->first();
 
-            if (!$router) return response()->json(['success' => false, 'message' => 'Router no identificado'], 404);
-            
-            $macRouter = strtoupper(trim($router->macAddress));
+        if (!$router) return response()->json(['success' => false, 'message' => 'Router no identificado'], 404);
+        
+        $macRouter = strtoupper(trim($router->macAddress));
 
-            // --- PASO 1: VERIFICAR SI EL USUARIO EXISTE ---
-            $tidCheck = "CHK" . time();
-            $cmdCheck = ":local id [/ip hotspot user find name=\"$username\"]; " .
-                        ":if ([:len \$id]>0) do={ " .
-                        "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macRouter&tid=$tidCheck\" http-method=post http-data=\"EXISTE\" keep-result=no; " .
-                        "} else={ " .
-                        "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macRouter&tid=$tidCheck\" http-method=post http-data=\"NO_EXISTE\" keep-result=no; " .
-                        "}";
+        // --- PASO 1: VERIFICAR SI EL USUARIO EXISTE ---
+        $tidCheck = "CHK" . time();
+        $cmdCheck = ":local id [/ip hotspot user find name=\"$username\"]; " .
+                    ":if ([:len \$id]>0) do={ " .
+                    "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macRouter&tid=$tidCheck\" http-method=post http-data=\"EXISTE\" keep-result=no; " .
+                    "} else={ " .
+                    "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macRouter&tid=$tidCheck\" http-method=post http-data=\"NO_EXISTE\" keep-result=no; " .
+                    "}";
 
-            // Enviamos con la estructura de headers que funciona
-            Http::withHeaders(['x-mac' => $macRouter, 'x-id' => $tidCheck])
-                ->withBody($cmdCheck, 'text/plain')
-                ->post("{$this->bridgeUrl}/set-command");
+        // Enviamos con la estructura de headers que funciona
+        Http::withHeaders(['x-mac' => $macRouter, 'x-id' => $tidCheck])
+            ->withBody($cmdCheck, 'text/plain')
+            ->post("{$this->bridgeUrl}/set-command");
 
-            $existe = false;
-            // Espera de hasta 60 segundos para el chequeo de existencia
-            for ($i = 0; $i < 60; $i++) {
-                sleep(1);
-                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $macRouter, 'tid' => $tidCheck]);
-                if ($res->successful() && $res->json('status') === 'ready') { 
-                    $existe = (trim($res->json('data')) === 'EXISTE'); 
-                    break; 
-                }
+        $existe = false;
+        // Espera de hasta 60 segundos para el chequeo de existencia
+        for ($i = 0; $i < 60; $i++) {
+            sleep(1);
+            $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $macRouter, 'tid' => $tidCheck]);
+            if ($res->successful() && $res->json('status') === 'ready') { 
+                $existe = (trim($res->json('data')) === 'EXISTE'); 
+                break; 
             }
-
-            // --- PASO 2: ACCIÓN FINAL (ADD o SET) ---
-            $tidFinal = "PRE" . time();
-            if ($existe) {
-                // Si existe, actualizamos a perfil neutro y reseteamos tiempo
-                $cmdFinal = ":do { /ip hotspot user set [find name=\"$username\"] password=\"$password\" profile=\"neutro\" limit-uptime=0s; " .
-                            "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macRouter&tid=$tidFinal\" http-method=post http-data=\"OK\" keep-result=no; " .
-                            "} on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macRouter&tid=$tidFinal\" http-method=post http-data=\"ERROR\" keep-result=no; }";
-            } else {
-                // Si no existe, creamos la cuenta nueva
-                $cmdFinal = ":do { /ip hotspot user add name=\"$username\" password=\"$password\" profile=\"neutro\"; " .
-                            "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macRouter&tid=$tidFinal\" http-method=post http-data=\"OK\" keep-result=no; " .
-                            "} on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macRouter&tid=$tidFinal\" http-method=post http-data=\"ERROR\" keep-result=no; }";
-            }
-
-            Http::withHeaders(['x-mac' => $macRouter, 'x-id' => $tidFinal])
-                ->withBody($cmdFinal, 'text/plain')
-                ->post("{$this->bridgeUrl}/set-command");
-
-            // Espera de hasta otros 60 segundos para la confirmación de la creación/update
-            $confirmado = false;
-            for ($i = 0; $i < 60; $i++) {
-                sleep(1);
-                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $macRouter, 'tid' => $tidFinal]);
-                if ($res->successful() && $res->json('status') === 'ready') {
-                    $confirmado = (trim($res->json('data')) === 'OK');
-                    break;
-                }
-            }
-
-            if ($confirmado) {
-                return response()->json(['success' => true])->header('Access-Control-Allow-Origin', '*');
-            }
-
-            return response()->json(['success' => false, 'message' => 'El Router no respondió al pre-registro.']);
-
-        } catch (\Exception $e) { 
-            Log::error("Error en preAdd: " . $e->getMessage());
-            return response()->json(['success' => false], 500); 
         }
+
+        // --- PASO 2: ACCIÓN FINAL (ADD o SET) ---
+        $tidFinal = "PRE" . time();
+        if ($existe) {
+            // Si existe, actualizamos a perfil neutro y reseteamos tiempo
+            $cmdFinal = ":do { /ip hotspot user set [find name=\"$username\"] password=\"$password\" profile=\"neutro\" limit-uptime=0s; " .
+                        "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macRouter&tid=$tidFinal\" http-method=post http-data=\"OK\" keep-result=no; " .
+                        "} on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macRouter&tid=$tidFinal\" http-method=post http-data=\"ERROR\" keep-result=no; }";
+        } else {
+            // Si no existe, creamos la cuenta nueva
+            $cmdFinal = ":do { /ip hotspot user add name=\"$username\" password=\"$password\" profile=\"neutro\"; " .
+                        "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macRouter&tid=$tidFinal\" http-method=post http-data=\"OK\" keep-result=no; " .
+                        "} on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macRouter&tid=$tidFinal\" http-method=post http-data=\"ERROR\" keep-result=no; }";
+        }
+
+        Http::withHeaders(['x-mac' => $macRouter, 'x-id' => $tidFinal])
+            ->withBody($cmdFinal, 'text/plain')
+            ->post("{$this->bridgeUrl}/set-command");
+
+        // Espera de hasta otros 60 segundos para la confirmación de la creación/update
+        $confirmado = false;
+        for ($i = 0; $i < 60; $i++) {
+            sleep(1);
+            $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $macRouter, 'tid' => $tidFinal]);
+            if ($res->successful() && $res->json('status') === 'ready') {
+                $confirmado = (trim($res->json('data')) === 'OK');
+                break;
+            }
+        }
+
+        if ($confirmado) {
+            return response()->json(['success' => true])->header('Access-Control-Allow-Origin', '*');
+        }
+
+        return response()->json(['success' => false, 'message' => 'El Router no respondió al pre-registro.']);
+
+    } catch (\Exception $e) { 
+        Log::error("Error en preAdd: " . $e->getMessage());
+        return response()->json(['success' => false], 500); 
     }
+}
 
     public function activate(Request $request) {
         try {
