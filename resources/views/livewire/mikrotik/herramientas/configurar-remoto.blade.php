@@ -1,51 +1,89 @@
-<div class="container py-4">
+<div class="container-fluid py-4">
     <div class="row justify-content-center">
-        <div class="col-md-8">
+        <div class="col-md-10 col-lg-8">
             <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
-                <div class="card-header bg-dark text-white p-4">
-                    <h5 class="mb-0 fw-bold"><i class="bi bi-gear-fill me-2"></i>CONFIGURACIÓN REMOTA (PROVISIÓN)</h5>
+                <div class="card-header bg-primary text-white p-4 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0 fw-bold text-uppercase tracking-wider">
+                            <i class="bi bi-terminal-fill me-2"></i>Provisionamiento Maestro
+                        </h5>
+                        <small class="opacity-75">Panel de Administración Global</small>
+                    </div>
+                    <button wire:click="refreshStatus" class="btn btn-sm btn-light rounded-pill px-3 fw-bold">
+                        <i class="bi bi-arrow-clockwise me-1"></i> ACTUALIZAR ESTADOS
+                    </button>
                 </div>
-                <div class="card-body p-4">
-                    <p class="text-muted small">Esta herramienta ejecutará un script base: Usuario soporte, Bridge LAN, IP Address y DHCP Server.</p>
-                    
-                    <div class="mb-4">
-                        <label class="form-label fw-bold small text-uppercase">Selecciona el Router Destino</label>
-                        <select wire:model="router_id" class="form-select form-select-lg rounded-3 shadow-sm border-primary">
-                            <option value="">-- Seleccionar Equipo --</option>
-                            @foreach($routers as $r)
-                                <option value="{{ $r->id }}">{{ $r->identity ?? 'MikroTik' }} ({{ $r->macAddress }})</option>
-                            @endforeach
-                        </select>
+                
+                <div class="card-body p-4 p-lg-5">
+                    <div class="row g-4 mb-4">
+                        {{-- FILTRO POR ALIADO --}}
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-muted">Filtrar por Aliado</label>
+                            <select wire:model="selectedAliado" wire:change="refreshStatus" class="form-select border-0 bg-light rounded-3 shadow-sm">
+                                <option value="">Todos los aliados</option>
+                                @foreach($aliados as $aliado)
+                                    <option value="{{ $aliado->id }}">{{ $aliado->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        {{-- SELECCIÓN DE ROUTER ACTIVO --}}
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-muted">Router Destino (Solo Online)</label>
+                            <select wire:model="router_id" class="form-select border-0 bg-light rounded-3 shadow-sm">
+                                <option value="">Seleccione un router...</option>
+                                @foreach($routers as $r)
+                                    @php $isOnline = $routerStatus[$r->id] ?? false; @endphp
+                                    <option value="{{ $r->id }}" {{ !$isOnline ? 'disabled' : '' }}>
+                                        {{ $isOnline ? '🟢' : '🔴' }} {{ $r->identity ?? 'MikroTik' }} - {{ $r->macAddress }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
                     </div>
 
-                    <div class="d-grid">
+                    <div class="alert alert-info border-0 rounded-4 shadow-sm mb-4">
+                        <div class="d-flex">
+                            <i class="bi bi-info-circle-fill fs-4 me-3"></i>
+                            <div>
+                                <h6 class="fw-bold mb-1">¿Qué se configurará?</h6>
+                                <ul class="small mb-0 opacity-85">
+                                    <li>Usuario: <strong>soporte</strong> / Clave: <strong>123</strong></li>
+                                    <li>Bridge LAN automático (Excluye ether1)</li>
+                                    <li>IP: 192.168.88.1/24 + DHCP Server Activo</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid mb-5">
                         <button 
                             wire:click="ejecutarConfiguracion" 
                             wire:loading.attr="disabled"
-                            @if(!$router_id) disabled @endif
-                            class="btn btn-primary btn-lg rounded-pill fw-bold shadow">
+                            @if(!$router_id || !($routerStatus[$router_id] ?? false)) disabled @endif
+                            class="btn btn-primary btn-lg rounded-pill fw-bold shadow-sm py-3">
                             <span wire:loading wire:target="ejecutarConfiguracion" class="spinner-border spinner-border-sm me-2"></span>
-                            <i class="bi bi-lightning-charge-fill"></i> EFECTUAR OPERACIÓN
+                            <i class="bi bi-rocket-takeoff-fill me-2"></i> LANZAR CONFIGURACIÓN MAESTRA
                         </button>
                     </div>
 
-                    <hr class="my-4">
-
-                    {{-- CONSOLA DE LOGS --}}
-                    <div class="bg-dark rounded-3 p-3 shadow-inner" style="min-height: 200px; max-height: 400px; overflow-y: auto;">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="badge bg-secondary">Consola de Salida</span>
-                            @if($isConfiguring) <span class="spinner-grow spinner-grow-sm text-warning"></span> @endif
+                    {{-- TERMINAL DE LOGS --}}
+                    <div class="terminal-box bg-dark rounded-4 p-4 shadow-inner" style="border: 1px solid #333;">
+                        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom border-secondary pb-2">
+                            <span class="text-secondary small fw-bold"><i class="bi bi-cpu me-1"></i> OUTPUT LOGS</span>
+                            <span class="badge {{ $isConfiguring ? 'bg-warning text-dark' : 'bg-success' }} rounded-pill">
+                                {{ $isConfiguring ? 'PROCESANDO...' : 'SISTEMA READY' }}
+                            </span>
                         </div>
-                        <div class="text-monospace">
-                            @foreach($logs as $log)
-                                <div class="text-light small mb-1 border-bottom border-secondary pb-1">
-                                    <span class="text-success fw-bold">>>></span> {{ $log }}
+                        <div class="console-text" style="height: 250px; overflow-y: auto; font-family: 'Courier New', Courier, monospace;">
+                            @forelse($logs as $log)
+                                <div class="mb-2">
+                                    <span class="text-primary fw-bold">root@wifi:~$</span> 
+                                    <span class="text-light ms-2">{{ $log }}</span>
                                 </div>
-                            @endforeach
-                            @if(empty($logs))
-                                <div class="text-muted small italic">Esperando interacción...</div>
-                            @endif
+                            @empty
+                                <div class="text-secondary small italic text-center mt-5">Ninguna operación iniciada.</div>
+                            @endforelse
                         </div>
                     </div>
                 </div>
@@ -53,3 +91,10 @@
         </div>
     </div>
 </div>
+
+<style>
+    .terminal-box { background-color: #0c0c0c !important; }
+    .console-text::-webkit-scrollbar { width: 6px; }
+    .console-text::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+    .bg-success-soft { background-color: rgba(25, 135, 84, 0.1); }
+</style>
