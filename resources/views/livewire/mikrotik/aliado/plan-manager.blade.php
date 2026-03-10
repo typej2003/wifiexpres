@@ -65,9 +65,10 @@
                     <tr wire:loading.class="opacity-50" wire:target="store">
                         <td class="px-4 fw-bold text-dark">{{ $p->name }}</td>
                         <td class="small text-muted">
-                            Session: {{ $p->session_timeout }} | 
-                            Idle: {{ $p->idle_timeout ?? 'none' }} | 
-                            Refresh: {{ $p->status_autorefresh ?? '00:01:00' }}
+                            S: {{ $p->session_timeout }} | 
+                            I: {{ $p->idle_timeout }} | 
+                            R: {{ $p->status_autorefresh }} |
+                            Cookie: @if($p->add_mac_cookie) <span class="text-success fw-bold">SI ({{ $p->mac_cookie_timeout }})</span> @else <span class="text-danger">NO</span> @endif
                         </td>
                         <td class="fw-bold text-success">{{ number_format((float)$p->price, 0) }} Bs</td>
                         <td class="px-4 text-end">
@@ -121,14 +122,28 @@
                             <input type="text" wire:model.defer="idle_timeout" class="form-control rounded-3 shadow-sm">
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label small fw-bold">Status Autorefresh</label>
-                            <input type="text" wire:model.defer="status_autorefresh" class="form-control rounded-3 shadow-sm">
+                            <label class="form-label small fw-bold text-primary">Status Autorefresh</label>
+                            <input type="text" wire:model.defer="status_autorefresh" class="form-control rounded-3 shadow-sm border-primary">
                         </div>
-                        <div class="col-md-6">
+                        
+                        {{-- SECCIÓN MAC COOKIES --}}
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-success">¿Add MAC Cookie?</label>
+                            <select wire:model.defer="add_mac_cookie" class="form-select rounded-3 shadow-sm border-success">
+                                <option value="yes">SÍ</option>
+                                <option value="no">NO</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-success">MAC Cookie Timeout</label>
+                            <input type="text" wire:model.defer="mac_cookie_timeout" class="form-control rounded-3 shadow-sm border-success">
+                        </div>
+                        <div class="col-md-4">
                             <label class="form-label small fw-bold">Shared Users</label>
                             <input type="number" wire:model.defer="shared_users" class="form-control rounded-3 shadow-sm">
                         </div>
-                        <div class="col-md-6">
+
+                        <div class="col-md-12">
                             <label class="form-label small fw-bold">Rate Limit</label>
                             <input type="text" wire:model.defer="rate_limit" class="form-control rounded-3 shadow-sm" placeholder="1M/1M">
                         </div>
@@ -149,10 +164,10 @@
     {{-- MODAL SINCRONIZAR --}}
     @if($isSyncModalOpen)
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.6); z-index: 1060; backdrop-filter: blur(5px);">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
             <div class="modal-content border-0 rounded-4 shadow-lg">
                 <div class="modal-header bg-info text-white p-4">
-                    <h5 class="modal-title fw-bold text-uppercase">Sincronización</h5>
+                    <h5 class="modal-title fw-bold text-uppercase">Sincronización Remota</h5>
                     <button wire:click="closeModal" class="btn-close btn-close-white shadow-none"></button>
                 </div>
                 <div class="modal-body p-0">
@@ -164,6 +179,7 @@
                                     <th class="border-0">S. Timeout</th>
                                     <th class="border-0">I. Timeout</th>
                                     <th class="border-0">A. Refresh</th>
+                                    <th class="border-0">MAC Cookie</th>
                                     <th class="px-4 text-end border-0">Rate Limit</th>
                                 </tr>
                             </thead>
@@ -176,6 +192,13 @@
                                     <td>{{ $mp['session_timeout'] }}</td>
                                     <td>{{ $mp['idle_timeout'] }}</td>
                                     <td>{{ $mp['status_autorefresh'] }}</td>
+                                    <td>
+                                        @if($mp['add_mac_cookie'] == 'true' || $mp['add_mac_cookie'] == 'yes')
+                                            <span class="badge bg-success">SI ({{ $mp['mac_cookie_timeout'] }})</span>
+                                        @else
+                                            <span class="badge bg-light text-dark border">NO</span>
+                                        @endif
+                                    </td>
                                     <td class="px-4 text-end">
                                         <span class="badge bg-secondary rounded-pill">{{ $mp['rate_limit'] }}</span>
                                     </td>
