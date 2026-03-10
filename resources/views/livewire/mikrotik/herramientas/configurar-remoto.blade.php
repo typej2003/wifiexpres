@@ -56,15 +56,29 @@
                         </div>
                     </div>
 
-                    <div class="d-grid mb-5">
-                        <button 
-                            wire:click="ejecutarConfiguracion" 
-                            wire:loading.attr="disabled"
-                            @if(!$router_id || !($routerStatus[$router_id] ?? false)) disabled @endif
-                            class="btn btn-primary btn-lg rounded-pill fw-bold shadow-sm py-3">
-                            <span wire:loading wire:target="ejecutarConfiguracion" class="spinner-border spinner-border-sm me-2"></span>
-                            <i class="bi bi-rocket-takeoff-fill me-2"></i> LANZAR CONFIGURACIÓN MAESTRA
-                        </button>
+                    {{-- Busca la sección de botones y agrega este nuevo botón --}}
+                    <div class="row g-3 mb-5">
+                        <div class="col-md-8">
+                            <button 
+                                wire:click="ejecutarConfiguracion" 
+                                wire:loading.attr="disabled"
+                                @if(!$router_id || !($routerStatus[$router_id] ?? false)) disabled @endif
+                                class="btn btn-primary btn-lg rounded-pill fw-bold shadow-sm w-100 py-3">
+                                <span wire:loading wire:target="ejecutarConfiguracion" class="spinner-border spinner-border-sm me-2"></span>
+                                <i class="bi bi-rocket-takeoff-fill me-2"></i> LANZAR CONFIGURACIÓN
+                            </button>
+                        </div>
+                        <div class="col-md-4">
+                            <button 
+                                onclick="confirm('¿Estás seguro? Se borrarán Hotspots, Bridges e IPs (excepto ether1). Los scripts de automatización se mantendrán.') || event.stopImmediatePropagation()"
+                                wire:click="ejecutarResetSelectivo" 
+                                wire:loading.attr="disabled"
+                                @if(!$router_id || !($routerStatus[$router_id] ?? false)) disabled @endif
+                                class="btn btn-outline-warning btn-lg rounded-pill fw-bold shadow-sm w-100 py-3">
+                                <span wire:loading wire:target="ejecutarResetSelectivo" class="spinner-border spinner-border-sm me-2"></span>
+                                <i class="bi bi-trash-fill me-2"></i> RESET SELECTIVO
+                            </button>
+                        </div>
                     </div>
 
                     {{-- TERMINAL DE LOGS --}}

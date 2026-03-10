@@ -136,6 +136,84 @@ class ConfigurarRemoto extends Component
         $this->refreshStatus(); // Refrescar por si cambió el estado
     }
 
+    // Agrega este método a tu clase ConfigurarRemoto
+
+    public function ejecutarResetSelectivo()
+    {
+        $this->validate(['router_id' => 'required']);
+        
+        if (!($this->routerStatus[$this->router_id] ?? false)) {
+            $this->logs[] = "❌ Error: Router Offline.";
+            return;
+        }
+
+        $router = Router::findOrFail($this->router_id);
+        $mac = strtoupper($router->macAddress);
+        $tid = "RESET" . time();
+
+        $this->isConfiguring = true;
+        $this->logs[] = "⚠️ Iniciando RESET SELECTIVO en: " . ($router->identity ?? $mac);
+
+        // SCRIPT DE LIMPIEZA PROFUNDA PERO PROTEGIDA
+        $script = "
+            :local m \"$mac\"; :local t \"$tid\";
+            :do {
+                # 1. Limpiar Hotspot (Servidores, Usuarios, Perfiles)
+                /ip hotspot user remove [find];
+                /ip hotspot user profile remove [find where name!=\"default\"];
+                /ip hotspot server remove [find];
+                /ip hotspot server profile remove [find where name!=\"default\"];
+                /ip hotspot remove [find];
+
+                # 2. Limpiar Walled Garden e IP Bindings
+                /ip hotspot walled-garden remove [find];
+                /ip hotspot walled-garden ip remove [find];
+                /ip hotspot ip-binding remove [find];
+
+                # 3. Limpiar DHCP y Pools
+                /ip dhcp-server remove [find];
+                /ip dhcp-server network remove [find];
+                /ip pool remove [find];
+
+                # 4. Limpiar Bridges y Puertos (Excepto configuraciones críticas)
+                /interface bridge port remove [find];
+                /interface bridge remove [find];
+
+                # 5. Limpiar Addresses (EXCEPTO la de ether1 para no perder internet)
+                /ip address remove [find where interface!=\"ether1\"];
+
+                # 6. Limpiar NAT (Solo deja la de ether1 si existe)
+                /ip firewall nat remove [find where out-interface!=\"ether1\"];
+
+                # 7. Limpiar Colas (Queues)
+                /queue simple remove [find];
+
+                # NOTA: NO TOCAMOS /system script NI /system scheduler 
+                # para mantener AutobridgeKeepAlive y AutoFetch vivos.
+
+                /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"SUCCESS_RESET\" keep-result=no;
+            } on-error={
+                /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL_RESET\" keep-result=no;
+            };
+        ";
+
+        if ($this->emitirAlSocket($script, $mac, $tid)) {
+            $this->logs[] = "📡 Comando de Reset enviado. Limpiando tablas...";
+            $resultado = $this->esperarRespuesta($mac, $tid);
+
+            if ($resultado === "SUCCESS_RESET") {
+                $this->logs[] = "✅ RESET COMPLETADO: El router está limpio y el Socket sigue Activo.";
+                session()->flash('message', 'Reset selectivo exitoso.');
+            } else {
+                $this->logs[] = "❌ ERROR: El router reportó un fallo al limpiar las tablas.";
+            }
+        } else {
+            $this->logs[] = "❌ ERROR: Bridge inaccesible.";
+        }
+
+        $this->isConfiguring = false;
+    }
+
     public function render()
     {
         $aliados = User::where('role', 'aliado')->get();
