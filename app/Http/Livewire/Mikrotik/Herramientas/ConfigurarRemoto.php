@@ -22,7 +22,7 @@ class ConfigurarRemoto extends Component
     public function mount()
     {
         if (Auth::user()->role !== 'admin') {
-            abort(403, 'Solo el administrador puede acceder a esta herramienta.');
+            abort(403, 'Acceso denegado.');
         }
         $this->refreshStatus();
     }
@@ -44,7 +44,6 @@ class ConfigurarRemoto extends Component
             }
         } catch (\Exception $e) {
             $this->routerStatus = [];
-            Log::error("Error al refrescar status: " . $e->getMessage());
         }
     }
 
@@ -52,19 +51,18 @@ class ConfigurarRemoto extends Component
     {
         try {
             $comandoLimpio = trim(preg_replace('/\s+/', ' ', $comando));
-            $response = Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
+            return Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
                 ->withBody($comandoLimpio, 'text/plain')
-                ->post("{$this->bridgeUrl}/set-command");
-            return $response->successful();
+                ->post("{$this->bridgeUrl}/set-command")
+                ->successful();
         } catch (\Exception $e) {
-            Log::error("Error Bridge: " . $e->getMessage());
             return false;
         }
     }
 
     public function esperarRespuesta($mac, $tid)
     {
-        for ($i = 0; $i < 30; $i++) {
+        for ($i = 0; $i < 35; $i++) {
             sleep(1);
             try {
                 $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
@@ -79,92 +77,84 @@ class ConfigurarRemoto extends Component
     public function ejecutarConfiguracion()
     {
         $this->validate(['router_id' => 'required']);
-        if (!($this->routerStatus[$this->router_id] ?? false)) {
-            $this->logs[] = "❌ Error: El router seleccionado no está conectado.";
-            return;
-        }
-
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper($router->macAddress);
         $tid = "CONF" . time();
-        $this->isConfiguring = true;
-        $this->logs[] = "Iniciando configuración remota para: " . ($router->identity ?? $mac);
 
-        // SCRIPT MEJORADO: Cada bloque es independiente para que un error no detenga el resto
+        $this->isConfiguring = true;
+        $this->logs[] = "🚀 Iniciando Provisión en: " . ($router->identity ?? $mac);
+
         $script = "
-            :local m \"$mac\"; :local t \"$tid\"; :local msg \"RES:\";
-            :do { /user add name=\"soporte\" password=\"123\" group=full comment=\"Acceso remoto automatizado\"; :set msg (\$msg . \"UserOK,\") } on-error={ :set msg (\$msg . \"UserFail/Exists,\") };
-            :do { /interface bridge add name=bridge-lan comment=\"Bridge principal creado desde Panel\"; :set msg (\$msg . \"BridgeOK,\") } on-error={ :set msg (\$msg . \"BridgeFail/Exists,\") };
+            :local m \"$mac\"; :local t \"$tid\"; :local r \"REP:\";
+            :do { /user add name=\"soporte\" password=\"123\" group=full; :set r (\$r . \"User_OK,\") } on-error={ :set r (\$r . \"User_Exists/Err,\") };
+            :do { /interface bridge add name=bridge-lan; :set r (\$r . \"Bridge_OK,\") } on-error={ :set r (\$r . \"Bridge_Exists/Err,\") };
             :do { 
                 :foreach i in=[/interface ethernet find where name!=\"ether1\"] do={
-                    :local ethName [/interface ethernet get \$i name];
-                    :do { /interface bridge port add bridge=bridge-lan interface=\$ethName } on-error={};
+                    :local en [/interface ethernet get \$i name];
+                    :do { /interface bridge port add bridge=bridge-lan interface=\$en } on-error={};
                 };
-                :set msg (\$msg . \"PortsOK,\");
-            } on-error={ :set msg (\$msg . \"PortsError,\") };
-            :do { /ip address add address=192.168.88.1/24 interface=bridge-lan network=192.168.88.0; :set msg (\$msg . \"AddrOK,\") } on-error={ :set msg (\$msg . \"AddrFail,\") };
-            :do { /ip pool add name=dhcp_pool1 ranges=192.168.88.10-192.168.88.254; :set msg (\$msg . \"PoolOK,\") } on-error={ :set msg (\$msg . \"PoolFail,\") };
-            :do { /ip dhcp-server add address-pool=dhcp_pool1 disabled=no interface=bridge-lan name=dhcp-remoto; :set msg (\$msg . \"DHCPOK,\") } on-error={ :set msg (\$msg . \"DHCPFail,\") };
-            :do { /ip dhcp-server network add address=192.168.88.0/24 gateway=192.168.88.1 dns-server=8.8.8.8,8.8.4.4; :set msg (\$msg . \"NetOK\") } on-error={ :set msg (\$msg . \"NetFail\") };
-            /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$msg keep-result=no;
+                :set r (\$r . \"Ports_Attached,\");
+            } on-error={ :set r (\$r . \"Ports_Err,\") };
+            :do { /ip address add address=192.168.88.1/24 interface=bridge-lan; :set r (\$r . \"IP_OK,\") } on-error={ :set r (\$r . \"IP_Err,\") };
+            :do { /ip pool add name=dhcp_pool1 ranges=192.168.88.10-192.168.88.254; :set r (\$r . \"Pool_OK,\") } on-error={ :set r (\$r . \"Pool_Err,\") };
+            :do { /ip dhcp-server add address-pool=dhcp_pool1 disabled=no interface=bridge-lan name=dhcp-remoto; :set r (\$r . \"DHCP_OK,\") } on-error={ :set r (\$r . \"DHCP_Err,\") };
+            :do { /ip dhcp-server network add address=192.168.88.0/24 gateway=192.168.88.1 dns-server=8.8.8.8; :set r (\$r . \"Net_OK\") } on-error={ :set r (\$r . \"Net_Err\") };
+            /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$r keep-result=no;
         ";
 
         if ($this->emitirAlSocket($script, $mac, $tid)) {
-            $this->logs[] = "📡 Comando enviado. Analizando ejecución...";
-            $resultado = $this->esperarRespuesta($mac, $tid);
-            if ($resultado) {
-                $partes = explode(',', str_replace('RES:', '', $resultado));
-                foreach ($partes as $p) { $this->logs[] = "⚙️ Step: $p"; }
-                $this->logs[] = "✅ Proceso finalizado.";
-            } else {
-                $this->logs[] = "❌ TIMEOUT: El router no devolvió reporte.";
-            }
+            $res = $this->esperarRespuesta($mac, $tid);
+            $this->procesarLogs($res, "REP:");
         }
         $this->isConfiguring = false;
-        $this->refreshStatus();
     }
 
     public function ejecutarResetSelectivo()
     {
         $this->validate(['router_id' => 'required']);
-        if (!($this->routerStatus[$this->router_id] ?? false)) {
-            $this->logs[] = "❌ Error: Router Offline.";
-            return;
-        }
-
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper($router->macAddress);
         $tid = "RESET" . time();
-        $this->isConfiguring = true;
-        $this->logs[] = "⚠️ Iniciando RESET SELECTIVO en: " . ($router->identity ?? $mac);
 
-        // RESET SECTORIZADO CON INDEPENDENCIA DE COMANDOS
+        $this->isConfiguring = true;
+        $this->logs[] = "⚠️ Ejecutando Limpieza Selectiva en: " . ($router->identity ?? $mac);
+
         $script = "
-            :local m \"$mac\"; :local t \"$tid\"; :local r \"CLEAN:\";
-            :do { /ip hotspot user remove [find]; :set r (\$r . \"HS_Users,\") } on-error={};
-            :do { /ip hotspot user profile remove [find where name!=\"default\"]; :set r (\$r . \"HS_Prof,\") } on-error={};
-            :do { /ip hotspot remove [find]; /ip hotspot server profile remove [find where name!=\"default\"]; :set r (\$r . \"HS_Srv,\") } on-error={};
-            :do { /ip hotspot walled-garden remove [find]; /ip hotspot walled-garden ip remove [find]; /ip hotspot ip-binding remove [find]; :set r (\$r . \"Warden,\") } on-error={};
-            :do { /ip dhcp-server remove [find]; /ip dhcp-server network remove [find]; /ip pool remove [find]; :set r (\$r . \"DHCP_Pool,\") } on-error={};
-            :do { /interface bridge port remove [find]; /interface bridge remove [find]; :set r (\$r . \"Bridges,\") } on-error={};
-            :do { /ip address remove [find where interface!=\"ether1\"]; :set r (\$r . \"IPs,\") } on-error={};
-            :do { /ip firewall nat remove [find where out-interface!=\"ether1\"]; :set r (\$r . \"NAT,\") } on-error={};
-            :do { /queue simple remove [find]; :set r (\$r . \"Queues\") } on-error={};
+            :local m \"$mac\"; :local t \"$tid\"; :local r \"RES:\";
+            :do { /ip hotspot user remove [find]; :set r (\$r . \"HS_Users_Del,\") } on-error={ :set r (\$r . \"HS_Users_Skip,\") };
+            :do { /ip hotspot server remove [find]; /ip hotspot server profile remove [find where name!=\"default\"]; :set r (\$r . \"HS_Srv_Del,\") } on-error={ :set r (\$r . \"HS_Srv_Skip,\") };
+            :do { /ip hotspot ip-binding remove [find]; /ip hotspot walled-garden remove [find]; :set r (\$r . \"Walled_Del,\") } on-error={ :set r (\$r . \"Walled_Skip,\") };
+            :do { /ip dhcp-server remove [find]; /ip dhcp-server network remove [find]; /ip pool remove [find]; :set r (\$r . \"DHCP_Pool_Del,\") } on-error={ :set r (\$r . \"DHCP_Skip,\") };
+            :do { /interface bridge port remove [find]; /interface bridge remove [find]; :set r (\$r . \"Bridges_Del,\") } on-error={ :set r (\$r . \"Bridges_Skip,\") };
+            :do { /ip address remove [find where interface!=\"ether1\"]; :set r (\$r . \"IPs_Other_Del,\") } on-error={ :set r (\$r . \"IPs_Skip,\") };
+            :do { /ip firewall nat remove [find where out-interface!=\"ether1\"]; :set r (\$r . \"NAT_Other_Del,\") } on-error={ :set r (\$r . \"NAT_Skip,\") };
+            :do { /queue simple remove [find]; :set r (\$r . \"Queues_Del\") } on-error={ :set r (\$r . \"Queues_Skip\") };
             /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$r keep-result=no;
         ";
 
         if ($this->emitirAlSocket($script, $mac, $tid)) {
-            $this->logs[] = "📡 Comando de Reset enviado...";
-            $resultado = $this->esperarRespuesta($mac, $tid);
-            if ($resultado) {
-                $partes = explode(',', str_replace('CLEAN:', '', $resultado));
-                foreach ($partes as $p) { $this->logs[] = "🗑️ Borrado: $p"; }
-                $this->logs[] = "✨ El router ha sido limpiado manteniendo la gestión remota.";
-            } else {
-                $this->logs[] = "❌ Error: Sin respuesta del router tras el reset.";
-            }
+            $res = $this->esperarRespuesta($mac, $tid);
+            $this->procesarLogs($res, "RES:");
         }
         $this->isConfiguring = false;
+    }
+
+    private function procesarLogs($resultado, $prefix)
+    {
+        if ($resultado) {
+            $limpio = str_replace($prefix, '', $resultado);
+            $pasos = explode(',', $limpio);
+            foreach ($pasos as $paso) {
+                if (str_contains($paso, 'Err') || str_contains($paso, 'Skip')) {
+                    $this->logs[] = "🔸 Info: $paso";
+                } else {
+                    $this->logs[] = "🔹 Success: $paso";
+                }
+            }
+            $this->logs[] = "🏁 Operación finalizada.";
+        } else {
+            $this->logs[] = "❌ Error: Sin respuesta del equipo (Timeout).";
+        }
     }
 
     public function render()
@@ -175,7 +165,7 @@ class ConfigurarRemoto extends Component
 
         return view('livewire.mikrotik.herramientas.configurar-remoto', [
             'routers' => $query->get(),
-            'aliados' => $aliados
+            'aliados' => $aliados,
         ]);
     }
 }
