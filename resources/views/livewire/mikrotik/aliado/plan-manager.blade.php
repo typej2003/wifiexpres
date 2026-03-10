@@ -68,10 +68,12 @@
                         <td class="fw-bold text-success">{{ number_format((float)$p->price, 0) }} Bs</td>
                         <td class="px-4 text-end">
                             <div class="d-flex justify-content-end gap-2">
+                                {{-- Botón Editar (Ya existente) --}}
                                 <button wire:click="edit({{ $p->id }})" class="btn btn-link text-info p-0 shadow-none">
                                     <i class="bi bi-pencil-square h5"></i>
                                 </button>
 
+                                {{-- NUEVO: Botón Eliminar --}}
                                 <button onclick="confirm('¿Estás seguro de eliminar este plan en el MikroTik?') || event.stopImmediatePropagation()" 
                                         wire:click="destroy({{ $p->id }})" 
                                         class="btn btn-link text-danger p-0 shadow-none">
@@ -108,33 +110,10 @@
                             <label class="form-label small fw-bold">Precio (Bs)</label>
                             <input type="number" wire:model.defer="price" class="form-control rounded-3 shadow-sm">
                         </div>
-
                         <div class="col-md-4">
-                            <label class="form-label small fw-bold text-primary">Session Timeout</label>
+                            <label class="form-label small fw-bold">Timeout (MikroTik Format)</label>
                             <input type="text" wire:model.defer="session_timeout" class="form-control rounded-3 shadow-sm">
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-primary">Idle Timeout</label>
-                            <input type="text" wire:model.defer="idle_timeout" class="form-control rounded-3 shadow-sm">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-primary">Keepalive Timeout</label>
-                            <input type="text" wire:model.defer="keepalive_timeout" class="form-control rounded-3 shadow-sm">
-                        </div>
-
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-success">Address Pool</label>
-                            <input type="text" wire:model.defer="address_pool" class="form-control rounded-3 shadow-sm">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-success">MAC Cookie Timeout</label>
-                            <input type="text" wire:model.defer="mac_cookie_timeout" class="form-control rounded-3 shadow-sm">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-success">Status Autorefresh</label>
-                            <input type="text" wire:model.defer="status_autorefresh" class="form-control rounded-3 shadow-sm">
-                        </div>
-
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">Shared Users</label>
                             <input type="number" wire:model.defer="shared_users" class="form-control rounded-3 shadow-sm">
@@ -142,12 +121,6 @@
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">Rate Limit</label>
                             <input type="text" wire:model.defer="rate_limit" class="form-control rounded-3 shadow-sm" placeholder="1M/1M">
-                        </div>
-                        <div class="col-md-4 d-flex align-items-end">
-                            <div class="form-check form-switch mb-2">
-                                <input class="form-check-input" type="checkbox" wire:model.defer="transparent_proxy" id="pxS">
-                                <label class="form-check-label small fw-bold" for="pxS">Proxy Transparente</label>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -163,7 +136,7 @@
     </div>
     @endif
 
-    {{-- MODAL SINCRONIZAR (RESTAURADO) --}}
+    {{-- MODAL SINCRONIZAR --}}
     @if($isSyncModalOpen)
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.6); z-index: 1060; backdrop-filter: blur(5px);">
         <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -203,7 +176,9 @@
                 </div>
                 <div class="modal-footer bg-light p-4 d-flex justify-content-between">
                     <button wire:click="closeModal" class="btn btn-light px-4 rounded-pill border shadow-sm">CANCELAR</button>
-                    <button wire:click="syncDatabase(false)" class="btn btn-info px-4 rounded-pill fw-bold text-white shadow-sm">GUARDAR EN BASE DE DATOS</button>
+                    <div class="d-flex gap-2">
+                        <button wire:click="syncDatabase(false)" class="btn btn-info px-4 rounded-pill fw-bold text-white shadow-sm">GUARDAR EN BASE DE DATOS</button>
+                    </div>
                 </div>
             </div>
         </div>
