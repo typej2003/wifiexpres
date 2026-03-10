@@ -24,7 +24,7 @@ class PlanManager extends Component
 
     // PARÁMETROS DE CONFIGURACIÓN
     public $idle_timeout = 'none';
-    public $keepalive_timeout = '00:02:00'; // Nuevo
+    public $keepalive_timeout = '00:02:00'; 
     public $status_autorefresh = '00:01:00';
     public $add_mac_cookie = 'yes'; 
     public $mac_cookie_timeout = '03:00:00'; 
@@ -65,6 +65,9 @@ class PlanManager extends Component
 
     protected function esperarRespuesta($mac, $tid)
     {
+        // Aumentamos tiempo de ejecución para evitar timeout de PHP en peticiones largas
+        set_time_limit(90);
+
         for ($i = 0; $i < 60; $i++) {
             sleep(1);
             try {
@@ -103,7 +106,8 @@ class PlanManager extends Component
             $accion = $this->plan_id ? "set [find name=\"$this->old_mikrotik_name\"]" : "add";
             $rate = $this->rate_limit ? "rate-limit=\"$this->rate_limit\"" : "";
 
-            $fullCmd = ":do { /ip hotspot user profile $accion name=\"$name\" session-timeout=$this->session_timeout idle-timeout=$this->idle_timeout keepalive-timeout=$this->keepalive_timeout status-autorefresh=$this->status_autorefresh add-mac-cookie=$this->add_mac_cookie mac-cookie-timeout=$this->mac_cookie_timeout shared-users=$this->shared_users on-login=\"$onLogin\" on-logout=\"$onLogout\" $rate; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"SUCCESS\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"FAIL\" keep-result=no; };";
+            // Comando corregido con inyección explícita de variables m y t
+            $fullCmd = ":local m \"$macActual\"; :local t \"$tid\"; :do { /ip hotspot user profile $accion name=\"$name\" session-timeout=$this->session_timeout idle-timeout=$this->idle_timeout keepalive-timeout=$this->keepalive_timeout status-autorefresh=$this->status_autorefresh add-mac-cookie=$this->add_mac_cookie mac-cookie-timeout=$this->mac_cookie_timeout shared-users=$this->shared_users on-login=\"$onLogin\" on-logout=\"$onLogout\" $rate; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"SUCCESS\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; };";
 
             $this->emitirAlSocket($fullCmd, $macActual, $tid);
             $respuestaData = $this->esperarRespuesta($macActual, $tid);
@@ -150,7 +154,7 @@ class PlanManager extends Component
         session()->flash('message', "Eliminando perfil '$name' en MikroTik...");
 
         try {
-            $fullCmd = ":do { /ip hotspot user profile remove [find name=\"$name\"]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"SUCCESS\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"FAIL\" keep-result=no; };";
+            $fullCmd = ":local m \"$macActual\"; :local t \"$tid\"; :do { /ip hotspot user profile remove [find name=\"$name\"]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"SUCCESS\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; };";
             $this->emitirAlSocket($fullCmd, $macActual, $tid);
             $respuestaData = $this->esperarRespuesta($macActual, $tid);
 
@@ -173,7 +177,18 @@ class PlanManager extends Component
         $macActual = strtoupper($this->router->macAddress);
         $tid = "SYNC" . time();
 
-        $comando = ":local res \"LISTA:\"; :foreach i in=[/ip hotspot user profile find where name!=\"default\" and name!=\"neutro\"] do={ :local n [/ip hotspot user profile get \$i name]; :local s [/ip hotspot user profile get \$i shared-users]; :local t [/ip hotspot user profile get \$i session-timeout]; :local idl [/ip hotspot user profile get \$i idle-timeout]; :local kal [/ip hotspot user profile get \$i keepalive-timeout]; :local sar [/ip hotspot user profile get \$i status-autorefresh]; :local amc [/ip hotspot user profile get \$i add-mac-cookie]; :local mct [/ip hotspot user profile get \$i mac-cookie-timeout]; :local r [/ip hotspot user profile get \$i rate-limit]; :if ([:len \$t] = 0) do={ :set t \"00:00:00\" }; :if ([:len \$idl] = 0) do={ :set idl \"none\" }; :if ([:len \$kal] = 0) do={ :set kal \"00:02:00\" }; :if ([:len \$sar] = 0) do={ :set sar \"00:00:00\" }; :if ([:len \$r] = 0) do={ :set r \"unlimited\" }; :set res (\$res . \$n . \",\" . \$s . \",\" . \$t . \",\" . \$idl . \",\" . \$kal . \",\" . \$sar . \",\" . \$amc . \",\" . \$mct . \",\" . \$r . \"|\"); }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$macActual&tid=\$tid\" http-method=post http-data=\"\$res\" keep-result=no;";
+        $comando = ":local m \"$macActual\"; :local t \"$tid\"; :local res \"LISTA:\"; " .
+                   ":foreach i in=[/ip hotspot user profile find where name!=\"default\" and name!=\"neutro\"] do={ " .
+                   ":local n [/ip hotspot user profile get \$i name]; :local s [/ip hotspot user profile get \$i shared-users]; " .
+                   ":local st [/ip hotspot user profile get \$i session-timeout]; :local idl [/ip hotspot user profile get \$i idle-timeout]; " .
+                   ":local kal [/ip hotspot user profile get \$i keepalive-timeout]; :local sar [/ip hotspot user profile get \$i status-autorefresh]; " .
+                   ":local amc [/ip hotspot user profile get \$i add-mac-cookie]; :local mct [/ip hotspot user profile get \$i mac-cookie-timeout]; " .
+                   ":local r [/ip hotspot user profile get \$i rate-limit]; " .
+                   ":if ([:len \$st] = 0) do={ :set st \"00:00:00\" }; :if ([:len \$idl] = 0) do={ :set idl \"none\" }; " .
+                   ":if ([:len \$kal] = 0) do={ :set kal \"00:02:00\" }; :if ([:len \$sar] = 0) do={ :set sar \"00:00:00\" }; " .
+                   ":if ([:len \$r] = 0) do={ :set r \"unlimited\" }; " .
+                   ":set res (\$res . \$n . \",\" . \$s . \",\" . \$st . \",\" . \$idl . \",\" . \$kal . \",\" . \$sar . \",\" . \$amc . \",\" . \$mct . \",\" . \$r . \"|\"); " .
+                   "}; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$res keep-result=no;";
 
         try {
             $this->emitirAlSocket($comando, $macActual, $tid);
@@ -184,7 +199,7 @@ class PlanManager extends Component
                 $filas = array_filter(explode('|', trim($datos, "| ")));
                 foreach ($filas as $fila) {
                     $p = explode(',', $fila);
-                    if (count($p) >= 8) {
+                    if (count($p) >= 9) {
                         $extraerPrecio = explode('-', $p[0]);
                         $precioFinal = isset($extraerPrecio[1]) ? (int)$extraerPrecio[1] : 0;
 
@@ -226,7 +241,7 @@ class PlanManager extends Component
                         'idle_timeout' => $mp['idle_timeout'],
                         'keepalive_timeout' => $mp['keepalive_timeout'],
                         'status_autorefresh' => $mp['status_autorefresh'],
-                        'add_mac_cookie' => ($mp['add_mac_cookie'] === 'true' || $mp['add_mac_cookie'] === 'yes'),
+                        'add_mac_cookie' => ($mp['add_mac_cookie'] === 'yes' || $mp['add_mac_cookie'] === 'true'),
                         'mac_cookie_timeout' => $mp['mac_cookie_timeout'],
                         'shared_users' => $mp['shared_users'], 
                         'rate_limit' => ($mp['rate_limit'] === 'unlimited') ? null : $mp['rate_limit'], 
@@ -272,7 +287,7 @@ class PlanManager extends Component
     {
         $macActual = strtoupper($this->router->macAddress);
         $tid = "IDN" . time();
-        $comando = ":local sysName [/system identity get name]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"\$sysName\" keep-result=no;";
+        $comando = ":local m \"$macActual\"; :local t \"$tid\"; :local sysName [/system identity get name]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"\$sysName\" keep-result=no;";
 
         try {
             $this->emitirAlSocket($comando, $macActual, $tid);
