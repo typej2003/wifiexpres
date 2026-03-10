@@ -21,6 +21,8 @@ class Plan extends Model
         'idle_timeout',
         'keepalive_timeout',
         'status_autorefresh',
+        'add_mac_cookie',      // Nuevo
+        'mac_cookie_timeout',   // Nuevo
         'shared_users',
         'rate_limit',
         'is_active'
@@ -33,6 +35,7 @@ class Plan extends Model
         'price' => 'decimal:2',
         'shared_users' => 'integer',
         'is_active' => 'boolean',
+        'add_mac_cookie' => 'boolean', // Nuevo
     ];
 
     /**

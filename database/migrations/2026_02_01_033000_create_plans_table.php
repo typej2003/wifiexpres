@@ -22,9 +22,14 @@ class CreatePlansTable extends Migration
             
             // Parámetros técnicos del perfil MikroTik
             $table->string('session_timeout')->default('01:00:00');
-            $table->string('idle_timeout')->default('00:02:00');
+            $table->string('idle_timeout')->default('none');
             $table->string('keepalive_timeout')->default('00:02:00');
             $table->string('status_autorefresh')->default('00:01:00');
+            
+            // Parámetros de Cookies (Nuevos)
+            $table->boolean('add_mac_cookie')->default(true);
+            $table->string('mac_cookie_timeout')->default('03:00:00');
+
             $table->integer('shared_users')->default(1);
             $table->string('rate_limit')->nullable(); // Ejemplo: 1M/1M
             
