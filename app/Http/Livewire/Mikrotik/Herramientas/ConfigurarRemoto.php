@@ -77,6 +77,8 @@ class ConfigurarRemoto extends Component
     public function ejecutarConfiguracion()
     {
         $this->validate(['router_id' => 'required']);
+        $this->logs = []; // Limpieza de logs al iniciar
+        
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper($router->macAddress);
         $tid = "CONF" . time();
@@ -112,6 +114,8 @@ class ConfigurarRemoto extends Component
     public function ejecutarResetSelectivo()
     {
         $this->validate(['router_id' => 'required']);
+        $this->logs = []; // Limpieza de logs al iniciar
+
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper($router->macAddress);
         $tid = "RESET" . time();
@@ -121,14 +125,14 @@ class ConfigurarRemoto extends Component
 
         $script = "
             :local m \"$mac\"; :local t \"$tid\"; :local r \"RES:\";
-            :do { /ip hotspot user remove [find]; :set r (\$r . \"HS_Users_Del,\") } on-error={ :set r (\$r . \"HS_Users_Skip,\") };
-            :do { /ip hotspot server remove [find]; /ip hotspot server profile remove [find where name!=\"default\"]; :set r (\$r . \"HS_Srv_Del,\") } on-error={ :set r (\$r . \"HS_Srv_Skip,\") };
-            :do { /ip hotspot ip-binding remove [find]; /ip hotspot walled-garden remove [find]; :set r (\$r . \"Walled_Del,\") } on-error={ :set r (\$r . \"Walled_Skip,\") };
+            :do { /ip hotspot user remove [find]; /ip hotspot remove [find]; /ip hotspot server profile remove [find where name!=\"default\"]; :set r (\$r . \"Hotspot_Del,\") } on-error={ :set r (\$r . \"Hotspot_Skip,\") };
+            :do { /ip hotspot walled-garden remove [find]; /ip hotspot walled-garden ip remove [find]; /ip hotspot ip-binding remove [find]; :set r (\$r . \"Walled_Del,\") } on-error={ :set r (\$r . \"Walled_Skip,\") };
             :do { /ip dhcp-server remove [find]; /ip dhcp-server network remove [find]; /ip pool remove [find]; :set r (\$r . \"DHCP_Pool_Del,\") } on-error={ :set r (\$r . \"DHCP_Skip,\") };
             :do { /interface bridge port remove [find]; /interface bridge remove [find]; :set r (\$r . \"Bridges_Del,\") } on-error={ :set r (\$r . \"Bridges_Skip,\") };
-            :do { /ip address remove [find where interface!=\"ether1\"]; :set r (\$r . \"IPs_Other_Del,\") } on-error={ :set r (\$r . \"IPs_Skip,\") };
-            :do { /ip firewall nat remove [find where out-interface!=\"ether1\"]; :set r (\$r . \"NAT_Other_Del,\") } on-error={ :set r (\$r . \"NAT_Skip,\") };
-            :do { /queue simple remove [find]; :set r (\$r . \"Queues_Del\") } on-error={ :set r (\$r . \"Queues_Skip\") };
+            :do { /ip address remove [find where interface!=\"ether1\"]; :set r (\$r . \"IPs_Del,\") } on-error={ :set r (\$r . \"IPs_Skip,\") };
+            :do { /ip firewall nat remove [find where out-interface!=\"ether1\"]; :set r (\$r . \"NAT_Del,\") } on-error={ :set r (\$r . \"NAT_Skip,\") };
+            :do { /queue simple remove [find]; :set r (\$r . \"Queues_Del,\") } on-error={ :set r (\$r . \"Queues_Skip,\") };
+            :do { /user remove [find name!=\"jose\" and name!=\"admin\"]; :set r (\$r . \"Users_Clean\") } on-error={ :set r (\$r . \"Users_Err\") };
             /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$r keep-result=no;
         ";
 
@@ -145,10 +149,13 @@ class ConfigurarRemoto extends Component
             $limpio = str_replace($prefix, '', $resultado);
             $pasos = explode(',', $limpio);
             foreach ($pasos as $paso) {
-                if (str_contains($paso, 'Err') || str_contains($paso, 'Skip')) {
-                    $this->logs[] = "🔸 Info: $paso";
+                $item = trim($paso);
+                if (empty($item)) continue;
+
+                if (str_contains($item, 'Err') || str_contains($item, 'Skip')) {
+                    $this->logs[] = "🔸 Info: $item";
                 } else {
-                    $this->logs[] = "🔹 Success: $paso";
+                    $this->logs[] = "🔹 Success: $item";
                 }
             }
             $this->logs[] = "🏁 Operación finalizada.";
