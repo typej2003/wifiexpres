@@ -64,17 +64,19 @@
                     @forelse($plans as $p)
                     <tr wire:loading.class="opacity-50" wire:target="store">
                         <td class="px-4 fw-bold text-dark">{{ $p->name }}</td>
-                        <td class="small text-muted">Timeout: {{ $p->session_timeout }} | Limit: {{ $p->rate_limit ?? 'Full' }}</td>
+                        <td class="small text-muted">
+                            Session: {{ $p->session_timeout }} | 
+                            Idle: {{ $p->idle_timeout ?? 'none' }} | 
+                            Limit: {{ $p->rate_limit ?? 'Full' }}
+                        </td>
                         <td class="fw-bold text-success">{{ number_format((float)$p->price, 0) }} Bs</td>
                         <td class="px-4 text-end">
                             <div class="d-flex justify-content-end gap-2">
-                                {{-- Botón Editar (Ya existente) --}}
                                 <button wire:click="edit({{ $p->id }})" class="btn btn-link text-info p-0 shadow-none">
                                     <i class="bi bi-pencil-square h5"></i>
                                 </button>
 
-                                {{-- NUEVO: Botón Eliminar --}}
-                                <button onclick="confirm('¿Estás seguro de eliminar este plan en el MikroTik?') || event.stopImmediatePropagation()" 
+                                <button onclick="confirm('¿Estás seguro de eliminar este plan?') || event.stopImmediatePropagation()" 
                                         wire:click="destroy({{ $p->id }})" 
                                         class="btn btn-link text-danger p-0 shadow-none">
                                     <span wire:loading wire:target="destroy({{ $p->id }})" class="spinner-border spinner-border-sm"></span>
@@ -103,22 +105,26 @@
                 <div class="modal-body p-4">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label small fw-bold">Nombre/Tiempo (ej: 1 Hora)</label>
+                            <label class="form-label small fw-bold">Nombre/Tiempo</label>
                             <input type="text" wire:model.defer="tiempo_display" class="form-control rounded-3 shadow-sm">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold">Precio (Bs)</label>
                             <input type="number" wire:model.defer="price" class="form-control rounded-3 shadow-sm">
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold">Timeout (MikroTik Format)</label>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold">Session Timeout</label>
                             <input type="text" wire:model.defer="session_timeout" class="form-control rounded-3 shadow-sm">
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold">Idle Timeout</label>
+                            <input type="text" wire:model.defer="idle_timeout" class="form-control rounded-3 shadow-sm">
+                        </div>
+                        <div class="col-md-3">
                             <label class="form-label small fw-bold">Shared Users</label>
                             <input type="number" wire:model.defer="shared_users" class="form-control rounded-3 shadow-sm">
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label class="form-label small fw-bold">Rate Limit</label>
                             <input type="text" wire:model.defer="rate_limit" class="form-control rounded-3 shadow-sm" placeholder="1M/1M">
                         </div>
@@ -142,7 +148,7 @@
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content border-0 rounded-4 shadow-lg">
                 <div class="modal-header bg-info text-white p-4">
-                    <h5 class="modal-title fw-bold text-uppercase">Sincronización de Perfiles</h5>
+                    <h5 class="modal-title fw-bold text-uppercase">Sincronización</h5>
                     <button wire:click="closeModal" class="btn-close btn-close-white shadow-none"></button>
                 </div>
                 <div class="modal-body p-0">
@@ -150,9 +156,10 @@
                         <table class="table table-hover align-middle mb-0">
                             <thead class="bg-light sticky-top">
                                 <tr>
-                                    <th class="px-4 py-3 border-0">Perfil en Router</th>
+                                    <th class="px-4 py-3 border-0">Perfil</th>
                                     <th class="border-0">Shared</th>
-                                    <th class="border-0">Timeout</th>
+                                    <th class="border-0">S. Timeout</th>
+                                    <th class="border-0">I. Timeout</th>
                                     <th class="px-4 text-end border-0">Rate Limit</th>
                                 </tr>
                             </thead>
@@ -161,12 +168,12 @@
                                 <tr>
                                     <td class="px-4">
                                         <span class="fw-bold text-dark">{{ $mp['name'] }}</span>
-                                        <br><small class="text-success">{{ number_format((float)$mp['price'], 0) }} Bs</small>
                                     </td>
                                     <td>{{ $mp['shared_users'] }}</td>
                                     <td>{{ $mp['session_timeout'] }}</td>
+                                    <td>{{ $mp['idle_timeout'] }}</td>
                                     <td class="px-4 text-end">
-                                        <span class="badge bg-secondary rounded-pill px-3 fw-normal">{{ $mp['rate_limit'] }}</span>
+                                        <span class="badge bg-secondary rounded-pill">{{ $mp['rate_limit'] }}</span>
                                     </td>
                                 </tr>
                                 @endforeach
@@ -176,9 +183,7 @@
                 </div>
                 <div class="modal-footer bg-light p-4 d-flex justify-content-between">
                     <button wire:click="closeModal" class="btn btn-light px-4 rounded-pill border shadow-sm">CANCELAR</button>
-                    <div class="d-flex gap-2">
-                        <button wire:click="syncDatabase(false)" class="btn btn-info px-4 rounded-pill fw-bold text-white shadow-sm">GUARDAR EN BASE DE DATOS</button>
-                    </div>
+                    <button wire:click="syncDatabase(false)" class="btn btn-info px-4 rounded-pill fw-bold text-white shadow-sm">GUARDAR EN BD</button>
                 </div>
             </div>
         </div>

@@ -22,6 +22,9 @@ class PlanManager extends Component
     public $tiempo_display = '1 Hora', $session_timeout = '01:00:00';
     public $shared_users = 1;
 
+    // NUEVO PARÁMETRO
+    public $idle_timeout = 'none';
+
     // URL del Bridge centralizada
     protected $bridgeUrl = "http://188.95.113.44:3000";
 
@@ -61,7 +64,7 @@ class PlanManager extends Component
     }
 
     /**
-     * Espera centralizada de 60 segundos para coincidir con la lógica global
+     * Espera centralizada de 60 segundos
      */
     protected function esperarRespuesta($mac, $tid)
     {
@@ -76,11 +79,9 @@ class PlanManager extends Component
                 if ($res->successful() && $res->json('status') === 'ready') { 
                     return $res->json('data');
                 }
-            } catch (\Exception $e) {
-                // Silenciamos errores de conexión temporales durante el loop
-            }
+            } catch (\Exception $e) { }
         }
-        return null; // Timeout
+        return null;
     }
 
     /**
@@ -100,18 +101,16 @@ class PlanManager extends Component
         session()->flash('message', "Sincronizando con MikroTik (espera 60s)...");
 
         try {
-            // Escapado de variables para MikroTik scripts
             $u = "\\24user";
             $a = "\\24address";
-
             $onLogin = ":global gUser $u; :global gAddr $a; :global gType login; /system script run log-event";
             $onLogout = ":global gUser $u; :global gAddr $a; :global gType logout; /system script run log-event";
 
             $accion = $this->plan_id ? "set [find name=\"$this->old_mikrotik_name\"]" : "add";
             $rate = $this->rate_limit ? "rate-limit=\"$this->rate_limit\"" : "";
 
-            // Comando optimizado con post-result individual
-            $fullCmd = ":do { /ip hotspot user profile $accion name=\"$name\" session-timeout=$this->session_timeout shared-users=$this->shared_users on-login=\"$onLogin\" on-logout=\"$onLogout\" $rate; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"SUCCESS\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"FAIL\" keep-result=no; };";
+            // Comando incluyendo idle-timeout
+            $fullCmd = ":do { /ip hotspot user profile $accion name=\"$name\" session-timeout=$this->session_timeout idle-timeout=$this->idle_timeout shared-users=$this->shared_users on-login=\"$onLogin\" on-logout=\"$onLogout\" $rate; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"SUCCESS\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"FAIL\" keep-result=no; };";
 
             $this->emitirAlSocket($fullCmd, $macActual, $tid);
 
@@ -126,6 +125,7 @@ class PlanManager extends Component
                         'mikrotik_profile' => $name, 
                         'price' => $precioEntero, 
                         'session_timeout' => $this->session_timeout, 
+                        'idle_timeout' => $this->idle_timeout, // Guardar en BD
                         'rate_limit' => $this->rate_limit, 
                         'shared_users' => $this->shared_users,
                         'is_active' => true
@@ -134,7 +134,7 @@ class PlanManager extends Component
                 session()->flash('message', "¡Perfil '$name' configurado correctamente!");
             } else {
                 session()->forget('message');
-                $errorMsg = ($respuestaData === 'FAIL') ? "El MikroTik rechazó el comando (revise nombres duplicados)." : "Timeout: El router no confirmó la operación.";
+                $errorMsg = ($respuestaData === 'FAIL') ? "El MikroTik rechazó el comando." : "Timeout: El router no confirmó.";
                 throw new \Exception($errorMsg);
             }
 
@@ -144,9 +144,6 @@ class PlanManager extends Component
         }
     }
 
-    /**
-     * ELIMINAR PLAN EN MIKROTIK Y BD
-     */
     public function destroy($id)
     {
         $plan = Plan::findOrFail($id);
@@ -157,11 +154,8 @@ class PlanManager extends Component
         session()->flash('message', "Eliminando perfil '$name' en MikroTik...");
 
         try {
-            // Comando para eliminar en MikroTik y reportar resultado
             $fullCmd = ":do { /ip hotspot user profile remove [find name=\"$name\"]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"SUCCESS\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"FAIL\" keep-result=no; };";
-
             $this->emitirAlSocket($fullCmd, $macActual, $tid);
-
             $respuestaData = $this->esperarRespuesta($macActual, $tid);
 
             if ($respuestaData === "SUCCESS") {
@@ -169,26 +163,21 @@ class PlanManager extends Component
                 session()->flash('message', "Perfil '$name' eliminado correctamente.");
             } else {
                 session()->forget('message');
-                $errorMsg = ($respuestaData === 'FAIL') ? "El MikroTik no pudo eliminar el perfil (quizás está en uso)." : "Timeout: El router no confirmó la eliminación.";
-                throw new \Exception($errorMsg);
+                throw new \Exception("Error al eliminar en MikroTik.");
             }
-
         } catch (\Exception $e) {
             session()->forget('message');
             session()->flash('error', $e->getMessage());
         }
     }
 
-    /**
-     * LEER PERFILES DESDE MIKROTIK
-     */
     public function openSyncModal() 
     {
         $this->mikrotikProfiles = []; 
         $macActual = strtoupper($this->router->macAddress);
         $tid = "SYNC" . time();
 
-        $comando = ":local res \"LISTA:\"; :foreach i in=[/ip hotspot user profile find where name!=\"default\" and name!=\"neutro\"] do={ :local n [/ip hotspot user profile get \$i name]; :local s [/ip hotspot user profile get \$i shared-users]; :local t [/ip hotspot user profile get \$i session-timeout]; :local r [/ip hotspot user profile get \$i rate-limit]; :if ([:len \$t] = 0) do={ :set t \"00:00:00\" }; :if ([:len \$r] = 0) do={ :set r \"unlimited\" }; :set res (\$res . \$n . \",\" . \$s . \",\" . \$t . \",\" . \$r . \"|\"); }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\$res keep-result=no;";
+        $comando = ":local res \"LISTA:\"; :foreach i in=[/ip hotspot user profile find where name!=\"default\" and name!=\"neutro\"] do={ :local n [/ip hotspot user profile get \$i name]; :local s [/ip hotspot user profile get \$i shared-users]; :local t [/ip hotspot user profile get \$i session-timeout]; :local idl [/ip hotspot user profile get \$i idle-timeout]; :local r [/ip hotspot user profile get \$i rate-limit]; :if ([:len \$t] = 0) do={ :set t \"00:00:00\" }; :if ([:len \$idl] = 0) do={ :set idl \"none\" }; :if ([:len \$r] = 0) do={ :set r \"unlimited\" }; :set res (\$res . \$n . \",\" . \$s . \",\" . \$t . \",\" . \$idl . \",\" . \$r . \"|\"); }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\$res keep-result=no;";
 
         try {
             $this->emitirAlSocket($comando, $macActual, $tid);
@@ -199,7 +188,7 @@ class PlanManager extends Component
                 $filas = array_filter(explode('|', trim($datos, "| ")));
                 foreach ($filas as $fila) {
                     $p = explode(',', $fila);
-                    if (count($p) >= 3) {
+                    if (count($p) >= 4) {
                         $extraerPrecio = explode('-', $p[0]);
                         $precioFinal = isset($extraerPrecio[1]) ? (int)$extraerPrecio[1] : 0;
 
@@ -207,38 +196,34 @@ class PlanManager extends Component
                             'name' => $p[0], 
                             'shared_users' => $p[1], 
                             'session_timeout' => $p[2], 
-                            'rate_limit' => $p[3], 
+                            'idle_timeout' => $p[3],
+                            'rate_limit' => $p[4], 
                             'price' => $precioFinal
                         ];
                     }
                 }
                 $this->isSyncModalOpen = true; 
             } else {
-                session()->flash('error', "No se recibió respuesta del MikroTik para sincronizar.");
+                session()->flash('error', "No se recibió respuesta del MikroTik.");
             }
         } catch (\Exception $e) { 
             session()->flash('error', $e->getMessage()); 
         }
     }
 
-    /**
-     * SOLICITAR IDENTIDAD (PRUEBA DE CONEXIÓN)
-     */
     public function solicitarIdentity()
     {
         $macActual = strtoupper($this->router->macAddress);
         $tid = "IDN" . time();
-
         $comando = ":local sysName [/system identity get name]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"\$sysName\" keep-result=no;";
 
         try {
             $this->emitirAlSocket($comando, $macActual, $tid);
             $respuesta = $this->esperarRespuesta($macActual, $tid);
-
             if ($respuesta) {
                 session()->flash('message', "Respuesta del Router: " . $respuesta);
             } else {
-                session()->flash('error', "El Router no respondió a la solicitud de identidad.");
+                session()->flash('error', "El Router no respondió.");
             }
         } catch (\Exception $e) {
             session()->flash('error', $e->getMessage());
@@ -257,6 +242,7 @@ class PlanManager extends Component
                         'name' => $mp['name'], 
                         'price' => $mp['price'], 
                         'session_timeout' => $mp['session_timeout'], 
+                        'idle_timeout' => ($mp['idle_timeout'] === 'none') ? 'none' : $mp['idle_timeout'],
                         'shared_users' => $mp['shared_users'], 
                         'rate_limit' => ($mp['rate_limit'] === 'unlimited') ? null : $mp['rate_limit'], 
                         'is_active' => true
@@ -268,14 +254,21 @@ class PlanManager extends Component
         } catch (\Exception $e) { session()->flash('error', $e->getMessage()); }
     }
 
-    public function create() { $this->reset(['plan_id', 'price', 'rate_limit', 'old_mikrotik_name']); $this->isModalOpen = true; }
+    public function create() 
+    { 
+        $this->reset(['plan_id', 'price', 'rate_limit', 'old_mikrotik_name', 'idle_timeout']); 
+        $this->idle_timeout = 'none';
+        $this->isModalOpen = true; 
+    }
     
-    public function edit($id) {
+    public function edit($id) 
+    {
         $plan = Plan::findOrFail($id);
         $this->plan_id = $id; 
         $this->price = $plan->price; 
         $this->tiempo_display = explode('-', $plan->name)[0] ?? $plan->name;
         $this->session_timeout = $plan->session_timeout; 
+        $this->idle_timeout = $plan->idle_timeout ?? 'none';
         $this->rate_limit = $plan->rate_limit; 
         $this->shared_users = $plan->shared_users;
         $this->old_mikrotik_name = $plan->mikrotik_profile; 
