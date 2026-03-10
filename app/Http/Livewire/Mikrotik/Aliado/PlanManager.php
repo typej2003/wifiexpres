@@ -145,6 +145,41 @@ class PlanManager extends Component
     }
 
     /**
+     * ELIMINAR PLAN EN MIKROTIK Y BD
+     */
+    public function destroy($id)
+    {
+        $plan = Plan::findOrFail($id);
+        $name = $plan->mikrotik_profile;
+        $macActual = strtoupper($this->router->macAddress);
+        $tid = "DEL" . time();
+
+        session()->flash('message', "Eliminando perfil '$name' en MikroTik...");
+
+        try {
+            // Comando para eliminar en MikroTik y reportar resultado
+            $fullCmd = ":do { /ip hotspot user profile remove [find name=\"$name\"]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"SUCCESS\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"FAIL\" keep-result=no; };";
+
+            $this->emitirAlSocket($fullCmd, $macActual, $tid);
+
+            $respuestaData = $this->esperarRespuesta($macActual, $tid);
+
+            if ($respuestaData === "SUCCESS") {
+                $plan->delete();
+                session()->flash('message', "Perfil '$name' eliminado correctamente.");
+            } else {
+                session()->forget('message');
+                $errorMsg = ($respuestaData === 'FAIL') ? "El MikroTik no pudo eliminar el perfil (quizás está en uso)." : "Timeout: El router no confirmó la eliminación.";
+                throw new \Exception($errorMsg);
+            }
+
+        } catch (\Exception $e) {
+            session()->forget('message');
+            session()->flash('error', $e->getMessage());
+        }
+    }
+
+    /**
      * LEER PERFILES DESDE MIKROTIK
      */
     public function openSyncModal() 

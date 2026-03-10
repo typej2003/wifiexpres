@@ -67,7 +67,20 @@
                         <td class="small text-muted">Timeout: {{ $p->session_timeout }} | Limit: {{ $p->rate_limit ?? 'Full' }}</td>
                         <td class="fw-bold text-success">{{ number_format((float)$p->price, 0) }} Bs</td>
                         <td class="px-4 text-end">
-                            <button wire:click="edit({{ $p->id }})" class="btn btn-link text-info p-0 shadow-none"><i class="bi bi-pencil-square h5"></i></button>
+                            <div class="d-flex justify-content-end gap-2">
+                                {{-- Botón Editar (Ya existente) --}}
+                                <button wire:click="edit({{ $p->id }})" class="btn btn-link text-info p-0 shadow-none">
+                                    <i class="bi bi-pencil-square h5"></i>
+                                </button>
+
+                                {{-- NUEVO: Botón Eliminar --}}
+                                <button onclick="confirm('¿Estás seguro de eliminar este plan en el MikroTik?') || event.stopImmediatePropagation()" 
+                                        wire:click="destroy({{ $p->id }})" 
+                                        class="btn btn-link text-danger p-0 shadow-none">
+                                    <span wire:loading wire:target="destroy({{ $p->id }})" class="spinner-border spinner-border-sm"></span>
+                                    <i wire:loading.remove wire:target="destroy({{ $p->id }})" class="bi bi-trash3 h5"></i>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     @empty
