@@ -112,7 +112,7 @@
     {{-- MODAL DE SINCRONIZACIÓN --}}
     @if($isSyncModalOpen)
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.7); z-index: 1070; backdrop-filter: blur(8px);">
-        <div class="modal-dialog modal-xl" style="margin-top: 3rem;">
+        <div class="modal-dialog modal-xl" style="margin-top: 8rem;">
             <div class="modal-content border-0 rounded-4 shadow-lg">
                 <div class="modal-header bg-info text-white p-4">
                     <h5 class="modal-title fw-bold"><i class="bi bi-cloud-download me-2"></i>PERFILES DETECTADOS EN MIKROTIK</h5>
