@@ -50,6 +50,7 @@ class ConfigurarRemoto extends Component
     public function emitirAlSocket($comando, $mac, $tid)
     {
         try {
+            // Reemplazamos saltos de línea y múltiples espacios para que el bridge lo reciba bien
             $comandoLimpio = trim(preg_replace('/\s+/', ' ', $comando));
             return Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
                 ->withBody($comandoLimpio, 'text/plain')
@@ -62,7 +63,8 @@ class ConfigurarRemoto extends Component
 
     public function esperarRespuesta($mac, $tid)
     {
-        for ($i = 0; $i < 35; $i++) {
+        // Aumentamos a 40 segundos por si el router tarda en procesar
+        for ($i = 0; $i < 40; $i++) {
             sleep(1);
             try {
                 $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
@@ -77,36 +79,43 @@ class ConfigurarRemoto extends Component
     public function ejecutarResetSelectivo()
     {
         $this->validate(['router_id' => 'required']);
-        $this->logs = []; // Limpiar logs antes de empezar
+        $this->logs = []; 
         
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper($router->macAddress);
         $tid = "RESET" . time();
 
         $this->isConfiguring = true;
-        $this->logs[] = "⚠️ Iniciando limpieza de Bridges en: " . ($router->identity ?? $mac);
+        $this->logs[] = "⚠️ Iniciando limpieza SEGURA en: " . ($router->identity ?? $mac);
 
-        // Script ultra simplificado: Borra Puertos, luego Bridges
+        // SCRIPT CON PROTECCIÓN DE CONECTIVIDAD
+        // No borramos puertos que sean ether1 para no perder el bridge-socket
         $script = "
             :local m \"$mac\"; :local t \"$tid\"; :local r \"RES:\";
             
-            # 1. Borrar Puertos
             :do { 
-                /interface bridge port remove [find]; 
-                :set r (\$r . \"Puertos_Eliminados,\") 
-            } on-error={ :set r (\$r . \"Error_Puertos,\") };
+                # Borrar puertos EXCEPTO ether1
+                /interface bridge port remove [find where interface!=\"ether1\"]; 
+                :set r (\$r . \"Puertos_Limpios,\") 
+            } on-error={ :set r (\$r . \"Err_Puertos,\") };
 
-            # 2. Borrar Bridges
             :do { 
-                /interface bridge remove [find]; 
-                :set r (\$r . \"Bridges_Eliminados\") 
-            } on-error={ :set r (\$r . \"Error_Bridges\") };
+                # Borrar bridges EXCEPTO si tienen a ether1 (por si acaso)
+                :foreach b in=[/interface bridge find] do={
+                    :local bName [/interface bridge get \$b name];
+                    :local hasEther1 [/interface bridge port find where bridge=\$bName and interface=\"ether1\"];
+                    :if ([:len \$hasEther1] = 0) do={
+                        /interface bridge remove \$b;
+                    }
+                };
+                :set r (\$r . \"Bridges_Limpios\") 
+            } on-error={ :set r (\$r . \"Err_Bridges\") };
 
             /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$r keep-result=no;
         ";
 
         if ($this->emitirAlSocket($script, $mac, $tid)) {
-            $this->logs[] = "📡 Comando enviado. Esperando confirmación...";
+            $this->logs[] = "📡 Comando enviado. Procesando en MikroTik...";
             $res = $this->esperarRespuesta($mac, $tid);
             
             if ($res) {
@@ -115,18 +124,14 @@ class ConfigurarRemoto extends Component
                 foreach ($pasos as $paso) {
                     $item = trim($paso);
                     if (empty($item)) continue;
-                    
-                    if (str_contains($item, 'Error')) {
-                        $this->logs[] = "🔸 Info: $item";
-                    } else {
-                        $this->logs[] = "🔹 Success: $item";
-                    }
+                    $this->logs[] = (str_contains($item, 'Err')) ? "🔸 Info: $item" : "🔹 Success: $item";
                 }
+                $this->logs[] = "✅ Limpieza completada sin perder conexión.";
             } else {
-                $this->logs[] = "❌ Error: Timeout (El router no respondió).";
+                $this->logs[] = "❌ Error: Timeout. El equipo pudo haber perdido conexión o el script falló.";
             }
         } else {
-            $this->logs[] = "❌ Error: No se pudo conectar con el Bridge.";
+            $this->logs[] = "❌ Error: Fallo al contactar el Bridge.";
         }
 
         $this->isConfiguring = false;
@@ -140,7 +145,7 @@ class ConfigurarRemoto extends Component
 
         return view('livewire.mikrotik.herramientas.configurar-remoto', [
             'routers' => $query->get(),
-            'aliados' => $aliados
+            'aliados' => $aliados,
         ]);
     }
 }
