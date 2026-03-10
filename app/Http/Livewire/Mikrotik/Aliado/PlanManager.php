@@ -13,22 +13,77 @@ class PlanManager extends Component
 {
     public $router; 
     public $isModalOpen = false;
+    public $isSyncModalOpen = false; 
+    
+    public $mikrotikProfiles = [];
+    public $orphansCount = 0;
+
     public $plan_id, $price, $rate_limit, $old_mikrotik_name;
     public $tiempo_display = '1 Hora', $session_timeout = '01:00:00';
     public $shared_users = 1;
-    public $address_pool = 'none', $status_autorefresh = '00:01:00';
-    public $keepalive_timeout = '00:02:00', $idle_timeout = '00:05:00', $mac_cookie_timeout = '3d 00:00:00';
+
+    // NUEVOS PARÁMETROS PARA CONFIGURACIÓN COMPLETA
+    public $address_pool = 'none';
+    public $status_autorefresh = '00:01:00';
+    public $keepalive_timeout = '00:02:00';
+    public $idle_timeout = '00:05:00';
+    public $mac_cookie_timeout = '3d 00:00:00';
+    public $transparent_proxy = false;
 
     protected $bridgeUrl = "http://188.95.113.44:3000";
 
     public function mount($router)
     {
-        $this->router = is_numeric($router) ? Router::findOrFail($router) : $router;
+        if (is_numeric($router)) {
+            $this->router = Router::findOrFail($router);
+        } else {
+            $this->router = $router;
+        }
+
+        if (!$this->router || ($this->router->user_id !== Auth::id() && Auth::user()->role !== 'admin')) {
+            abort(403);
+        }
+    }
+
+    protected function emitirAlSocket($comando, $mac, $tid)
+    {
+        try {
+            $comandoLimpio = trim(preg_replace('/\s+/', ' ', $comando));
+            $response = Http::withHeaders([
+                'x-mac' => $mac,
+                'x-id'  => $tid
+            ])
+            ->withBody($comandoLimpio, 'text/plain')
+            ->post("{$this->bridgeUrl}/set-command");
+
+            if (!$response->successful()) throw new \Exception("Bridge Offline");
+            return true;
+        } catch (\Exception $e) {
+            Log::error("Error Bridge en PlanManager: " . $e->getMessage());
+            throw new \Exception("Error al conectar con el Bridge.");
+        }
+    }
+
+    protected function esperarRespuesta($mac, $tid)
+    {
+        for ($i = 0; $i < 60; $i++) {
+            sleep(1);
+            try {
+                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", [
+                    'mac' => $mac,
+                    'tid' => $tid
+                ]);
+
+                if ($res->successful() && $res->json('status') === 'ready') { 
+                    return $res->json('data');
+                }
+            } catch (\Exception $e) {}
+        }
+        return null;
     }
 
     public function store()
     {
-        set_time_limit(120);
         $this->validate(['price' => 'required|numeric', 'tiempo_display' => 'required']);
         
         $precioEntero = (int)$this->price;
@@ -37,81 +92,166 @@ class PlanManager extends Component
         $macActual = strtoupper($this->router->macAddress);
 
         $this->isModalOpen = false;
-        session()->flash('message', "Sincronizando...");
+        session()->flash('message', "Sincronizando con MikroTik (espera 60s)...");
 
         try {
-            // Variables de RouterOS escapadas para una sola línea
             $u = "\\24user"; $a = "\\24address";
-            $onL = ":global gUser $u; :global gAddr $a; :global gType login; /system script run log-event";
-            $onO = ":global gUser $u; :global gAddr $a; :global gType logout; /system script run log-event";
-            
+            $onLogin = ":global gUser $u; :global gAddr $a; :global gType login; /system script run log-event";
+            $onLogout = ":global gUser $u; :global gAddr $a; :global gType logout; /system script run log-event";
+
             $accion = $this->plan_id ? "set [find name=\"$this->old_mikrotik_name\"]" : "add";
             $rate = $this->rate_limit ? "rate-limit=\"$this->rate_limit\"" : "";
+            $proxy = $this->transparent_proxy ? "yes" : "no";
 
-            // COMANDO EN UNA SOLA LÍNEA SIN SALTOS NI ESPACIOS EXTRAS
-            $fullCmd = ":do { /ip hotspot user profile $accion name=\"$name\" session-timeout=$this->session_timeout idle-timeout=$this->idle_timeout keepalive-timeout=$this->keepalive_timeout status-autorefresh=$this->status_autorefresh shared-users=$this->shared_users address-pool=\"$this->address_pool\" mac-cookie-timeout=$this->mac_cookie_timeout on-login=\"$onL\" on-logout=\"$onO\" $rate; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"SUCCESS\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"FAIL\" keep-result=no; };";
+            // COMANDO CON TODOS LOS PARÁMETROS SOLICITADOS
+            $fullCmd = ":do { /ip hotspot user profile $accion name=\"$name\" session-timeout=$this->session_timeout idle-timeout=$this->idle_timeout keepalive-timeout=$this->keepalive_timeout status-autorefresh=$this->status_autorefresh shared-users=$this->shared_users address-pool=\"$this->address_pool\" transparent-proxy=$proxy mac-cookie-timeout=$this->mac_cookie_timeout on-login=\"$onLogin\" on-logout=\"$onLogout\" $rate; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"SUCCESS\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"FAIL\" keep-result=no; };";
 
-            // Enviar al Bridge
-            $response = Http::withHeaders(['x-mac' => $macActual, 'x-id' => $tid])
-                ->withBody($fullCmd, 'text/plain')
-                ->post("{$this->bridgeUrl}/set-command");
+            $this->emitirAlSocket($fullCmd, $macActual, $tid);
+            $respuestaData = $this->esperarRespuesta($macActual, $tid);
 
-            if ($response->successful()) {
-                // Esperar resultado
-                $respuestaData = null;
-                for ($i = 0; $i < 40; $i++) {
-                    sleep(1);
-                    $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $macActual, 'tid' => $tid]);
-                    if ($res->successful() && $res->json('status') === 'ready') {
-                        $respuestaData = $res->json('data');
-                        break;
-                    }
-                }
-
-                if ($respuestaData === "SUCCESS") {
-                    Plan::updateOrCreate(
-                        ['id' => $this->plan_id],
-                        [
-                            'router_id' => $this->router->id, 'name' => $name, 'mikrotik_profile' => $name,
-                            'price' => $precioEntero, 'session_timeout' => $this->session_timeout,
-                            'idle_timeout' => $this->idle_timeout, 'keepalive_timeout' => $this->keepalive_timeout,
-                            'status_autorefresh' => $this->status_autorefresh, 'mac_cookie_timeout' => $this->mac_cookie_timeout,
-                            'address_pool' => $this->address_pool, 'rate_limit' => $this->rate_limit, 
-                            'shared_users' => $this->shared_users, 'is_active' => true
-                        ]
-                    );
-                    session()->flash('message', "¡Perfil '$name' actualizado con éxito!");
-                } else {
-                    throw new \Exception($respuestaData === 'FAIL' ? "Error de sintaxis en MikroTik." : "El router no respondió a tiempo.");
-                }
+            if ($respuestaData === "SUCCESS") {
+                Plan::updateOrCreate(
+                    ['id' => $this->plan_id],
+                    [
+                        'router_id' => $this->router->id, 
+                        'name' => $name, 
+                        'mikrotik_profile' => $name, 
+                        'price' => $precioEntero, 
+                        'session_timeout' => $this->session_timeout, 
+                        'idle_timeout' => $this->idle_timeout,
+                        'keepalive_timeout' => $this->keepalive_timeout,
+                        'status_autorefresh' => $this->status_autorefresh,
+                        'mac_cookie_timeout' => $this->mac_cookie_timeout,
+                        'rate_limit' => $this->rate_limit, 
+                        'shared_users' => $this->shared_users,
+                        'address_pool' => $this->address_pool,
+                        'transparent_proxy' => $this->transparent_proxy,
+                        'is_active' => true
+                    ]
+                );
+                session()->flash('message', "¡Perfil '$name' configurado correctamente!");
+            } else {
+                session()->forget('message');
+                $errorMsg = ($respuestaData === 'FAIL') ? "El MikroTik rechazó el comando." : "Timeout: El router no confirmó la operación.";
+                throw new \Exception($errorMsg);
             }
         } catch (\Exception $e) { 
+            session()->forget('message');
             session()->flash('error', $e->getMessage()); 
         }
     }
 
+    public function destroy($id)
+    {
+        $plan = Plan::findOrFail($id);
+        $name = $plan->mikrotik_profile;
+        $macActual = strtoupper($this->router->macAddress);
+        $tid = "DEL" . time();
+        session()->flash('message', "Eliminando perfil '$name' en MikroTik...");
+
+        try {
+            $fullCmd = ":do { /ip hotspot user profile remove [find name=\"$name\"]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"SUCCESS\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"FAIL\" keep-result=no; };";
+            $this->emitirAlSocket($fullCmd, $macActual, $tid);
+            $respuestaData = $this->esperarRespuesta($macActual, $tid);
+
+            if ($respuestaData === "SUCCESS") {
+                $plan->delete();
+                session()->flash('message', "Perfil '$name' eliminado.");
+            } else {
+                throw new \Exception("No se pudo eliminar en MikroTik.");
+            }
+        } catch (\Exception $e) { session()->flash('error', $e->getMessage()); }
+    }
+
+    public function openSyncModal() 
+    {
+        $this->mikrotikProfiles = []; 
+        $macActual = strtoupper($this->router->macAddress);
+        $tid = "SYNC" . time();
+        $comando = ":local res \"LISTA:\"; :foreach i in=[/ip hotspot user profile find where name!=\"default\" and name!=\"neutro\"] do={ :local n [/ip hotspot user profile get \$i name]; :local s [/ip hotspot user profile get \$i shared-users]; :local t [/ip hotspot user profile get \$i session-timeout]; :local r [/ip hotspot user profile get \$i rate-limit]; :if ([:len \$t] = 0) do={ :set t \"00:00:00\" }; :if ([:len \$r] = 0) do={ :set r \"unlimited\" }; :set res (\$res . \$n . \",\" . \$s . \",\" . \$t . \",\" . \$r . \"|\"); }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\$res keep-result=no;";
+
+        try {
+            $this->emitirAlSocket($comando, $macActual, $tid);
+            $respuestaData = $this->esperarRespuesta($macActual, $tid);
+            if ($respuestaData) {
+                $datos = str_replace('LISTA:', '', $respuestaData);
+                $filas = array_filter(explode('|', trim($datos, "| ")));
+                foreach ($filas as $fila) {
+                    $p = explode(',', $fila);
+                    if (count($p) >= 3) {
+                        $extraerPrecio = explode('-', $p[0]);
+                        $this->mikrotikProfiles[] = [
+                            'name' => $p[0], 'shared_users' => $p[1], 'session_timeout' => $p[2], 'rate_limit' => $p[3], 
+                            'price' => isset($extraerPrecio[1]) ? (int)$extraerPrecio[1] : 0
+                        ];
+                    }
+                }
+                $this->isSyncModalOpen = true; 
+            }
+        } catch (\Exception $e) { session()->flash('error', $e->getMessage()); }
+    }
+
+    public function solicitarIdentity()
+    {
+        $macActual = strtoupper($this->router->macAddress);
+        $tid = "IDN" . time();
+        $comando = ":local sysName [/system identity get name]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\"\$sysName\" keep-result=no;";
+        try {
+            $this->emitirAlSocket($comando, $macActual, $tid);
+            $respuesta = $this->esperarRespuesta($macActual, $tid);
+            if ($respuesta) session()->flash('message', "Router: " . $respuesta);
+        } catch (\Exception $e) { session()->flash('error', $e->getMessage()); }
+    }
+
+    public function syncDatabase($depurar = false) 
+    {
+        try {
+            $nombresEnMikrotik = collect($this->mikrotikProfiles)->pluck('name')->toArray();
+            Plan::where('router_id', $this->router->id)->whereNotIn('mikrotik_profile', $nombresEnMikrotik)->delete();
+            foreach ($this->mikrotikProfiles as $mp) {
+                Plan::updateOrCreate(
+                    ['router_id' => $this->router->id, 'mikrotik_profile' => $mp['name']],
+                    ['name' => $mp['name'], 'price' => $mp['price'], 'session_timeout' => $mp['session_timeout'], 'shared_users' => $mp['shared_users'], 'is_active' => true]
+                );
+            }
+            $this->closeModal();
+        } catch (\Exception $e) { session()->flash('error', $e->getMessage()); }
+    }
+
+    public function create() { 
+        $this->reset(['plan_id', 'price', 'rate_limit', 'old_mikrotik_name', 'address_pool', 'status_autorefresh', 'keepalive_timeout', 'idle_timeout', 'mac_cookie_timeout', 'transparent_proxy']); 
+        $this->isModalOpen = true; 
+    }
+    
     public function edit($id) {
         $plan = Plan::findOrFail($id);
         $this->plan_id = $id; 
         $this->price = $plan->price; 
-        $this->tiempo_display = explode('-', $plan->name)[0];
+        $this->tiempo_display = explode('-', $plan->name)[0] ?? $plan->name;
         $this->session_timeout = $plan->session_timeout; 
         $this->idle_timeout = $plan->idle_timeout ?? '00:05:00';
         $this->keepalive_timeout = $plan->keepalive_timeout ?? '00:02:00';
         $this->status_autorefresh = $plan->status_autorefresh ?? '00:01:00';
         $this->mac_cookie_timeout = $plan->mac_cookie_timeout ?? '3d 00:00:00';
-        $this->address_pool = $plan->address_pool ?? 'none';
         $this->rate_limit = $plan->rate_limit; 
         $this->shared_users = $plan->shared_users;
+        $this->address_pool = $plan->address_pool ?? 'none';
+        $this->transparent_proxy = (bool)$plan->transparent_proxy;
         $this->old_mikrotik_name = $plan->mikrotik_profile; 
         $this->isModalOpen = true;
     }
 
-    public function create() { 
-        $this->reset(['plan_id', 'price', 'rate_limit', 'old_mikrotik_name', 'address_pool', 'status_autorefresh', 'keepalive_timeout', 'idle_timeout', 'mac_cookie_timeout']); 
-        $this->isModalOpen = true; 
+    public function closeModal() { $this->isModalOpen = false; $this->isSyncModalOpen = false; }
+
+    public function backToRouters() 
+    { 
+        return redirect()->route(Auth::user()->role === 'admin' ? 'admin.routers.index' : 'aliado.routers');
     }
 
-    public function closeModal() { $this->isModalOpen = false; }
-    public function render() { return view('livewire.mikrotik.aliado.plan-manager', ['plans' => Plan::where('router_id', $this->router->id)->get()]); }
+    public function render() 
+    { 
+        return view('livewire.mikrotik.aliado.plan-manager', [
+            'plans' => Plan::where('router_id', $this->router->id)->get()
+        ]); 
+    }
 }
