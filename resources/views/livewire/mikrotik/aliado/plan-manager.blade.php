@@ -110,33 +110,10 @@
                             <label class="form-label small fw-bold">Precio (Bs)</label>
                             <input type="number" wire:model.defer="price" class="form-control rounded-3 shadow-sm">
                         </div>
-
                         <div class="col-md-4">
-                            <label class="form-label small fw-bold text-primary">Session Timeout</label>
+                            <label class="form-label small fw-bold">Timeout (MikroTik Format)</label>
                             <input type="text" wire:model.defer="session_timeout" class="form-control rounded-3 shadow-sm">
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-primary">Idle Timeout</label>
-                            <input type="text" wire:model.defer="idle_timeout" class="form-control rounded-3 shadow-sm">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-primary">Keepalive Timeout</label>
-                            <input type="text" wire:model.defer="keepalive_timeout" class="form-control rounded-3 shadow-sm">
-                        </div>
-
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-success">Address Pool</label>
-                            <input type="text" wire:model.defer="address_pool" class="form-control rounded-3 shadow-sm">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-success">MAC Cookie Timeout</label>
-                            <input type="text" wire:model.defer="mac_cookie_timeout" class="form-control rounded-3 shadow-sm">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-success">Status Autorefresh</label>
-                            <input type="text" wire:model.defer="status_autorefresh" class="form-control rounded-3 shadow-sm">
-                        </div>
-
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">Shared Users</label>
                             <input type="number" wire:model.defer="shared_users" class="form-control rounded-3 shadow-sm">
@@ -144,12 +121,6 @@
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">Rate Limit</label>
                             <input type="text" wire:model.defer="rate_limit" class="form-control rounded-3 shadow-sm" placeholder="1M/1M">
-                        </div>
-                        <div class="col-md-4 d-flex align-items-end">
-                            <div class="form-check form-switch mb-2">
-                                <input class="form-check-input" type="checkbox" wire:model.defer="transparent_proxy" id="proxySwitch">
-                                <label class="form-check-label small fw-bold" for="proxySwitch">Proxy Transparente</label>
-                            </div>
                         </div>
                     </div>
                 </div>
