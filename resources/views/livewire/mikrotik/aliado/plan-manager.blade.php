@@ -28,66 +28,41 @@
 
     {{-- ALERTAS --}}
     @if(session()->has('message')) 
-        <div class="alert alert-success border-0 rounded-4 shadow-sm mb-4 d-flex align-items-center">
-            <span wire:loading wire:target="store" class="spinner-border spinner-border-sm me-3 text-success"></span>
-            <i wire:loading.remove wire:target="store" class="bi bi-check-circle-fill me-2 h5 mb-0"></i> 
-            <div>{{ session('message') }}</div>
+        <div class="alert alert-success border-0 rounded-4 shadow-sm mb-4">
+            <i class="bi bi-check-circle-fill me-2"></i> {{ session('message') }}
         </div> 
     @endif
     @if(session()->has('error')) 
         <div class="alert alert-danger border-0 rounded-4 shadow-sm mb-4">
-            <i class="bi bi-exclamation-triangle-fill me-2 h5 mb-0"></i> {{ session('error') }}
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ session('error') }}
         </div> 
     @endif
 
-    {{-- INDICADOR DE CARGA GLOBAL --}}
-    <div wire:loading wire:target="store" class="w-100 mb-4">
-        <div class="progress rounded-pill shadow-sm" style="height: 10px;">
-            <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 100%"></div>
-        </div>
-        <p class="text-center small text-primary fw-bold mt-2 animate__animated animate__pulse animate__infinite">Comunicando con MikroTik...</p>
-    </div>
-
-    {{-- TABLA --}}
+    {{-- TABLA LOCAL --}}
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
         <div class="table-responsive">
             <table class="table align-middle mb-0">
                 <thead class="bg-light">
                     <tr>
                         <th class="px-4 py-3">Perfil</th>
-                        <th class="py-3">Configuración Detallada</th>
+                        <th class="py-3">Configuración</th>
                         <th class="py-3">Precio</th>
                         <th class="px-4 py-3 text-end">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($plans as $p)
-                    <tr wire:loading.class="opacity-50" wire:target="store">
-                        <td class="px-4 fw-bold text-dark">{{ $p->name }}</td>
-                        <td class="small text-muted">
-                            <span title="Tiempo de Sesión">S: {{ $p->session_timeout }}</span> | 
-                            <span title="Tiempo de Inactividad">I: {{ $p->idle_timeout }}</span> | 
-                            <span title="Mantenimiento de Conexión">K: {{ $p->keepalive_timeout }}</span> | 
-                            <span title="Refresco de Pantalla">R: {{ $p->status_autorefresh }}</span> |
-                            Cookie: @if($p->add_mac_cookie) <span class="text-success fw-bold">SI ({{ $p->mac_cookie_timeout }})</span> @else <span class="text-danger">NO</span> @endif
-                        </td>
+                    <tr>
+                        <td class="px-4 fw-bold">{{ $p->name }}</td>
+                        <td class="small text-muted">S: {{ $p->session_timeout }} | Limit: {{ $p->rate_limit ?? 'Infinito' }}</td>
                         <td class="fw-bold text-success">{{ number_format((float)$p->price, 0) }} Bs</td>
                         <td class="px-4 text-end">
-                            <div class="d-flex justify-content-end gap-2">
-                                <button wire:click="edit({{ $p->id }})" class="btn btn-link text-info p-0 shadow-none">
-                                    <i class="bi bi-pencil-square h5"></i>
-                                </button>
-                                <button onclick="confirm('¿Estás seguro de eliminar este plan?') || event.stopImmediatePropagation()" 
-                                        wire:click="destroy({{ $p->id }})" 
-                                        class="btn btn-link text-danger p-0 shadow-none">
-                                    <span wire:loading wire:target="destroy({{ $p->id }})" class="spinner-border spinner-border-sm"></span>
-                                    <i wire:loading.remove wire:target="destroy({{ $p->id }})" class="bi bi-trash3 h5"></i>
-                                </button>
-                            </div>
+                            <button wire:click="edit({{ $p->id }})" class="btn btn-link text-info"><i class="bi bi-pencil-square h5"></i></button>
+                            <button onclick="confirm('¿Eliminar?') || event.stopImmediatePropagation()" wire:click="destroy({{ $p->id }})" class="btn btn-link text-danger"><i class="bi bi-trash3 h5"></i></button>
                         </td>
                     </tr>
                     @empty
-                    <tr><td colspan="4" class="text-center py-5 text-muted">No hay planes registrados.</td></tr>
+                    <tr><td colspan="4" class="text-center py-5">No hay planes registrados.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -97,69 +72,93 @@
     {{-- MODAL NUEVO/EDITAR --}}
     @if($isModalOpen)
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.6); z-index: 1060; backdrop-filter: blur(5px);">
-        <div class="modal-dialog modal-lg" style="margin-top: 8rem;">
+        <div class="modal-dialog modal-lg" style="margin-top: 5rem;">
             <div class="modal-content border-0 rounded-4 shadow-lg">
-                <div class="modal-header bg-dark text-white p-4">
-                    <h5 class="modal-title fw-bold text-uppercase">{{ $plan_id ? 'Editar Plan' : 'Nuevo Plan' }}</h5>
-                    <button wire:click="closeModal" class="btn-close btn-close-white shadow-none"></button>
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">{{ $plan_id ? 'Editar Plan' : 'Nuevo Plan' }}</h5>
+                    <button wire:click="closeModal" class="btn-close btn-close-white"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label small fw-bold">Nombre Comercial (Ej: 1 Hora)</label>
-                            <input type="text" wire:model.defer="tiempo_display" class="form-control rounded-3 shadow-sm">
+                            <label class="form-label fw-bold small">Nombre (Ej: 1 Hora)</label>
+                            <input type="text" wire:model.defer="tiempo_display" class="form-control rounded-3">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small fw-bold">Precio de Venta (Bs)</label>
-                            <input type="number" wire:model.defer="price" class="form-control rounded-3 shadow-sm">
-                        </div>
-                        
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold">Duración Plan</label>
-                            <input type="text" wire:model.defer="session_timeout" class="form-control rounded-3 shadow-sm" title="Session Timeout">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold">Inactividad</label>
-                            <input type="text" wire:model.defer="idle_timeout" class="form-control rounded-3 shadow-sm" title="Idle Timeout">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold">Keepalive</label>
-                            <input type="text" wire:model.defer="keepalive_timeout" class="form-control rounded-3 shadow-sm" title="Keepalive Timeout">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold">Refresco Status</label>
-                            <input type="text" wire:model.defer="status_autorefresh" class="form-control rounded-3 shadow-sm">
-                        </div>
-                        
-                        {{-- SECCIÓN MAC COOKIES --}}
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-success">¿Recordar Dispositivo?</label>
-                            <select wire:model.defer="add_mac_cookie" class="form-select rounded-3 shadow-sm border-success">
-                                <option value="yes">SÍ (Usar Cookies)</option>
-                                <option value="no">NO</option>
-                            </select>
+                            <label class="form-label fw-bold small">Precio (Bs)</label>
+                            <input type="number" wire:model.defer="price" class="form-control rounded-3">
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label small fw-bold text-success">Duración de Cookie</label>
-                            <input type="text" wire:model.defer="mac_cookie_timeout" class="form-control rounded-3 shadow-sm border-success">
+                            <label class="form-label fw-bold small">Session Timeout</label>
+                            <input type="text" wire:model.defer="session_timeout" class="form-control rounded-3">
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold">Dispositivos simultáneos</label>
-                            <input type="number" wire:model.defer="shared_users" class="form-control rounded-3 shadow-sm">
-                        </div>
-
-                        <div class="col-md-12">
-                            <label class="form-label small fw-bold">Límite de Velocidad (Bajada/Subida)</label>
-                            <input type="text" wire:model.defer="rate_limit" class="form-control rounded-3 shadow-sm" placeholder="1M/1M">
+                        <div class="col-md-8">
+                            <label class="form-label fw-bold small">Rate Limit (Bajada/Subida)</label>
+                            <input type="text" wire:model.defer="rate_limit" class="form-control rounded-3" placeholder="2M/2M">
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer bg-light p-4">
-                    <button wire:click="closeModal" class="btn btn-light px-4 rounded-pill border shadow-sm">Cerrar</button>
-                    <button wire:click="store" wire:loading.attr="disabled" class="btn btn-primary px-4 rounded-pill fw-bold shadow-sm">
-                        <span wire:loading wire:target="store" class="spinner-border spinner-border-sm me-1"></span>
-                        GUARDAR EN MIKROTIK
+                <div class="modal-footer bg-light">
+                    <button wire:click="closeModal" class="btn btn-light rounded-pill border">Cerrar</button>
+                    <button wire:click="store" wire:loading.attr="disabled" class="btn btn-primary rounded-pill fw-bold">
+                        <span wire:loading wire:target="store" class="spinner-border spinner-border-sm"></span> GUARDAR
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- MODAL DE SINCRONIZACIÓN --}}
+    @if($isSyncModalOpen)
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.7); z-index: 1070; backdrop-filter: blur(8px);">
+        <div class="modal-dialog modal-xl" style="margin-top: 3rem;">
+            <div class="modal-content border-0 rounded-4 shadow-lg">
+                <div class="modal-header bg-info text-white p-4">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-cloud-download me-2"></i>PERFILES DETECTADOS EN MIKROTIK</h5>
+                    <button wire:click="closeModal" class="btn-close btn-close-white"></button>
+                </div>
+                <div class="modal-body p-4">
+                    {{-- DEBUG INFO --}}
+                    <div class="alert alert-dark p-2 rounded-3 shadow-sm mb-4 overflow-auto" style="max-height: 100px;">
+                        <small class="fw-bold d-block text-uppercase border-bottom border-secondary mb-1">Respuesta Cruda del Router:</small>
+                        <code class="text-info small" style="word-break: break-all;">{{ $debugRaw }}</code>
+                    </div>
+
+                    <div class="table-responsive rounded-3 border">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr class="small fw-bold">
+                                    <th>PERFIL</th>
+                                    <th>SESIÓN</th>
+                                    <th>LIMIT</th>
+                                    <th>COOKIE</th>
+                                    <th>PRECIO CALC.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($mikrotikProfiles as $mp)
+                                <tr>
+                                    <td class="fw-bold text-dark">{{ $mp['name'] }}</td>
+                                    <td>{{ $mp['session_timeout'] }}</td>
+                                    <td><span class="badge bg-secondary">{{ $mp['rate_limit'] }}</span></td>
+                                    <td>{{ $mp['add_mac_cookie'] }}</td>
+                                    <td class="fw-bold text-success">{{ $mp['price'] }} Bs</td>
+                                </tr>
+                                @empty
+                                <tr><td colspan="5" class="text-center py-4 text-muted">No se procesaron perfiles. Revisa el "Respuesta Cruda" arriba.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light p-4">
+                    <button wire:click="closeModal" class="btn btn-secondary px-4 rounded-pill">CANCELAR</button>
+                    @if(count($mikrotikProfiles) > 0)
+                    <button wire:click="syncDatabase" class="btn btn-success px-5 rounded-pill fw-bold shadow-sm">
+                        <i class="bi bi-check-all me-1"></i> ACEPTAR Y SINCRONIZAR DB
+                    </button>
+                    @endif
                 </div>
             </div>
         </div>
