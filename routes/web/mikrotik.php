@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\MikrotikPasarelaController;
 use App\Http\Livewire\Mikrotik\Hotspot\ListEventos;
 use App\Http\Livewire\Mikrotik\Herramientas\Diagnostico;
 use App\Http\Livewire\Mikrotik\Herramientas\VisorLogs;
+use App\Http\Livewire\Mikrotik\Herramientas\ConfigurarRemoto;
 
 use Illuminate\Support\Facades\Response;
 
@@ -149,5 +150,7 @@ Route::group(['middleware' => ['auth']], function () {
 
     // Nueva ruta para el Visor de Logs Amigable
     Route::get('/mikrotik/herramientas/logs', VisorLogs::class)->name('mikrotik.logs');
+
+    Route::get('/mikrotik/herramientas/configurarremoto', ConfigurarRemoto::class)->name('mikrotik.remoto');
 
 });
