@@ -110,12 +110,22 @@ app.get('/get-long-task', (req, res) => {
 app.all('/post-result', (req, res) => {
     const mac = req.query.mac?.toUpperCase();
     const tid = req.query.tid;
+    
+    // LOG DE DEPURACIÓN
+    console.log(`[DEBUG] Recibido resultado de MAC: ${mac}, TID: ${tid}`);
+    console.log(`[DEBUG] Body Type: ${typeof req.body}, Body Length: ${req.body?.length}`);
+
     const data = (typeof req.body === 'string' && req.body.length > 0) ? req.body : req.query.data;
+    
     if (mac && tid && data) {
         delete comandosEnTransito[tid];
         buzonResultados[`${mac}_${tid}`] = { data, timestamp: Date.now() };
+        console.log(`[DEBUG] Resultado guardado exitosamente.`);
         res.send("OK");
-    } else { res.send("ERROR"); }
+    } else { 
+        console.log(`[DEBUG] ERROR: Faltan datos (mac:${!!mac}, tid:${!!tid}, data:${!!data})`);
+        res.send("ERROR"); 
+    }
 });
 
 app.get('/api/check-task-result', (req, res) => {
