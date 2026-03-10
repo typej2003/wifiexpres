@@ -177,41 +177,85 @@ class UserController extends Controller
             $password = $request->input('password');
             $identity = $request->input('identity'); 
             $mac = $this->getMacByIdentity($identity);
-            if (!$mac) return response()->json(['success' => false], 404);
+
+            if (!$mac) return response()->json(['success' => false, 'message' => 'Router no identificado'], 404);
+
             $tidCheck = "CHK" . time();
-            $cmdCheck = ":local id [/ip hotspot user find name=\"$username\"];:if ([:len \$id]>0) do={/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidCheck\" http-method=post http-data=\"EXISTE\" keep-result=no} else={/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidCheck\" http-method=post http-data=\"NO_EXISTE\" keep-result=no}";
+            // Verificamos si existe el usuario
+            $cmdCheck = ":local id [/ip hotspot user find name=\"$username\"]; :if ([:len \$id]>0) do={/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidCheck\" http-method=post http-data=\"EXISTE\" keep-result=no} else={/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidCheck\" http-method=post http-data=\"NO_EXISTE\" keep-result=no}";
+            
             $this->emitirAlSocket($cmdCheck, $mac, $tidCheck);
+            
             $existe = false;
-            for ($i = 0; $i < 60; $i++) {
+            // Espera optimizada (máximo 15s para pre-registro es suficiente)
+            for ($i = 0; $i < 15; $i++) {
                 sleep(1);
                 $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tidCheck]);
-                if ($res->successful() && $res->json('status') === 'ready') { $existe = (trim($res->json('data')) === 'EXISTE'); break; }
+                if ($res->successful() && $res->json('status') === 'ready') { 
+                    $existe = (trim($res->json('data')) === 'EXISTE'); 
+                    break; 
+                }
             }
+
             $tidFinal = "PRE" . time();
+            // Si existe, actualizamos password y perfil a neutro. Si no, lo creamos.
+            // Importante: Limpiamos limit-uptime por si acaso quedó de un plan anterior expirado.
             if ($existe) {
-                $cmdFinal = ":do {/ip hotspot user set [find name=\"$username\"] password=\"$password\" profile=\"neutro\";/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidFinal\" http-method=post http-data=\"OK\" keep-result=no} on-error={/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidFinal\" http-method=post http-data=\"ERROR\" keep-result=no}";
+                $cmdFinal = ":do {/ip hotspot user set [find name=\"$username\"] password=\"$password\" profile=\"neutro\" limit-uptime=0s; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidFinal\" http-method=post http-data=\"OK\" keep-result=no} on-error={/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidFinal\" http-method=post http-data=\"ERROR\" keep-result=no}";
             } else {
-                $cmdFinal = ":do {/ip hotspot user add name=\"$username\" password=\"$password\" profile=\"neutro\";/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidFinal\" http-method=post http-data=\"OK\" keep-result=no} on-error={/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidFinal\" http-method=post http-data=\"ERROR\" keep-result=no}";
+                $cmdFinal = ":do {/ip hotspot user add name=\"$username\" password=\"$password\" profile=\"neutro\"; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidFinal\" http-method=post http-data=\"OK\" keep-result=no} on-error={/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidFinal\" http-method=post http-data=\"ERROR\" keep-result=no}";
             }
+
             $this->emitirAlSocket($cmdFinal, $mac, $tidFinal);
             if ($this->esperarConfirmacion($mac, $tidFinal)) return response()->json(['success' => true]);
-            return response()->json(['success' => false]);
-        } catch (\Exception $e) { return response()->json(['success' => false], 500); }
+
+            return response()->json(['success' => false, 'message' => 'El router no respondió al pre-registro']);
+        } catch (\Exception $e) { 
+            Log::error("Error en preAdd: " . $e->getMessage());
+            return response()->json(['success' => false], 500); 
+        }
     }
 
     public function activate(Request $request) {
         try {
             $username = $request->input('username');
-            $profile = $request->input('profile'); 
+            $profile = $request->input('profile'); // Ejemplo: "1 Hora-1"
             $identity = $request->input('identity');
             $mac = $this->getMacByIdentity($identity);
+
             if (!$mac) return response()->json(['success' => false], 404);
+
             $tid = "ACT" . time();
-            $cmd = ":do {/ip hotspot user set [find name=\"$username\"] profile=\"$profile\" limit-uptime=0s;/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no} on-error={/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"ERROR\" keep-result=no}";
+            
+            /**
+             * Lógica de activación:
+             * 1. Cambiamos el perfil al seleccionado.
+             * 2. limit-uptime=0s: Elimina cualquier restricción de tiempo previo.
+             * 3. Importante: Al cambiar el perfil, el MikroTik aplicará los nuevos Keepalive 
+             * y Cookies que configuraste en el PlanManager.
+             */
+            $cmd = ":do { 
+                /ip hotspot user set [find name=\"$username\"] profile=\"$profile\" limit-uptime=0s; 
+                /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no; 
+            } on-error={ 
+                /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"ERROR\" keep-result=no; 
+            }";
+
+            // Usamos emitirAlSocket para limpiar el comando de saltos de línea
             $this->emitirAlSocket($cmd, $mac, $tid);
-            if ($this->esperarConfirmacion($mac, $tid)) return response()->json(['success' => true]);
-            return response()->json(['success' => false]);
-        } catch (\Exception $e) { return response()->json(['success' => false], 500); }
+
+            if ($this->esperarConfirmacion($mac, $tid)) {
+                // Opcional: Actualizar el estado en tu tabla UserMikrotik local si la usas
+                UserMikrotik::where('name', $username)->update(['profile' => $profile, 'active' => true]);
+                
+                return response()->json(['success' => true]);
+            }
+
+            return response()->json(['success' => false, 'message' => 'No se pudo activar el plan en el router']);
+        } catch (\Exception $e) { 
+            Log::error("Error en activate: " . $e->getMessage());
+            return response()->json(['success' => false], 500); 
+        }
     }
 
     protected function emitirAlSocket($comando, $mac, $tid) {

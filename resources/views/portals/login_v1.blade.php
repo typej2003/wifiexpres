@@ -505,5 +505,21 @@
 
         window.onload = initPortal;
     </script>
+    <script>
+        function enviarAltura() {
+            // Calculamos la altura real del contenido
+            const height = document.body.scrollHeight || document.documentElement.scrollHeight;
+            // Enviamos el mensaje al "padre" (el Hotspot del MikroTik)
+            window.parent.postMessage({ 'setHeight': height }, '*');
+        }
+
+        // Ejecutar al cargar y si el contenido cambia (por si hay elementos dinámicos)
+        window.onload = enviarAltura;
+        window.onresize = enviarAltura;
+
+        // Opcional: Si el contenido cambia dinámicamente, re-enviar
+        const observer = new MutationObserver(enviarAltura);
+        observer.observe(document.body, { childList: true, subtree: true });
+    </script>
 </body>
 </html>
