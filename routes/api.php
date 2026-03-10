@@ -13,7 +13,7 @@ use App\Http\Livewire\Mikrotik\Hotspot\ListPlanes;
 use App\Http\Livewire\Admin\Users\ListUsers;
 use App\Http\Controllers\Api\MikrotikController;
 use App\Http\Controllers\Api\HotspotController;
-use App\Http\Controllers\Api\MikrotikSocket; 
+use App\Http\Controllers\Api\MikrotikSocket;
 use App\Http\Controllers\Api\V2\UserController;
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {
@@ -35,21 +35,23 @@ Route::post('/capturarPagomovil', [ListPagomovil::class, 'capturarPagomovil']);
 Route::get('/accesoMikrotik', [LoginMikrotik::class, 'accesoMikrotik']);
 Route::get('/log-connection', [MikrotikController::class, 'logConnection']);
 
-/** * RUTAS V1 - PORTAL CAUTIVO TRADICIONAL 
+/** * RUTAS V1 - MANTENIDAS POR COMPATIBILIDAD
  */
 Route::prefix('v1')->group(function () {
     Route::get('/get-plans', [HotspotController::class, 'getPlans']);
     Route::post('/users/add', [HotspotController::class, 'addUser']);
 });
 
-/** * RUTAS V2 - NUEVO FLUJO (BRIDGE / SOCKET) 
+/** * RUTAS V2 - NUEVO FLUJO (USER CONTROLLER ÚNICO)
  */
 Route::prefix('v2')->group(function () {
+    // Info y Planes (Desde DB)
+    Route::get('/router-info', [UserController::class, 'getRouterInfo']);
+    Route::get('/get-plans', [UserController::class, 'getPlans']);
+    
+    // Acciones de Usuario (Socket)
     Route::post('/users/pre-add', [UserController::class, 'preAdd']);
     Route::post('/users/activate', [UserController::class, 'activate']);
-    Route::post('/users/trial', [UserController::class, 'trialAdd']);
-    
-    Route::get('/router-info', [UserController::class, 'getRouterInfo']);
     Route::post('/users/trial-lead', [UserController::class, 'trialLead']);
 
     // Testeo del Bridge
@@ -64,7 +66,7 @@ Route::prefix('v3')->group(function () {
     Route::post('/leads/add', [HotspotController::class, 'v3RegisterLead']);
 });
 
-// MANEJO GLOBAL DE CORS (Evita el "Error de comunicación")
+// MANEJO GLOBAL DE CORS
 Route::options('{any}', function() {
     return response()->json([], 200)
         ->header('Access-Control-Allow-Origin', '*')
