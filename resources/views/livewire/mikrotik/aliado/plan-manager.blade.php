@@ -67,7 +67,7 @@
                         <td class="small text-muted">
                             Session: {{ $p->session_timeout }} | 
                             Idle: {{ $p->idle_timeout ?? 'none' }} | 
-                            Limit: {{ $p->rate_limit ?? 'Full' }}
+                            Refresh: {{ $p->status_autorefresh ?? '00:01:00' }}
                         </td>
                         <td class="fw-bold text-success">{{ number_format((float)$p->price, 0) }} Bs</td>
                         <td class="px-4 text-end">
@@ -112,19 +112,23 @@
                             <label class="form-label small fw-bold">Precio (Bs)</label>
                             <input type="number" wire:model.defer="price" class="form-control rounded-3 shadow-sm">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <label class="form-label small fw-bold">Session Timeout</label>
                             <input type="text" wire:model.defer="session_timeout" class="form-control rounded-3 shadow-sm">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <label class="form-label small fw-bold">Idle Timeout</label>
                             <input type="text" wire:model.defer="idle_timeout" class="form-control rounded-3 shadow-sm">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Status Autorefresh</label>
+                            <input type="text" wire:model.defer="status_autorefresh" class="form-control rounded-3 shadow-sm">
+                        </div>
+                        <div class="col-md-6">
                             <label class="form-label small fw-bold">Shared Users</label>
                             <input type="number" wire:model.defer="shared_users" class="form-control rounded-3 shadow-sm">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-6">
                             <label class="form-label small fw-bold">Rate Limit</label>
                             <input type="text" wire:model.defer="rate_limit" class="form-control rounded-3 shadow-sm" placeholder="1M/1M">
                         </div>
@@ -157,9 +161,9 @@
                             <thead class="bg-light sticky-top">
                                 <tr>
                                     <th class="px-4 py-3 border-0">Perfil</th>
-                                    <th class="border-0">Shared</th>
                                     <th class="border-0">S. Timeout</th>
                                     <th class="border-0">I. Timeout</th>
+                                    <th class="border-0">A. Refresh</th>
                                     <th class="px-4 text-end border-0">Rate Limit</th>
                                 </tr>
                             </thead>
@@ -169,9 +173,9 @@
                                     <td class="px-4">
                                         <span class="fw-bold text-dark">{{ $mp['name'] }}</span>
                                     </td>
-                                    <td>{{ $mp['shared_users'] }}</td>
                                     <td>{{ $mp['session_timeout'] }}</td>
                                     <td>{{ $mp['idle_timeout'] }}</td>
+                                    <td>{{ $mp['status_autorefresh'] }}</td>
                                     <td class="px-4 text-end">
                                         <span class="badge bg-secondary rounded-pill">{{ $mp['rate_limit'] }}</span>
                                     </td>
