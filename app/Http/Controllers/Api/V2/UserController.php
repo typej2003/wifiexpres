@@ -180,33 +180,44 @@ class UserController extends Controller
 
             if (!$mac) return response()->json(['success' => false, 'message' => 'Router no identificado'], 404);
 
-            $tidFinal = "PRE" . time();
+            $tid = "PRE" . time();
 
-            // COMANDO OPTIMIZADO: 
-            // 1. Intenta modificar si existe. 
-            // 2. Si falla (on-error), lo intenta agregar.
-            // Esto evita tener que hacer dos tareas (Check + Add/Set) y ahorra tiempo.
-            $cmd = ":do { 
-                /ip hotspot user set [find name=\"$username\"] password=\"$password\" profile=\"neutro\" limit-uptime=0s;
-                :if ([:len [/ip hotspot user find name=\"$username\"]] = 0) do={
-                    /ip hotspot user add name=\"$username\" password=\"$password\" profile=\"neutro\";
-                };
-                /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidFinal\" http-method=post http-data=\"OK\" keep-result=no;
-            } on-error={ 
-                /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidFinal\" http-method=post http-data=\"ERROR\" keep-result=no;
-            }";
+            /**
+             * COMANDO UNIFICADO (Más eficiente para el Bridge v3.5)
+             * Intentamos buscar al usuario. 
+             * - Si existe: Lo actualizamos.
+             * - Si no existe: Lo creamos.
+             * Luego enviamos una ÚNICA respuesta al Bridge.
+             */
+            $cmd = ":do { " .
+                ":local userExist [/ip hotspot user find name=\"$username\"]; " .
+                ":if ([:len \$userExist] > 0) do={ " .
+                "/ip hotspot user set \$userExist password=\"$password\" profile=\"neutro\" limit-uptime=0s; " .
+                "} else={ " .
+                "/ip hotspot user add name=\"$username\" password=\"$password\" profile=\"neutro\"; " .
+                "}; " .
+                "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no; " .
+                "} on-error={ " .
+                "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"ERROR\" keep-result=no; " .
+                "};";
 
-            $this->emitirAlSocket($cmd, $mac, $tidFinal);
+            // Enviamos al socket (esto limpia espacios extra gracias a tu función emitirAlSocket)
+            $enviado = $this->emitirAlSocket($cmd, $mac, $tid);
 
-            // Esperamos la respuesta
-            if ($this->esperarConfirmacion($mac, $tidFinal)) {
+            if (!$enviado) {
+                return response()->json(['success' => false, 'message' => 'Bridge fuera de línea']);
+            }
+
+            // Esperamos la confirmación (esperarConfirmacion ya hace el bucle de 60s)
+            if ($this->esperarConfirmacion($mac, $tid)) {
                 return response()->json(['success' => true]);
             }
 
             return response()->json(['success' => false, 'message' => 'El router no respondió al pre-registro']);
+
         } catch (\Exception $e) { 
             Log::error("Error en preAdd: " . $e->getMessage());
-            return response()->json(['success' => false], 500); 
+            return response()->json(['success' => false, 'message' => 'Error interno'], 500); 
         }
     }
 
