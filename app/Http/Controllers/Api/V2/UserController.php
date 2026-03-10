@@ -112,7 +112,7 @@ class UserController extends Controller
             $macRouter = strtoupper(trim($router->macAddress));
             $tid = "LEAD" . time();
             $password = "123456"; 
-            $profile  = "cortesia-20min"; 
+            $profile  = "cortesia 20min-0"; 
 
             // Comando optimizado para el script del MikroTik
             $cmd = ":local id [/ip hotspot user find name=\"$macCliente\"]; " .

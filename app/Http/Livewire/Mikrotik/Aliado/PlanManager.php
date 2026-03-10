@@ -16,7 +16,7 @@ class PlanManager extends Component
     public $isSyncModalOpen = false; 
     
     public $mikrotikProfiles = [];
-    public $debugRaw = ''; // Nueva: Para ver la respuesta cruda del router
+    public $debugRaw = ''; 
 
     public $plan_id, $price, $rate_limit, $old_mikrotik_name;
     public $tiempo_display = '1 Hora', $session_timeout = '01:00:00';
@@ -107,9 +107,16 @@ class PlanManager extends Component
                         $extraerPrecio = explode('-', $p[0]);
                         $precioFinal = isset($extraerPrecio[1]) ? (int)$extraerPrecio[1] : 0;
                         $this->mikrotikProfiles[] = [
-                            'name' => $p[0], 'shared_users' => $p[1], 'session_timeout' => $p[2], 
-                            'idle_timeout' => $p[3], 'keepalive_timeout' => $p[4], 'status_autorefresh' => $p[5],
-                            'add_mac_cookie' => $p[6], 'mac_cookie_timeout' => $p[7], 'rate_limit' => $p[8], 'price' => $precioFinal
+                            'name' => $p[0], 
+                            'shared_users' => $p[1], 
+                            'session_timeout' => $p[2], 
+                            'idle_timeout' => $p[3], 
+                            'keepalive_timeout' => $p[4], 
+                            'status_autorefresh' => $p[5],
+                            'add_mac_cookie' => $p[6], 
+                            'mac_cookie_timeout' => $p[7], 
+                            'rate_limit' => $p[8], 
+                            'price' => $precioFinal
                         ];
                     }
                 }
@@ -123,19 +130,26 @@ class PlanManager extends Component
         try {
             $nombresEnMikrotik = collect($this->mikrotikProfiles)->pluck('name')->toArray();
             Plan::where('router_id', $this->router->id)->whereNotIn('mikrotik_profile', $nombresEnMikrotik)->delete();
+            
             foreach ($this->mikrotikProfiles as $mp) {
                 Plan::updateOrCreate(
                     ['router_id' => $this->router->id, 'mikrotik_profile' => $mp['name']],
                     [
-                        'name' => $mp['name'], 'price' => $mp['price'], 'session_timeout' => $mp['session_timeout'], 
-                        'idle_timeout' => $mp['idle_timeout'], 'keepalive_timeout' => $mp['keepalive_timeout'],
-                        'status_autorefresh' => $mp['status_autorefresh'], 'add_mac_cookie' => ($mp['add_mac_cookie'] === 'yes'),
-                        'mac_cookie_timeout' => $mp['mac_cookie_timeout'], 'shared_users' => $mp['shared_users'], 
-                        'rate_limit' => ($mp['rate_limit'] === 'none') ? null : $mp['rate_limit'], 'is_active' => true
+                        'name' => $mp['name'], 
+                        'price' => $mp['price'], 
+                        'session_timeout' => $mp['session_timeout'], 
+                        'idle_timeout' => $mp['idle_timeout'], 
+                        'keepalive_timeout' => $mp['keepalive_timeout'],
+                        'status_autorefresh' => $mp['status_autorefresh'], 
+                        'add_mac_cookie' => ($mp['add_mac_cookie'] === 'yes' || $mp['add_mac_cookie'] === 'true'),
+                        'mac_cookie_timeout' => $mp['mac_cookie_timeout'], 
+                        'shared_users' => $mp['shared_users'], 
+                        'rate_limit' => ($mp['rate_limit'] === 'none' || $mp['rate_limit'] === 'unlimited') ? null : $mp['rate_limit'], 
+                        'is_active' => true
                     ]
                 );
             }
-            session()->flash('message', "Sincronización exitosa."); 
+            session()->flash('message', "Base de datos sincronizada con éxito."); 
             $this->closeModal();
         } catch (\Exception $e) { session()->flash('error', $e->getMessage()); }
     }
@@ -170,7 +184,7 @@ class PlanManager extends Component
                     'shared_users' => $this->shared_users, 'is_active' => true
                 ]);
                 session()->flash('message', "Plan guardado en MikroTik.");
-            } else { throw new \Exception($res === "FAIL" ? "MikroTik rechazó el comando." : "El router no confirmó la operación."); }
+            } else { throw new \Exception($res === "FAIL" ? "Error en RouterOS." : "Timeout del Router."); }
         } catch (\Exception $e) { session()->flash('error', $e->getMessage()); }
     }
 
@@ -200,15 +214,24 @@ class PlanManager extends Component
     }
 
     public function create() { $this->reset(['plan_id', 'price', 'rate_limit', 'old_mikrotik_name']); $this->isModalOpen = true; }
+    
     public function edit($id) {
         $p = Plan::findOrFail($id);
-        $this->plan_id = $id; $this->price = $p->price; $this->tiempo_display = explode('-', $p->name)[0];
-        $this->session_timeout = $p->session_timeout; $this->idle_timeout = $p->idle_timeout;
-        $this->keepalive_timeout = $p->keepalive_timeout; $this->status_autorefresh = $p->status_autorefresh;
-        $this->add_mac_cookie = $p->add_mac_cookie ? 'yes' : 'no'; $this->mac_cookie_timeout = $p->mac_cookie_timeout;
-        $this->rate_limit = $p->rate_limit; $this->shared_users = $p->shared_users;
-        $this->old_mikrotik_name = $p->mikrotik_profile; $this->isModalOpen = true;
+        $this->plan_id = $id; 
+        $this->price = $p->price; 
+        $this->tiempo_display = explode('-', $p->name)[0];
+        $this->session_timeout = $p->session_timeout; 
+        $this->idle_timeout = $p->idle_timeout;
+        $this->keepalive_timeout = $p->keepalive_timeout; 
+        $this->status_autorefresh = $p->status_autorefresh;
+        $this->add_mac_cookie = $p->add_mac_cookie ? 'yes' : 'no'; 
+        $this->mac_cookie_timeout = $p->mac_cookie_timeout;
+        $this->rate_limit = $p->rate_limit; 
+        $this->shared_users = $p->shared_users;
+        $this->old_mikrotik_name = $p->mikrotik_profile; 
+        $this->isModalOpen = true;
     }
+
     public function closeModal() { $this->isModalOpen = false; $this->isSyncModalOpen = false; }
     public function backToRouters() { return redirect()->route(Auth::user()->role === 'admin' ? 'admin.routers.index' : 'aliado.routers'); }
     public function render() { return view('livewire.mikrotik.aliado.plan-manager', ['plans' => Plan::where('router_id', $this->router->id)->get()]); }
