@@ -86,13 +86,13 @@
         <div class="card-footer bg-white p-3">{{ $tickets->links() }}</div>
     </div>
 
-    {{-- MODAL GENERAR LOTE (MODO MANUAL POR BLOQUES) --}}
+    {{-- MODAL GENERAR LOTE (MANUAL POR BLOQUES) --}}
     @if($isBulkModalOpen)
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); z-index: 1050;">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content rounded-4 border-0 shadow-lg">
                 <div class="modal-header bg-dark text-white border-0 p-4">
-                    <h5 class="modal-title fw-bold">Generador por Bloques</h5>
+                    <h5 class="modal-title fw-bold">Generador por Bloques (Manual)</h5>
                     @if($bulk_step === 'input')
                         <button wire:click="closeBulkModal" class="btn-close btn-close-white"></button>
                     @endif
@@ -101,8 +101,8 @@
                     @if($bulk_step === 'input')
                         <div class="mb-3 text-start">
                             <label class="form-label small fw-bold text-muted">CANTIDAD TOTAL</label>
-                            <input type="number" wire:model.defer="bulk_count" class="form-control rounded-3 border-0 bg-light fw-bold fs-4 text-center" placeholder="Ej: 100">
-                            <small class="text-muted">Se enviarán en grupos de {{ $bulk_chunk_size }} al Router.</small>
+                            <input type="number" wire:model.defer="bulk_count" class="form-control rounded-3 border-0 bg-light fw-bold fs-4 text-center">
+                            <small class="text-muted text-center d-block">Se procesarán de 30 en 30.</small>
                         </div>
                         <div class="mb-4 text-start">
                             <label class="form-label small fw-bold text-muted">PLAN ASOCIADO</label>
@@ -114,43 +114,39 @@
                             </select>
                         </div>
                         <button wire:click="startBulkGeneration" class="btn btn-dark w-100 rounded-pill py-3 fw-bold shadow">
-                            COMENZAR GENERACIÓN
+                            COMENZAR PRIMER BLOQUE
                         </button>
                     @else
-                        {{-- PROCESO MANUAL PASO A PASO --}}
                         <div class="py-3">
-                            <h5 class="fw-bold mb-3 text-dark">PROGRESO DEL LOTE</h5>
+                            <h5 class="fw-bold mb-3">ESTADO DEL LOTE</h5>
                             
                             @php $porcentaje = $bulk_total_requested > 0 ? ($bulk_current_count / $bulk_total_requested) * 100 : 0; @endphp
                             
                             <div class="progress rounded-pill mb-3 shadow-sm" style="height: 25px;">
                                 <div class="progress-bar bg-primary progress-bar-striped progress-bar-animated" 
-                                     role="progressbar" 
-                                     style="width: {{ $porcentaje }}%; transition: width 0.4s ease;">
+                                     style="width: {{ $porcentaje }}%">
                                     {{ round($porcentaje) }}%
                                 </div>
                             </div>
                             
                             <p class="fw-bold text-muted mb-4">
-                                {{ $bulk_current_count }} de {{ $bulk_total_requested }} tickets procesados.
+                                {{ $bulk_current_count }} de {{ $bulk_total_requested }} tickets creados.
                             </p>
 
                             @if($bulk_current_count < $bulk_total_requested)
                                 <button wire:click="processNextChunk" wire:loading.attr="disabled" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-lg fs-5">
                                     <span wire:loading.remove>
-                                        <i class="bi bi-play-circle me-2"></i> PROCESAR SIGUIENTE BLOQUE ({{ $bulk_chunk_size }})
+                                        <i class="bi bi-play-circle me-2"></i> PROCESAR SIGUIENTE BLOQUE (30)
                                     </span>
                                     <span wire:loading>
-                                        <span class="spinner-border spinner-border-sm me-2"></span> ENVIANDO COMANDOS...
+                                        <span class="spinner-border spinner-border-sm me-2"></span> SINCRONIZANDO...
                                     </span>
                                 </button>
-                                <p class="small text-danger mt-3 fw-bold"><i class="bi bi-exclamation-triangle-fill"></i> No cierre la ventana ni refresque la página.</p>
                             @else
                                 <div class="alert alert-success border-0 rounded-4 fw-bold p-3 mb-3">
-                                    <i class="bi bi-check-all fs-4 d-block mb-1"></i>
                                     ¡Lote completado con éxito!
                                 </div>
-                                <button wire:click="closeBulkModal" class="btn btn-dark w-100 rounded-pill py-3 fw-bold"> FINALIZAR Y CERRAR </button>
+                                <button wire:click="finishBulk" class="btn btn-dark w-100 rounded-pill py-3 fw-bold"> CERRAR Y ACTUALIZAR LISTA </button>
                             @endif
                         </div>
                     @endif
