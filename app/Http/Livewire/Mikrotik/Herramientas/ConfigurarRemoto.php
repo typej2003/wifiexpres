@@ -5,12 +5,14 @@ namespace App\Http\Livewire\Mikrotik\Herramientas;
 use Livewire\Component;
 use App\Models\Router;
 use App\Models\User;
+use App\Models\HotspotVersion;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 
 class ConfigurarRemoto extends Component
 {
     public $router_id;
+    public $version_id; // ID de la versión del portal seleccionada
     public $selectedAliado = null;
     public $routerStatus = [];
     public $logs = [];
@@ -66,13 +68,21 @@ class ConfigurarRemoto extends Component
             ['cmd' => '/ip hotspot walled-garden ip remove [find]', 'desc' => 'Limpiando Walled Garden IP'],
             ['cmd' => '/ip firewall nat remove [find where comment="Masquerade-Hotspot"]', 'desc' => 'Limpiando NAT previo'],
             ['cmd' => '/user remove [find name!="jose" and name!="admin"]', 'desc' => 'Limpiando usuarios sistema'],
+            ['cmd' => '/file remove [find name="hotspot/login.html"]', 'desc' => 'Eliminando login.html'],
         ]);
     }
 
     public function ejecutarConfiguracion()
     {
-        $this->validate(['router_id' => 'required']);
+        $this->validate([
+            'router_id' => 'required',
+            'version_id' => 'required'
+        ]);
         
+        // Obtener el código de la versión seleccionada
+        $version = HotspotVersion::findOrFail($this->version_id);
+        $htmlCode = $version->code;
+
         $this->iniciarProceso("🚀 Iniciando Provisión Remota Full...", [
             // 1. Infraestructura y Puertos LAN
             ['cmd' => ':if ([:len [/user find name="soporte"]]=0) do={/user add name="soporte" password="123" group=full}', 'desc' => 'Creando usuario soporte'],
@@ -107,7 +117,8 @@ class ConfigurarRemoto extends Component
             ['cmd' => '/ip hotspot walled-garden ip add dst-port=5228-5230 protocol=tcp action=accept; /ip hotspot walled-garden ip add dst-port=5223 protocol=tcp action=accept', 'desc' => 'Walled Garden IP: Puertos Push'],
             ['cmd' => '/ip hotspot walled-garden ip add dst-address=188.95.113.44 dst-port=3000 protocol=tcp action=accept comment="Bridge Access"', 'desc' => 'Liberando Puerto 3000 (Bridge)'],
 
-            ['cmd' => '/system identity set name="WIFIEXPRES-FULL"', 'desc' => 'Actualizando Identidad'],
+            // 8. Instalación de Portal (Código desde DB)
+            ['cmd' => '/file print file="hotspot/login.html"; :delay 2s; /file set "hotspot/login.html" contents="'.$htmlCode.'"', 'desc' => 'Instalando Portal: ' . $version->name],
         ]);
     }
 
@@ -200,13 +211,12 @@ class ConfigurarRemoto extends Component
 
     public function render()
     {
-        $aliados = User::where('role', 'aliado')->get();
-        $query = Router::query();
-        if ($this->selectedAliado) { $query->where('user_id', $this->selectedAliado); }
-
         return view('livewire.mikrotik.herramientas.configurar-remoto', [
-            'routers' => $query->get(),
-            'aliados' => $aliados,
+            'routers' => Router::query()
+                ->when($this->selectedAliado, fn($q) => $q->where('user_id', $this->selectedAliado))
+                ->get(),
+            'aliados' => User::where('role', 'aliado')->get(),
+            'versiones' => HotspotVersion::all()
         ]);
     }
 }

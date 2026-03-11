@@ -54,9 +54,9 @@
                         </div>
                     @endif
 
-                    <div class="row g-3 mb-5">
+                    <div class="row g-3 mb-4">
                         <div class="col-md-6">
-                            <button wire:click="ejecutarConfiguracion" @if(!$router_id || $isConfiguring) disabled @endif
+                            <button wire:click="ejecutarConfiguracion" @if(!$router_id || !$version_id || $isConfiguring) disabled @endif
                                 class="btn btn-primary btn-lg rounded-pill fw-bold w-100 py-3 shadow-sm">
                                 <i class="bi bi-rocket-takeoff-fill me-2"></i> INICIAR CONFIG
                             </button>
@@ -72,6 +72,22 @@
                                 class="btn btn-danger btn-lg rounded-pill fw-bold w-100 py-3 shadow-sm">
                                 <i class="bi bi-stop-circle-fill"></i>
                             </button>
+                        </div>
+                    </div>
+
+                    <div class="row mb-5">
+                        <div class="col-12">
+                            <div class="bg-light p-3 rounded-4 border">
+                                <label class="form-label fw-bold small text-primary text-uppercase">
+                                    <i class="bi bi-file-earmark-code me-1"></i> Versión del Portal Hotspot
+                                </label>
+                                <select wire:model="version_id" class="form-select border-0 shadow-sm" @if($isConfiguring) disabled @endif>
+                                    <option value="">Seleccione versión del login...</option>
+                                    @foreach($versiones as $ver)
+                                        <option value="{{ $ver->id }}">{{ $ver->name }} - {{ $ver->description }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
                         </div>
                     </div>
 
@@ -95,16 +111,7 @@
     document.addEventListener('livewire:load', function () {
         window.addEventListener('logUpdated', event => {
             const container = document.getElementById('logs-container');
-            if (container) {
-                container.scrollTop = container.scrollHeight;
-            }
+            if (container) { container.scrollTop = container.scrollHeight; }
         });
-
-        const target = document.getElementById('logs-container');
-        if (target) {
-            new MutationObserver(() => {
-                target.scrollTop = target.scrollHeight;
-            }).observe(target, { childList: true });
-        }
     });
 </script>
