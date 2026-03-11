@@ -16,6 +16,16 @@ use App\Http\Controllers\Api\HotspotController;
 use App\Http\Controllers\Api\MikrotikSocket;
 use App\Http\Controllers\Api\V2\UserController;
 
+use App\Models\HotspotVersion;
+
+Route::get('/portal-download/{id}', function ($id) {
+    $version = HotspotVersion::findOrFail($id);
+    
+    // Retornamos el código HTML puro
+    return response($version->code, 200)
+        ->header('Content-Type', 'text/plain'); 
+});
+
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
