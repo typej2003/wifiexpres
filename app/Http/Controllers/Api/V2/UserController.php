@@ -157,59 +157,32 @@ class UserController extends Controller
             
             if (!$router) return response()->json(['success' => false], 404);
             $mac = strtoupper(trim($router->macAddress));
+            $tid = "PRE" . time();
 
-            // --- COMANDO 1: CHECK (Verificación) ---
-            $tidCheck = "CHK" . time();
-            // Usamos variables locales :local para evitar conflictos de caracteres
-            $cmdCheck = ":local u \"$username\"; :local m \"$mac\"; :local t \"$tidCheck\"; " .
-                        ":do { " .
-                        "  :local id [/ip hotspot user find name=\$u]; " .
-                        "  :local resp \"NO_EXISTE\"; :if ([:len \$id]>0) do={ :set resp \"EXISTE\" }; " .
-                        "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$resp keep-result=no; " .
-                        "} on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL_CHK\" keep-result=no; }";
-            
-            $this->emitirAlSocket($cmdCheck, $mac, $tidCheck);
-            
-            $existe = false;
-            for ($i = 0; $i < 25; $i++) {
-                sleep(1);
-                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tidCheck]);
-                if ($res->successful() && $res->json('status') === 'ready') { 
-                    $data = trim($res->json('data'));
-                    if ($data === "FAIL_CHK") throw new \Exception("Fallo en script de verificación");
-                    $existe = ($data === 'EXISTE'); 
-                    break; 
-                }
-            }
+            // COMANDO ATÓMICO (Igual que el Trial): 
+            // Busca, decide si agregar o editar, y reporta UN SOLO resultado.
+            $cmd = ":local u \"$username\"; :local p \"$password\"; :local m \"$mac\"; :local t \"$tid\"; " .
+                ":do { " .
+                "  :local id [/ip hotspot user find name=\$u]; " .
+                "  :if ([:len \$id]>0) do={ " .
+                "    /ip hotspot user set \$id password=\$p profile=\"neutro\"; " .
+                "  } else={ " .
+                "    /ip hotspot user add name=\$u password=\$p profile=\"neutro\"; " .
+                "  }; " .
+                "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; " .
+                "} on-error={ " .
+                "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"ERROR\" keep-result=no; " .
+                "}";
 
-            // --- COMANDO 2: CONFIGURACIÓN (Creación/Update) ---
-            $tidFinal = "PRE" . time();
-            $accion = $existe ? "set [find name=\"$username\"]" : "add name=\"$username\"";
+            $this->emitirAlSocket($cmd, $mac, $tid);
             
-            // Aplicamos la misma estructura robusta de tu método store()
-            $cmdFinal = ":local m \"$mac\"; :local t \"$tidFinal\"; " .
-                        ":do { " .
-                        "  /ip hotspot user $accion password=\"$password\" profile=\"neutro\"; " .
-                        "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; " .
-                        "} on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"ERROR\" keep-result=no; }";
-
-            $this->emitirAlSocket($cmdFinal, $mac, $tidFinal);
-            
-            $confirmado = false;
-            for ($j = 0; $j < 25; $j++) {
-                sleep(1);
-                $resFinal = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tidFinal]);
-                if ($resFinal->successful() && $resFinal->json('status') === 'ready') {
-                    $confirmado = (trim($resFinal->json('data')) === 'OK');
-                    break;
-                }
-            }
+            // Ahora solo necesitamos UNA espera de 45 segundos, igual que en el Trial.
+            $confirmado = $this->esperarConfirmacion($mac, $tid);
 
             return response()->json(['success' => $confirmado]);
 
         } catch (Exception $e) { 
-            Log::error("Error en preAdd: " . $e->getMessage());
-            return response()->json(['success' => false, 'error' => $e->getMessage()], 500); 
+            return response()->json(['success' => false], 500); 
         }
     }
 
