@@ -85,6 +85,7 @@ class ConfigurarRemoto extends Component
         ]);
         
         $version = HotspotVersion::findOrFail($this->version_id);
+        dd($version);
         // Limpiamos el código de saltos de línea innecesarios para evitar roturas en el terminal de MikroTik
         $htmlCode = str_replace(["\r", "\n"], "", $version->code);
 
