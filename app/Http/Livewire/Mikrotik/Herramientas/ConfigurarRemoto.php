@@ -57,8 +57,8 @@ class ConfigurarRemoto extends Component
     {
         $this->validate(['router_id' => 'required']);
         
-        // Mensaje de suspensión en HTML básico para el router
-        $mensajeSuspendido = "<html><head><meta charset='utf-8'><title>Suspendido</title></head><body style='display:flex;justify-content:center;align-items:center;height:100vh;margin:0;font-family:sans-serif;'><h2>El portal se encuentra suspendido.</h2></body></html>";
+        // Mensaje de suspensión escapado para MikroTik
+        $mensajeSuspendido = "<html><body style='text-align:center;padding-top:50px;font-family:sans-serif;'><h1>El portal se encuentra suspendido.</h1></body></html>";
 
         $this->iniciarProceso("⚠️ Iniciando Limpieza Selectiva...", [
             ['cmd' => '/ip hotspot user remove [find]', 'desc' => 'Borrando usuarios Hotspot'],
@@ -72,8 +72,8 @@ class ConfigurarRemoto extends Component
             ['cmd' => '/ip hotspot walled-garden ip remove [find]', 'desc' => 'Limpiando Walled Garden IP'],
             ['cmd' => '/ip firewall nat remove [find where comment="Masquerade-Hotspot"]', 'desc' => 'Limpiando NAT previo'],
             ['cmd' => '/user remove [find name!="jose" and name!="admin"]', 'desc' => 'Limpiando usuarios sistema'],
-            // En lugar de borrarlo, lo editamos para que no de error de archivo no encontrado
-            ['cmd' => '/file set [find name="hotspot/login.html"] contents="'.$mensajeSuspendido.'"', 'desc' => 'Marcando portal como Suspendido'],
+            // Aseguramos que el archivo exista y luego escribimos el mensaje de suspensión
+            ['cmd' => '/file print file="hotspot/login.html"; :delay 2s; /file set "hotspot/login.html" contents="'.$mensajeSuspendido.'"', 'desc' => 'Portal marcado como Suspendido'],
         ]);
     }
 
@@ -85,45 +85,43 @@ class ConfigurarRemoto extends Component
         ]);
         
         $version = HotspotVersion::findOrFail($this->version_id);
-        // Limpiamos el código de saltos de línea innecesarios para evitar roturas en el terminal de MikroTik
+        
+        /** * PROCESAMIENTO DEL CÓDIGO HTML PARA MIKROTIK
+         * 1. Eliminar saltos de línea para que no rompan el comando en el terminal.
+         * 2. Escapar comillas dobles (\") para que no cierren el string de 'contents'.
+         * 3. Escapar el signo de dólar (\$) para que RouterOS no lo trate como variable.
+         */
         $htmlCode = str_replace(["\r", "\n"], "", $version->code);
+        $htmlCode = str_replace('"', '\"', $htmlCode);
+        $htmlCode = str_replace('$', '\$', $htmlCode);
 
         $this->iniciarProceso("🚀 Iniciando Provisión Remota Full...", [
-            // 1. Infraestructura y Puertos LAN
+            // 1. Usuarios y Bridge
             ['cmd' => ':if ([:len [/user find name="soporte"]]=0) do={/user add name="soporte" password="123" group=full}', 'desc' => 'Creando usuario soporte'],
             ['cmd' => ':if ([:len [/interface bridge find name="bridge-lan"]]=0) do={/interface bridge add name=bridge-lan}', 'desc' => 'Creando Bridge LAN'],
-            ['cmd' => ':foreach i in=[/interface ethernet find where name!="ether1"] do={ :local n [/interface ethernet get $i name]; :if ([:len [/interface bridge port find interface=$n]]=0) do={/interface bridge port add bridge=bridge-lan interface=$n} }', 'desc' => 'Habilitando Puertos LAN (Bridge)'],
+            ['cmd' => ':foreach i in=[/interface ethernet find where name!="ether1"] do={ :local n [/interface ethernet get $i name]; :if ([:len [/interface bridge port find interface=$n]]=0) do={/interface bridge port add bridge=bridge-lan interface=$n} }', 'desc' => 'Habilitando Puertos LAN'],
             
-            // 2. Radio y Seguridad
-            ['cmd' => '/interface wireless disable [find name="wifi1"]', 'desc' => 'Desactivando interfaz wifi1'],
-            ['cmd' => '/ip dns set allow-remote-requests=yes servers=8.8.8.8', 'desc' => 'Configurando DNS'],
+            // 2. DNS y NAT
+            ['cmd' => '/interface wireless disable [find name="wifi1"]', 'desc' => 'Desactivando wireless por defecto'],
+            ['cmd' => '/ip dns set allow-remote-requests=yes servers=8.8.8.8,1.1.1.1', 'desc' => 'Configurando DNS'],
+            ['cmd' => ':if ([:len [/ip firewall nat find comment="Masquerade-Hotspot"]]=0) do={/ip firewall nat add chain=srcnat out-interface=ether1 action=masquerade comment="Masquerade-Hotspot"}', 'desc' => 'Configurando NAT'],
 
-            // 3. Salida a Internet (NAT)
-            ['cmd' => ':if ([:len [/ip firewall nat find comment="Masquerade-Hotspot"]]=0) do={/ip firewall nat add chain=srcnat out-interface=ether1 action=masquerade comment="Masquerade-Hotspot"}', 'desc' => 'Configurando Firewall NAT (ether1)'],
+            // 3. IP y DHCP
+            ['cmd' => ':if ([:len [/ip address find address="192.168.88.1/24"]]=0) do={/ip address add address=192.168.88.1/24 interface=bridge-lan}', 'desc' => 'IP Local'],
+            ['cmd' => ':if ([:len [/ip pool find name="dhcp_pool1"]]=0) do={/ip pool add name=dhcp_pool1 ranges=192.168.88.10-192.168.88.254}', 'desc' => 'Pool DHCP'],
+            ['cmd' => ':if ([:len [/ip dhcp-server find name="dhcp-remoto"]]=0) do={/ip dhcp-server add address-pool=dhcp_pool1 disabled=no interface=bridge-lan name=dhcp-remoto}', 'desc' => 'DHCP Server'],
+            ['cmd' => ':if ([:len [/ip dhcp-server network find address="192.168.88.0/24"]]=0) do={/ip dhcp-server network add address=192.168.88.0/24 gateway=192.168.88.1 dns-server=8.8.8.8}', 'desc' => 'DHCP Network'],
 
-            // 4. Capa de Red (IP/DHCP)
-            ['cmd' => ':if ([:len [/ip address find address="192.168.88.1/24"]]=0) do={/ip address add address=192.168.88.1/24 interface=bridge-lan}', 'desc' => 'Asignando IP Local'],
-            ['cmd' => ':if ([:len [/ip pool find name="dhcp_pool1"]]=0) do={/ip pool add name=dhcp_pool1 ranges=192.168.88.10-192.168.88.254}', 'desc' => 'Creando Pool DHCP'],
-            ['cmd' => ':if ([:len [/ip dhcp-server find name="dhcp-remoto"]]=0) do={/ip dhcp-server add address-pool=dhcp_pool1 disabled=no interface=bridge-lan name=dhcp-remoto}', 'desc' => 'Servidor DHCP activo'],
-            ['cmd' => ':if ([:len [/ip dhcp-server network find address="192.168.88.0/24"]]=0) do={/ip dhcp-server network add address=192.168.88.0/24 gateway=192.168.88.1 dns-server=8.8.8.8}', 'desc' => 'Red DHCP'],
+            // 4. Hotspot
+            ['cmd' => ':if ([:len [/ip hotspot profile find name="hsprof1"]]=0) do={/ip hotspot profile add name=hsprof1 hotspot-address=192.168.88.1 login-by=http-chap,trial}', 'desc' => 'Perfil Hotspot'],
+            ['cmd' => ':if ([:len [/ip hotspot find name="hotspot1"]]=0) do={/ip hotspot add name=hotspot1 interface=bridge-lan profile=hsprof1 address-pool=dhcp_pool1 disabled=no}', 'desc' => 'Servidor Hotspot'],
 
-            // 5. Hotspot y Reset HTML
-            ['cmd' => ':if ([:len [/ip hotspot profile find name="hsprof1"]]=0) do={/ip hotspot profile add name=hsprof1 hotspot-address=192.168.88.1 login-by=http-chap,trial}', 'desc' => 'Perfil de Hotspot'],
-            ['cmd' => '/ip hotspot profile reset-html [find name="hsprof1"]', 'desc' => 'Reset HTML (Garantizar login.html)'],
-            ['cmd' => ':if ([:len [/ip hotspot find name="hotspot1"]]=0) do={/ip hotspot add name=hotspot1 interface=bridge-lan profile=hsprof1 address-pool=dhcp_pool1 disabled=no}', 'desc' => 'Servidor Hotspot activo'],
+            // 5. Walled Garden
+            ['cmd' => '/ip hotspot walled-garden add dst-host=wifiexpres.com; /ip hotspot walled-garden add dst-host=*.wifiexpres.com', 'desc' => 'Walled Garden Dominios'],
+            ['cmd' => '/ip hotspot walled-garden ip add dst-address=190.217.7.106 action=accept; /ip hotspot walled-garden ip add dst-address=188.95.113.44 dst-port=3000 protocol=tcp action=accept', 'desc' => 'Walled Garden IPs'],
 
-            // 6. Walled Garden
-            ['cmd' => '/ip hotspot walled-garden add dst-host=wifiexpres.com; /ip hotspot walled-garden add dst-host=*.wifiexpres.com', 'desc' => 'Walled Garden: Dominios Propios'],
-            ['cmd' => '/ip hotspot walled-garden add dst-host=*.biopagobdv.com action=allow; /ip hotspot walled-garden add dst-host=*.banvenez.com; /ip hotspot walled-garden add dst-host=biopago.banvenez.com', 'desc' => 'Walled Garden: Pasarelas BDV'],
-            ['cmd' => '/ip hotspot walled-garden add dst-host=fcm.googleapis.com action=allow; /ip hotspot walled-garden add dst-host=mtalk.google.com; /ip hotspot walled-garden add dst-host=*.push.apple.com', 'desc' => 'Walled Garden: Notificaciones'],
-
-            // 7. Walled Garden IP
-            ['cmd' => '/ip hotspot walled-garden ip add dst-address=190.217.7.106 action=accept; /ip hotspot walled-garden ip add dst-address=190.202.148.187 action=accept', 'desc' => 'Walled Garden IP: Pasarelas'],
-            ['cmd' => '/ip hotspot walled-garden ip add dst-port=5228-5230 protocol=tcp action=accept; /ip hotspot walled-garden ip add dst-port=5223 protocol=tcp action=accept', 'desc' => 'Walled Garden IP: Puertos Push'],
-            ['cmd' => '/ip hotspot walled-garden ip add dst-address=188.95.113.44 dst-port=3000 protocol=tcp action=accept comment="Bridge Access"', 'desc' => 'Liberando Puerto 3000 (Bridge)'],
-
-            // 8. Edición de login.html con el código real
-            ['cmd' => '/file set [find name="hotspot/login.html"] contents="'.$htmlCode.'"', 'desc' => 'Actualizando contenido: ' . $version->name],
+            // 6. ACTUALIZACIÓN DE LOGIN.HTML (Paso Crítico)
+            ['cmd' => '/file print file="hotspot/login.html"; :delay 2s; /file set "hotspot/login.html" contents="'.$htmlCode.'"', 'desc' => 'Instalando Portal: ' . $version->name],
         ]);
     }
 
@@ -185,10 +183,10 @@ class ConfigurarRemoto extends Component
 
             if ($res->successful() && $res->json('status') === 'ready') {
                 $data = $res->json('data');
-                $this->logs[] = ($data === "OK") ? "✅ Hecho" : "⚠️ Omitido/Existente";
+                $this->logs[] = ($data === "OK") ? "✅ Hecho" : "⚠️ Error en Router";
                 $this->avanzar();
             } elseif ($this->intentos >= 45) {
-                $this->logs[] = "⌛ Continuando proceso...";
+                $this->logs[] = "⌛ Tiempo de espera agotado, continuando...";
                 $this->avanzar();
             }
         } catch (\Exception $e) { }
@@ -208,7 +206,7 @@ class ConfigurarRemoto extends Component
         $this->isConfiguring = false;
         $this->esperandoRespuesta = false;
         $this->progreso = 100;
-        $this->logs[] = $this->abortar ? "🛑 Proceso detenido." : "🏁 Tarea finalizada con éxito.";
+        $this->logs[] = $this->abortar ? "🛑 Proceso detenido por el usuario." : "🏁 Proceso completado correctamente.";
         $this->dispatchBrowserEvent('logUpdated');
     }
 
