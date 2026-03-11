@@ -160,11 +160,9 @@ class UserController extends Controller
             $mac = strtoupper(trim($router->macAddress));
             $tid = "PRE" . time();
 
-            // PASO 1: Solo el comando de creación y el reporte de éxito.
-            // Nota: Asegúrate de que el usuario NO exista antes de probar, 
-            // o el MikroTik detendrá el script por error de duplicado.
-            $cmd = "/ip hotspot user add name=\"$username\" password=\"$password\" profile=\"neutro\"; " .
-                "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no";
+            // COMANDO EN UNA SOLA LÍNEA
+            // Nota: Asegúrate de que el perfil "neutro" exista en el router.
+            $cmd = "/ip hotspot user add name=\"$username\" password=\"$password\" profile=\"neutro\"; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no";
 
             $this->emitirAlSocket($cmd, $mac, $tid);
             
