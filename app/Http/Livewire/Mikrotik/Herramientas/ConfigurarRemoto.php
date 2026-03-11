@@ -87,7 +87,7 @@ class ConfigurarRemoto extends Component
         
         // IMPORTANTE: Cambia esto por tu dominio real
         // El MikroTik usará esta URL para descargar el archivo login.html
-        $baseUrl = "https://tu-dominio.com"; 
+        $baseUrl = "https://wifiexpres.com"; 
         $downloadUrl = $baseUrl . "/api/portal-download/" . $this->version_id;
 
         $this->iniciarProceso("🚀 Iniciando Provisión Remota Full...", [
