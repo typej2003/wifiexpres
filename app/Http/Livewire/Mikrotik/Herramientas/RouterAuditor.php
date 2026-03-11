@@ -35,7 +35,8 @@ class RouterAuditor extends Component
     public function sendTestCommand($mac)
     {
         $tid = "TEST" . Str::upper(Str::random(5));
-        $script = ':log info "Prueba de Auditoria Bridge"; /tool fetch url="' . $this->bridgeUrl . '/post-result?mac=' . $mac . '&tid=' . $tid . '" http-method=post http-data="TEST_OK" keep-result=no';
+        // Pasamos mac y tid en la URL, y el data en el cuerpo
+        $script = ':log info "Prueba Bridge"; /tool fetch url="' . $this->bridgeUrl . '/post-result?mac=' . $mac . '&tid=' . $tid . '" http-method=post http-data="TEST_OK" keep-result=no';
 
         try {
             $response = Http::withHeaders([
@@ -44,10 +45,10 @@ class RouterAuditor extends Component
             ])->withBody($script, 'text/plain')->post($this->bridgeUrl . '/set-command');
 
             if ($response->successful()) {
-                session()->flash('message', "Comando [$tid] enviado a la cola.");
+                session()->flash('message', "Comando [$tid] enviado.");
             }
         } catch (\Exception $e) {
-            $this->error = "No se pudo enviar el comando de prueba.";
+            $this->error = "Error al enviar comando.";
         }
         
         $this->refreshData();
