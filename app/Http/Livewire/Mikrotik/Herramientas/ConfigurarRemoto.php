@@ -117,6 +117,7 @@ class ConfigurarRemoto extends Component
             ['cmd' => '/ip hotspot walled-garden ip add dst-port=5228-5230 protocol=tcp; /ip hotspot walled-garden ip add dst-port=5223 protocol=tcp', 'desc' => 'WG IP: Puertos Push'],
             ['cmd' => '/tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" mode=http; :delay 2s', 'desc' => 'Descargando e Instalando Portal: ' . $version->name],
             ['cmd' => ":if (\"$this->soporte_user\" != \"admin\") do={ /user remove [find name=\"admin\"] }", 'desc' => 'Removiendo usuario admin por seguridad'],
+            ['cmd' => '/system reboot', 'desc' => 'Reiniciando Router para aplicar cambios y cerrar sesiones'],
         ]);
     }
 
