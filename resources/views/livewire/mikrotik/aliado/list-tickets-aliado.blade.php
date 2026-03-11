@@ -194,30 +194,54 @@
                     <h5 class="modal-title fw-bold"><i class="bi bi-printer me-2"></i>Imprimir Tickets</h5>
                     <button wire:click="closePrintModal" class="btn-close btn-close-white"></button>
                 </div>
-                <div class="modal-body p-4 text-center">
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold text-muted d-block">MODALIDAD</label>
-                        <select wire:model="tipo_impresion" class="form-select rounded-pill">
-                            <option value="lote">POR LOTE</option>
-                            <option value="intervalo">INTERVALO</option>
-                        </select>
+                <div class="modal-body p-4">
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-muted d-block mb-2 text-uppercase">Modalidad</label>
+                        <div class="btn-group w-100 shadow-sm rounded-pill overflow-hidden border">
+                            <input type="radio" class="btn-check" wire:model="tipo_impresion" value="lote" id="printLote" autocomplete="off">
+                            <label class="btn btn-outline-success border-0 fw-bold" for="printLote">POR LOTE</label>
+                            <input type="radio" class="btn-check" wire:model="tipo_impresion" value="intervalo" id="printIntervalo" autocomplete="off">
+                            <label class="btn btn-outline-success border-0 fw-bold" for="printIntervalo">INTERVALO</label>
+                        </div>
                     </div>
                     @if($tipo_impresion == 'lote')
-                        <input type="number" wire:model.defer="lote_imprimir" class="form-control text-center fs-4 fw-bold mb-3" placeholder="LOTE">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted">NÚMERO DE LOTE</label>
+                            <input type="number" wire:model.defer="lote_imprimir" class="form-control text-center rounded-3 bg-light border-0 fs-5 fw-bold" placeholder="Ej: 1">
+                        </div>
                     @else
                         <div class="row g-2">
-                            <div class="col-6"><input type="text" wire:model.defer="desde_ticket" class="form-control" placeholder="DESDE"></div>
-                            <div class="col-6"><input type="text" wire:model.defer="hasta_ticket" class="form-control" placeholder="HASTA"></div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold text-muted">DESDE (PIN)</label>
+                                <input type="text" wire:model.defer="desde_ticket" class="form-control text-center rounded-3 bg-light border-0 fw-bold" placeholder="1-1-0001">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold text-muted">HASTA (PIN)</label>
+                                <input type="text" wire:model.defer="hasta_ticket" class="form-control text-center rounded-3 bg-light border-0 fw-bold" placeholder="1-1-0020">
+                            </div>
                         </div>
                     @endif
                 </div>
                 <div class="modal-footer border-0 p-4 pt-0">
-                    <button wire:click="printRange" class="btn btn-success w-100 rounded-pill fw-bold py-3 shadow">GENERAR PDF</button>
+                    <button wire:click="printRange" class="btn btn-success w-100 rounded-pill px-4 fw-bold text-white shadow py-3">
+                        <i class="bi bi-printer-fill me-1"></i> GENERAR PDF
+                    </button>
                 </div>
             </div>
         </div>
     </div>
     @endif
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Este es el puente entre Livewire y el navegador
+            window.addEventListener('abrirImpresion', event => {
+                if(event.detail.url) {
+                    window.open(event.detail.url, '_blank');
+                }
+            });
+        });
+    </script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {

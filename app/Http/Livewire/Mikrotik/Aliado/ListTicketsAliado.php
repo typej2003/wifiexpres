@@ -82,18 +82,46 @@ class ListTicketsAliado extends Component
     public function backToRouters() { return redirect()->route('aliado.routers'); }
 
     // --- LÓGICA DE IMPRESIÓN ---
+    // --- LÓGICA DE IMPRESIÓN ---
     public function printRange()
     {
-        // Aquí generas la URL según tu ruta de exportación PDF
-        $url = route('aliado.tickets.pdf', [
-            'router' => $this->selectedRouter,
-            'tipo' => $this->tipo_impresion,
-            'lote' => $this->lote_imprimir,
-            'desde' => $this->desde_ticket,
-            'hasta' => $this->hasta_ticket
+        if ($this->tipo_impresion == 'lote') {
+            // Si es por lote, filtramos los que coincidan con el patrón del lote en la identidad
+            // Ejemplo: "1-001-" para el lote 1 del router 1
+            $patron = "{$this->selectedRouter}-{$this->lote_imprimir}-";
+            
+            // Buscamos el rango real de ese lote para pasarlo a la ruta existente
+            $primero = Ticket::where('router_id', $this->selectedRouter)
+                ->where('identity', 'LIKE', $patron . '%')
+                ->orderBy('identity', 'asc')->first();
+            
+            $ultimo = Ticket::where('router_id', $this->selectedRouter)
+                ->where('identity', 'LIKE', $patron . '%')
+                ->orderBy('identity', 'desc')->first();
+
+            if (!$primero) {
+                session()->flash('error', 'No se encontraron tickets para ese lote.');
+                return;
+            }
+
+            $desde = $primero->identity;
+            $hasta = $ultimo->identity;
+        } else {
+            // Si es intervalo manual
+            $desde = $this->desde_ticket;
+            $hasta = $this->hasta_ticket;
+        }
+
+        // Construir URL hacia la ruta definida en tu web.php
+        $url = route('tickets.print', [
+            'router_id' => $this->selectedRouter,
+            'desde' => $desde,
+            'hasta' => $hasta
         ]);
 
+        // Emitir evento para que el navegador abra la pestaña
         $this->dispatchBrowserEvent('abrirImpresion', ['url' => $url]);
+        $this->isPrintModalOpen = false;
     }
 
     protected function sendCommandQuick($comando, $tid = null)
