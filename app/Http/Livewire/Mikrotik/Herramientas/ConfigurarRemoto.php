@@ -52,7 +52,7 @@ class ConfigurarRemoto extends Component
         } catch (\Exception $e) { $this->routerStatus = []; }
     }
 
-    // Inicia el proceso de Reset
+    // BOTÓN RESET: Limpieza total
     public function ejecutarResetSelectivo()
     {
         $this->validate(['router_id' => 'required']);
@@ -68,18 +68,45 @@ class ConfigurarRemoto extends Component
         ]);
     }
 
-    // Inicia el proceso de Configuración
+    // BOTÓN CONFIGURAR: Creación de infraestructura
     public function ejecutarConfiguracion()
     {
         $this->validate(['router_id' => 'required']);
+        
+        // Comandos con verificación de existencia para evitar errores de duplicado
         $this->iniciarProceso("🚀 Iniciando Provisión Remota...", [
-            ['cmd' => '/user add name="soporte" password="123" group=full', 'desc' => 'Creando usuario de soporte'],
-            ['cmd' => '/interface bridge add name=bridge-lan', 'desc' => 'Creando Bridge LAN'],
-            ['cmd' => ':foreach i in=[/interface ethernet find where name!="ether1"] do={ :local n [/interface ethernet get $i name]; /interface bridge port add bridge=bridge-lan interface=$n }', 'desc' => 'Asignando puertos al Bridge'],
-            ['cmd' => '/ip address add address=192.168.88.1/24 interface=bridge-lan', 'desc' => 'Asignando IP 192.168.88.1'],
-            ['cmd' => '/ip pool add name=dhcp_pool1 ranges=192.168.88.10-192.168.88.254', 'desc' => 'Creando Pool DHCP'],
-            ['cmd' => '/ip dhcp-server add address-pool=dhcp_pool1 disabled=no interface=bridge-lan name=dhcp-remoto', 'desc' => 'Activando DHCP Server'],
-            ['cmd' => '/ip dhcp-server network add address=192.168.88.0/24 gateway=192.168.88.1 dns-server=8.8.8.8', 'desc' => 'Configurando Red DHCP'],
+            [
+                'cmd' => ':if ([:len [/user find name="soporte"]]=0) do={/user add name="soporte" password="123" group=full}', 
+                'desc' => 'Usuario de soporte'
+            ],
+            [
+                'cmd' => ':if ([:len [/interface bridge find name="bridge-lan"]]=0) do={/interface bridge add name=bridge-lan}', 
+                'desc' => 'Creando Bridge LAN'
+            ],
+            [
+                'cmd' => ':foreach i in=[/interface ethernet find where name!="ether1"] do={ :local n [/interface ethernet get $i name]; :if ([:len [/interface bridge port find interface=$n]]=0) do={/interface bridge port add bridge=bridge-lan interface=$n} }', 
+                'desc' => 'Asignando puertos a Bridge'
+            ],
+            [
+                'cmd' => ':if ([:len [/ip address find address="192.168.88.1/24"]]=0) do={/ip address add address=192.168.88.1/24 interface=bridge-lan}', 
+                'desc' => 'Asignando IP Local'
+            ],
+            [
+                'cmd' => ':if ([:len [/ip pool find name="dhcp_pool1"]]=0) do={/ip pool add name=dhcp_pool1 ranges=192.168.88.10-192.168.88.254}', 
+                'desc' => 'Creando Pool DHCP'
+            ],
+            [
+                'cmd' => ':if ([:len [/ip dhcp-server find name="dhcp-remoto"]]=0) do={/ip dhcp-server add address-pool=dhcp_pool1 disabled=no interface=bridge-lan name=dhcp-remoto}', 
+                'desc' => 'Activando Servidor DHCP'
+            ],
+            [
+                'cmd' => ':if ([:len [/ip dhcp-server network find address="192.168.88.0/24"]]=0) do={/ip dhcp-server network add address=192.168.88.0/24 gateway=192.168.88.1 dns-server=8.8.8.8}', 
+                'desc' => 'Configurando Red DHCP'
+            ],
+            [
+                'cmd' => '/system identity set name="WIFIEXPRES-CONFIGURADO"', 
+                'desc' => 'Actualizando Identidad'
+            ],
         ]);
     }
 
@@ -104,7 +131,7 @@ class ConfigurarRemoto extends Component
         $paso = $this->pasos[$this->currentStepIndex];
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
-        $this->currentTid = "CFG" . time() . rand(10, 99);
+        $this->currentTid = "CMD" . time() . rand(10, 99);
         $this->intentos = 0;
 
         $this->logs[] = "📡 Enviando: " . $paso['desc'];
@@ -125,9 +152,6 @@ class ConfigurarRemoto extends Component
         }
     }
 
-    /**
-     * Este método es llamado por wire:poll cada segundo desde la vista
-     */
     public function checkStatus()
     {
         if (!$this->esperandoRespuesta || $this->abortar) return;
@@ -144,9 +168,9 @@ class ConfigurarRemoto extends Component
 
             if ($res->successful() && $res->json('status') === 'ready') {
                 $data = $res->json('data');
-                $this->logs[] = ($data === "OK") ? "✅ Hecho" : "🔸 Omitido (Ya existía o error)";
+                $this->logs[] = ($data === "OK") ? "✅ Éxito" : "⚠️ Omitido/Ya existe";
                 $this->avanzar();
-            } elseif ($this->intentos >= 45) { // Límite de 45 segs como en tu UserController
+            } elseif ($this->intentos >= 45) {
                 $this->logs[] = "⌛ Timeout en este paso, continuando...";
                 $this->avanzar();
             }
@@ -159,6 +183,7 @@ class ConfigurarRemoto extends Component
         $this->currentStepIndex++;
         $this->progreso = round(($this->currentStepIndex / count($this->pasos)) * 100);
         $this->enviarSiguienteComando();
+        $this->dispatchBrowserEvent('logUpdated');
     }
 
     private function finalizar()
@@ -166,7 +191,8 @@ class ConfigurarRemoto extends Component
         $this->isConfiguring = false;
         $this->esperandoRespuesta = false;
         $this->progreso = 100;
-        $this->logs[] = $this->abortar ? "🛑 Proceso detenido por el usuario." : "🏁 Procedimiento finalizado.";
+        $this->logs[] = $this->abortar ? "🛑 Proceso detenido por el usuario." : "🏁 Tarea completada correctamente.";
+        $this->dispatchBrowserEvent('logUpdated');
     }
 
     public function detenerProceso() { $this->abortar = true; }

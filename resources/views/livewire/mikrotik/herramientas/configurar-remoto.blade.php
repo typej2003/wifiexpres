@@ -1,4 +1,3 @@
-{{-- La directiva wire:poll solo se activa cuando estamos esperando una respuesta --}}
 <div class="container-fluid py-4" @if($esperandoRespuesta) wire:poll.1s="checkStatus" @endif>
     <div class="row justify-content-center">
         <div class="col-md-10 col-lg-8">
@@ -15,19 +14,18 @@
                 </div>
                 
                 <div class="card-body p-4 p-lg-5">
-                    {{-- Selectores --}}
                     <div class="row g-4 mb-4">
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small text-muted">Aliado</label>
+                            <label class="form-label fw-bold small text-muted text-uppercase">Aliado</label>
                             <select wire:model="selectedAliado" wire:change="refreshStatus" class="form-select border-0 bg-light rounded-3 shadow-sm py-2">
-                                <option value="">Todos</option>
+                                <option value="">Todos los Aliados</option>
                                 @foreach($aliados as $aliado)
                                     <option value="{{ $aliado->id }}">{{ $aliado->name }}</option>
                                 @endforeach
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small text-muted">Router</label>
+                            <label class="form-label fw-bold small text-muted text-uppercase">Router MikroTik</label>
                             <select wire:model="router_id" class="form-select border-0 bg-light rounded-3 shadow-sm py-2" @if($isConfiguring) disabled @endif>
                                 <option value="">Seleccione...</option>
                                 @foreach($routers as $r)
@@ -40,35 +38,33 @@
                         </div>
                     </div>
 
-                    {{-- Barra de Progreso --}}
                     @if($isConfiguring || $progreso > 0)
                         <div class="mb-4">
                             <div class="d-flex justify-content-between mb-2">
-                                <span class="text-muted small fw-bold">PROGRESO: {{ $progreso }}%</span>
+                                <span class="text-muted small fw-bold">ESTADO DE LA TAREA: {{ $progreso }}%</span>
                                 @if($esperandoRespuesta)
-                                    <span class="badge bg-info animate__animated animate__flash animate__infinite">
-                                        PROCESANDO ({{ $intentos }}s)
+                                    <span class="badge bg-primary animate__animated animate__pulse animate__infinite">
+                                        <i class="bi bi-cpu-fill me-1"></i> PROCESANDO ({{ $intentos }}s)
                                     </span>
                                 @endif
                             </div>
-                            <div class="progress" style="height: 12px; border-radius: 10px;">
-                                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width: {{ $progreso }}%;"></div>
+                            <div class="progress" style="height: 12px; border-radius: 10px; background-color: #eee;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width: {{ $progreso }}%; transition: width 0.4s ease;"></div>
                             </div>
                         </div>
                     @endif
 
-                    {{-- Botones --}}
                     <div class="row g-3 mb-5">
                         <div class="col-md-6">
                             <button wire:click="ejecutarConfiguracion" @if(!$router_id || $isConfiguring) disabled @endif
                                 class="btn btn-primary btn-lg rounded-pill fw-bold w-100 py-3 shadow-sm">
-                                <i class="bi bi-rocket-takeoff-fill me-2"></i> CONFIGURAR
+                                <i class="bi bi-rocket-takeoff-fill me-2"></i> INICIAR CONFIG
                             </button>
                         </div>
                         <div class="col-md-3">
                             <button wire:click="ejecutarResetSelectivo" @if(!$router_id || $isConfiguring) disabled @endif
                                 class="btn btn-outline-warning btn-lg rounded-pill fw-bold w-100 py-3 shadow-sm">
-                                <i class="bi bi-trash-fill"></i> RESET
+                                <i class="bi bi-trash-fill me-1"></i> RESET
                             </button>
                         </div>
                         <div class="col-md-3">
@@ -79,13 +75,12 @@
                         </div>
                     </div>
 
-                    {{-- Terminal --}}
-                    <div class="terminal-box bg-dark rounded-4 p-4 shadow-inner" style="background-color: #0c0c0c !important;">
-                        <div id="logs-container" class="console-text" style="height: 250px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85rem;">
+                    <div class="terminal-box bg-dark rounded-4 p-4 shadow-inner">
+                        <div id="logs-container" class="console-text" style="height: 300px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85rem; scroll-behavior: smooth;">
                             @foreach($logs as $log)
-                                <div class="mb-1 text-light">
-                                    <span class="text-success fw-bold">root@wifi:~$</span> 
-                                    <span class="ms-2">{{ $log }}</span>
+                                <div class="mb-1 text-light border-start border-success border-2 ps-3">
+                                    <span class="text-success fw-bold">mikrotik@wifi:~$</span> 
+                                    <span class="ms-2 opacity-90">{{ $log }}</span>
                                 </div>
                             @endforeach
                         </div>
@@ -95,3 +90,23 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('livewire:load', function () {
+        // Auto-scroll cada vez que Livewire actualiza
+        window.addEventListener('logUpdated', event => {
+            const container = document.getElementById('logs-container');
+            if (container) {
+                container.scrollTop = container.scrollHeight;
+            }
+        });
+
+        // Observador por si el evento no llega
+        const target = document.getElementById('logs-container');
+        if (target) {
+            new MutationObserver(() => {
+                target.scrollTop = target.scrollHeight;
+            }).observe(target, { childList: true });
+        }
+    });
+</script>
