@@ -9,7 +9,6 @@ use App\Models\Router;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class ListTicketsAliado extends Component
 {
@@ -58,38 +57,43 @@ class ListTicketsAliado extends Component
         }
     }
 
-    // --- MODALES Y NAVEGACIÓN ---
+    // --- ACCIONES DE TICKETS ---
+    public function anularTicket($id) {
+        Ticket::where('id', $id)->update(['estado' => 'anulado', 'anulado' => true]);
+        session()->flash('message', 'Ticket anulado correctamente.');
+    }
+
+    public function restaurarTicket($id) {
+        Ticket::where('id', $id)->update(['estado' => 'disponible', 'anulado' => false]);
+        session()->flash('message', 'Ticket restaurado.');
+    }
+
+    // --- MODALES ---
     public function openBulkModal() { 
         $this->bulk_step = 'input';
         $this->loadMikrotikProfiles(); 
         $this->isBulkModalOpen = true; 
     }
     public function closeBulkModal() { $this->isBulkModalOpen = false; }
-
     public function openConfigModal() { $this->isConfigModalOpen = true; }
     public function closeConfigModal() { $this->isConfigModalOpen = false; }
-
     public function openPrintModal() { $this->isPrintModalOpen = true; }
     public function closePrintModal() { $this->isPrintModalOpen = false; }
-
     public function backToRouters() { return redirect()->route('aliado.routers'); }
 
-    public function saveConfig()
+    // --- LÓGICA DE IMPRESIÓN ---
+    public function printRange()
     {
-        $router = Router::findOrFail($this->selectedRouter);
-        
-        if ($this->nuevo_logo) {
-            $path = $this->nuevo_logo->store('logos', 'public');
-            $router->comercio_logo = $path;
-            $this->logo_actual = $path;
-        }
+        // Aquí generas la URL según tu ruta de exportación PDF
+        $url = route('aliado.tickets.pdf', [
+            'router' => $this->selectedRouter,
+            'tipo' => $this->tipo_impresion,
+            'lote' => $this->lote_imprimir,
+            'desde' => $this->desde_ticket,
+            'hasta' => $this->hasta_ticket
+        ]);
 
-        $router->comercio_nombre = $this->comercio_nombre;
-        $router->hotspot_url = $this->hotspot_url;
-        $router->save();
-
-        $this->isConfigModalOpen = false;
-        session()->flash('message', 'Diseño actualizado correctamente.');
+        $this->dispatchBrowserEvent('abrirImpresion', ['url' => $url]);
     }
 
     protected function sendCommandQuick($comando, $tid = null)
@@ -99,38 +103,34 @@ class ListTicketsAliado extends Component
         $tid = $tid ?? uniqid('Q');
 
         try {
-            $comandoLimpio = trim($comando);
             $response = Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
-                ->withBody($comandoLimpio, 'text/plain')
+                ->withBody(trim($comando), 'text/plain')
                 ->post("{$this->bridgeUrl}/set-command");
 
             if (!$response->successful()) return null;
 
-            for ($i = 0; $i < 15; $i++) {
+            for ($i = 0; $i < 12; $i++) {
                 $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
                 if ($res->successful() && $res->json('status') === 'ready') {
                     $output = $res->json('data');
                     if (str_contains(strtolower($output), 'failure')) return null;
                     return $output ?: "SUCCESS";
                 }
-                usleep(800000); 
+                usleep(700000); 
             }
-        } catch (\Exception $e) { Log::error("Quick Command Exception: " . $e->getMessage()); }
+        } catch (\Exception $e) { Log::error($e->getMessage()); }
         return null; 
     }
 
     public function startBulkGeneration()
     {
-        $this->validate(['bulk_count' => 'required|integer|min:1|max:1000', 'bulk_plan' => 'required']);
-        
+        $this->validate(['bulk_count' => 'required|integer|min:1', 'bulk_plan' => 'required']);
         $this->bulk_total_requested = (int)$this->bulk_count;
         $this->bulk_current_count = 0;
-
-        $ultimo = Ticket::where('router_id', $this->selectedRouter)
-            ->where('identity', 'LIKE', $this->selectedRouter . '-%')
-            ->latest('id')->first();
-
+        
+        $ultimo = Ticket::where('router_id', $this->selectedRouter)->where('identity', 'LIKE', $this->selectedRouter . '-%')->latest('id')->first();
         $this->bulk_last_lote = $ultimo ? (int)explode('-', $ultimo->identity)[1] + 1 : 1;
+        
         $this->bulk_step = 'processing';
         $this->processNextChunk();
     }
@@ -141,59 +141,47 @@ class ListTicketsAliado extends Component
         if ($restantes <= 0) { $this->finishBulk(); return; }
 
         $cantidadAProcesar = min($this->bulk_chunk_size, $restantes);
+        
+        $planLower = strtolower($this->bulk_plan);
+        $esGratis = str_contains($planLower, 'neutro') || str_contains($planLower, 'cortesia') || str_contains($planLower, 'trial');
+        $costoFinal = 0;
+        if (!$esGratis && preg_match('/(\d+(\.\d+)?)$/', $this->bulk_plan, $m)) $costoFinal = (float)$m[0];
 
-        try {
-            $planLower = strtolower($this->bulk_plan);
-            $esGratis = str_contains($planLower, 'neutro') || str_contains($planLower, 'cortesia') || str_contains($planLower, 'trial');
+        $comandoMasivo = ""; 
+        $insertData = [];
+
+        for ($i = 1; $i <= $cantidadAProcesar; $i++) {
+            $posGlobal = $this->bulk_current_count + $i;
+            $secStr = str_pad($posGlobal, 4, '0', STR_PAD_LEFT);
+            $identityStr = "{$this->selectedRouter}-{$this->bulk_last_lote}-{$secStr}";
+            $usernameStr = "{$this->selectedRouter}{$this->bulk_last_lote}{$secStr}";
+            $passStr = (string)rand(10000, 99999);
+
+            $comandoMasivo .= ":do { /ip hotspot user add name=\"$usernameStr\" password=\"$passStr\" profile=\"$this->bulk_plan\" comment=\"$identityStr\" } on-error={}; \n";
             
-            $costoFinal = 0;
-            if (!$esGratis) {
-                if (preg_match('/(\d+(\.\d+)?)$/', $this->bulk_plan, $matches)) {
-                    $costoFinal = (float)$matches[0];
-                }
-            }
+            $insertData[] = [
+                'router_id' => $this->selectedRouter, 'identity' => $identityStr, 'username' => $usernameStr, 
+                'password' => $passStr, 'plan' => $this->bulk_plan, 'costo' => $costoFinal, 'tiempo_uso' => '00:00:00',
+                'tiempo_consumido' => '0s', 'estado' => 'disponible', 'sincronizado' => true, 'created_at' => now(), 'updated_at' => now()
+            ];
+        }
 
-            $comandoMasivo = ""; 
-            $insertData = [];
-
-            for ($i = 1; $i <= $cantidadAProcesar; $i++) {
-                $posGlobal = $this->bulk_current_count + $i;
-                $secStr = str_pad($posGlobal, 4, '0', STR_PAD_LEFT);
-                $identityStr = "{$this->selectedRouter}-{$this->bulk_last_lote}-{$secStr}";
-                $usernameStr = "{$this->selectedRouter}{$this->bulk_last_lote}{$secStr}";
-                $passStr = (string)rand(10000, 99999);
-
-                // Blindaje del comando
-                $comandoMasivo .= ":do { /ip hotspot user add name=\"{$usernameStr}\" password=\"{$passStr}\" profile=\"{$this->bulk_plan}\" comment=\"{$identityStr}\" } on-error={}; \n";
-                
-                $insertData[] = [
-                    'router_id' => $this->selectedRouter, 'identity' => $identityStr,
-                    'username' => $usernameStr, 'password' => $passStr, 'plan' => $this->bulk_plan,
-                    'costo' => $costoFinal, 'tiempo_uso' => '00:00:00', 'tiempo_consumido' => '0s',
-                    'estado' => 'disponible', 'sincronizado' => true, 'created_at' => now(), 'updated_at' => now()
-                ];
-            }
-
-            if ($this->sendCommandQuick($comandoMasivo)) {
-                Ticket::insert($insertData);
-                $this->bulk_current_count += $cantidadAProcesar;
-                if ($this->bulk_current_count >= $this->bulk_total_requested) {
-                    $this->finishBulk();
-                } else {
-                    session()->flash('chunk_message', "Bloque enviado con éxito.");
-                    session()->flash('next_amount', min($this->bulk_chunk_size, $this->bulk_total_requested - $this->bulk_current_count));
-                }
+        if ($this->sendCommandQuick($comandoMasivo)) {
+            Ticket::insert($insertData);
+            $this->bulk_current_count += $cantidadAProcesar;
+            if ($this->bulk_current_count >= $this->bulk_total_requested) {
+                $this->finishBulk();
             } else {
-                session()->flash('error', "El MikroTik no respondió. Reintente el bloque.");
+                session()->flash('chunk_message', "Bloque enviado con éxito.");
+                session()->flash('next_amount', min($this->bulk_chunk_size, $this->bulk_total_requested - $this->bulk_current_count));
             }
-        } catch (\Exception $e) { session()->flash('error', "Error: " . $e->getMessage()); }
+        }
     }
 
-    public function finishBulk()
-    {
+    public function finishBulk() {
         $this->bulk_step = 'input';
         $this->isBulkModalOpen = false;
-        session()->flash('message', "Lote completado correctamente.");
+        session()->flash('message', 'Lote generado con éxito.');
     }
 
     public function syncPendingTickets()
@@ -221,33 +209,27 @@ class ListTicketsAliado extends Component
                 $p = explode(',', $fila);
                 $uName = $p[0];
                 if (in_array($uName, ['default-trial', 'default']) || empty($p[2])) continue;
-
                 $mikrotikUsernames[] = $uName;
-                $costoSync = 0;
-                if (!str_contains(strtolower($p[2]), 'neutro') && preg_match('/(\d+(\.\d+)?)$/', $p[2], $m)) $costoSync = (float)$m[0];
 
                 Ticket::updateOrCreate(
                     ['router_id' => $this->selectedRouter, 'username' => $uName],
-                    ['password' => $p[1] ?? '', 'plan' => $p[2], 'costo' => $costoSync, 'identity' => $p[5] ?: "IMP-{$uName}", 'tiempo_uso' => $p[4] ?: '00:00:00', 'tiempo_consumido' => $p[3] ?: '0s', 'sincronizado' => true]
+                    ['password' => $p[1] ?? '', 'plan' => $p[2], 'identity' => $p[5] ?: "IMP-{$uName}", 'tiempo_consumido' => $p[3] ?: '0s', 'sincronizado' => true]
                 );
             }
             Ticket::where('router_id', $this->selectedRouter)->whereNotIn('username', $mikrotikUsernames)->delete();
-            session()->flash('message', 'Sincronización terminada.');
         }
         $this->showOverlay = false; 
     }
 
     public function loadMikrotikProfiles()
     {
-        if(count($this->mikrotik_profiles) > 0) return;
         $router = Router::find($this->selectedRouter);
-        $raw = $this->sendCommandQuick(":local res \"DATA:\"; :foreach i in=[/ip hotspot user profile find] do={ :set res (\$res . [/ip hotspot user profile get \$i name] . \",\" . [/ip hotspot user profile get \$i session-timeout] . \"|\"); }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=".strtoupper($router->macAddress)."&tid=PROF\" http-method=post http-data=\$res keep-result=no;", "PROF");
+        $raw = $this->sendCommandQuick(":local res \"DATA:\"; :foreach i in=[/ip hotspot user profile find] do={ :set res (\$res . [/ip hotspot user profile get \$i name] . \"|\"); }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=".strtoupper($router->macAddress)."&tid=PROF\" http-method=post http-data=\$res keep-result=no;", "PROF");
         
         if ($raw && str_contains($raw, 'DATA:')) {
             $profiles = [];
-            foreach (explode('|', str_replace('DATA:', '', $raw)) as $f) {
-                $p = explode(',', $f);
-                if (!empty($p[0]) && !in_array($p[0], ['default', 'neutro'])) $profiles[] = ['name' => $p[0], 'display' => $p[0]];
+            foreach (explode('|', str_replace('DATA:', '', $raw)) as $name) {
+                if (!empty($name) && !in_array($name, ['default', 'neutro'])) $profiles[] = ['name' => $name, 'display' => $name];
             }
             $this->mikrotik_profiles = $profiles;
         }
