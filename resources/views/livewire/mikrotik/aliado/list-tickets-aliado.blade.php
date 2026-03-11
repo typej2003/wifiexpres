@@ -71,7 +71,6 @@
                             <td><code class="text-dark fw-bold">{{ $t->tiempo_consumido ?: '0s' }}</code></td>
                             <td class="text-end px-4">
                                 <div class="btn-group btn-group-sm border rounded-pill overflow-hidden shadow-sm">
-                                    <button class="btn btn-white border-0"><i class="bi bi-pencil text-primary"></i></button>
                                     <button wire:click="{{ $t->anulado ? 'restaurarTicket' : 'anularTicket' }}({{ $t->id }})" class="btn btn-white border-0">
                                         <i class="bi {{ $t->anulado ? 'bi-arrow-counterclockwise text-success' : 'bi-x-circle text-danger' }}"></i>
                                     </button>
@@ -87,13 +86,13 @@
         <div class="card-footer bg-white p-3">{{ $tickets->links() }}</div>
     </div>
 
-    {{-- MODAL GENERAR LOTE (ACTUALIZADO PARA AUTO-CHUNKS) --}}
+    {{-- MODAL GENERAR LOTE (MODO MANUAL POR BLOQUES) --}}
     @if($isBulkModalOpen)
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); z-index: 1050;">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content rounded-4 border-0 shadow-lg">
                 <div class="modal-header bg-dark text-white border-0 p-4">
-                    <h5 class="modal-title fw-bold">Generador Masivo</h5>
+                    <h5 class="modal-title fw-bold">Generador por Bloques</h5>
                     @if($bulk_step === 'input')
                         <button wire:click="closeBulkModal" class="btn-close btn-close-white"></button>
                     @endif
@@ -103,7 +102,7 @@
                         <div class="mb-3 text-start">
                             <label class="form-label small fw-bold text-muted">CANTIDAD TOTAL</label>
                             <input type="number" wire:model.defer="bulk_count" class="form-control rounded-3 border-0 bg-light fw-bold fs-4 text-center" placeholder="Ej: 100">
-                            <small class="text-muted">Se crearán en bloques de {{ $bulk_chunk_size }} para evitar errores.</small>
+                            <small class="text-muted">Se enviarán en grupos de {{ $bulk_chunk_size }} al Router.</small>
                         </div>
                         <div class="mb-4 text-start">
                             <label class="form-label small fw-bold text-muted">PLAN ASOCIADO</label>
@@ -115,18 +114,16 @@
                             </select>
                         </div>
                         <button wire:click="startBulkGeneration" class="btn btn-dark w-100 rounded-pill py-3 fw-bold shadow">
-                            INICIAR GENERACIÓN
+                            COMENZAR GENERACIÓN
                         </button>
                     @else
-                        {{-- PROCESO AUTOMÁTICO --}}
+                        {{-- PROCESO MANUAL PASO A PASO --}}
                         <div class="py-3">
-                            <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
-                            <h5 class="fw-bold">CREANDO TICKETS...</h5>
-                            <p class="text-muted small">Por favor, mantenga esta ventana abierta.</p>
+                            <h5 class="fw-bold mb-3 text-dark">PROGRESO DEL LOTE</h5>
                             
                             @php $porcentaje = $bulk_total_requested > 0 ? ($bulk_current_count / $bulk_total_requested) * 100 : 0; @endphp
                             
-                            <div class="progress rounded-pill mb-3 shadow-sm" style="height: 20px;">
+                            <div class="progress rounded-pill mb-3 shadow-sm" style="height: 25px;">
                                 <div class="progress-bar bg-primary progress-bar-striped progress-bar-animated" 
                                      role="progressbar" 
                                      style="width: {{ $porcentaje }}%; transition: width 0.4s ease;">
@@ -134,10 +131,27 @@
                                 </div>
                             </div>
                             
-                            <div class="d-flex justify-content-between align-items-center px-2">
-                                <span class="fw-bold text-muted small">PROGRESADO: {{ $bulk_current_count }}</span>
-                                <span class="fw-bold text-primary small">META: {{ $bulk_total_requested }}</span>
-                            </div>
+                            <p class="fw-bold text-muted mb-4">
+                                {{ $bulk_current_count }} de {{ $bulk_total_requested }} tickets procesados.
+                            </p>
+
+                            @if($bulk_current_count < $bulk_total_requested)
+                                <button wire:click="processNextChunk" wire:loading.attr="disabled" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-lg fs-5">
+                                    <span wire:loading.remove>
+                                        <i class="bi bi-play-circle me-2"></i> PROCESAR SIGUIENTE BLOQUE ({{ $bulk_chunk_size }})
+                                    </span>
+                                    <span wire:loading>
+                                        <span class="spinner-border spinner-border-sm me-2"></span> ENVIANDO COMANDOS...
+                                    </span>
+                                </button>
+                                <p class="small text-danger mt-3 fw-bold"><i class="bi bi-exclamation-triangle-fill"></i> No cierre la ventana ni refresque la página.</p>
+                            @else
+                                <div class="alert alert-success border-0 rounded-4 fw-bold p-3 mb-3">
+                                    <i class="bi bi-check-all fs-4 d-block mb-1"></i>
+                                    ¡Lote completado con éxito!
+                                </div>
+                                <button wire:click="closeBulkModal" class="btn btn-dark w-100 rounded-pill py-3 fw-bold"> FINALIZAR Y CERRAR </button>
+                            @endif
                         </div>
                     @endif
                 </div>
@@ -173,7 +187,6 @@
                             <button wire:click="saveConfig" class="btn btn-primary w-100 rounded-pill fw-bold py-3 shadow">GUARDAR CAMBIOS</button>
                         </div>
                         <div class="col-md-5 bg-secondary bg-opacity-10 d-flex justify-content-center py-5">
-                            {{-- TICKET PREVIEW --}}
                             <div class="real-ticket-preview shadow-lg">
                                 <div class="preview-logo-container">
                                     <div class="logo-wrapper">
@@ -252,9 +265,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             window.addEventListener('abrirImpresion', event => {
-                if(event.detail.url) {
-                    window.open(event.detail.url, '_blank');
-                }
+                if(event.detail.url) { window.open(event.detail.url, '_blank'); }
             });
         });
     </script>

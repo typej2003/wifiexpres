@@ -22,12 +22,12 @@ class ListTicketsAliado extends Component
     public $isBulkModalOpen = false, $isConfigModalOpen = false, $isPrintModalOpen = false;
     public $showOverlay = false;
 
-    // --- VARIABLES DE CONTROL DE LOTES (CHUNKS) ---
+    // --- VARIABLES DE CONTROL DE LOTES (MANUAL) ---
     public $bulk_step = 'input'; 
     public $bulk_total_requested = 0;
     public $bulk_current_count = 0;
     public $bulk_last_lote = 0;
-    public $bulk_chunk_size = 30; // Límite de seguridad
+    public $bulk_chunk_size = 30; 
     public $bulk_count = 10, $bulk_plan;
 
     protected $bridgeUrl = "http://188.95.113.44:3000";
@@ -72,7 +72,6 @@ class ListTicketsAliado extends Component
 
             if (!$response->successful()) return null;
 
-            // Polling para esperar el resultado del Bridge
             for ($i = 0; $i < 15; $i++) {
                 $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
                 if ($res->successful() && $res->json('status') === 'ready') {
@@ -80,7 +79,7 @@ class ListTicketsAliado extends Component
                     if (str_contains(strtolower($output), 'failure')) return null;
                     return $output ?: "SUCCESS";
                 }
-                usleep(700000); // 0.7 segundos entre intentos
+                usleep(700000); 
             }
         } catch (\Exception $e) { 
             Log::error("Error Bridge: " . $e->getMessage()); 
@@ -88,18 +87,17 @@ class ListTicketsAliado extends Component
         return null; 
     }
 
-    // --- GENERACIÓN MASIVA POR BLOQUES (AUTO-RECURSIVA) ---
+    // --- GENERACIÓN MASIVA POR BLOQUES (MODO MANUAL) ---
     public function startBulkGeneration()
     {
         $this->validate([
-            'bulk_count' => 'required|integer|min:1|max:500', 
+            'bulk_count' => 'required|integer|min:1', 
             'bulk_plan' => 'required'
         ]);
 
         $this->bulk_total_requested = (int)$this->bulk_count;
         $this->bulk_current_count = 0;
         
-        // Calcular el número de lote (basado en el último ticket del router)
         $ultimo = Ticket::where('router_id', $this->selectedRouter)
             ->where('identity', 'LIKE', $this->selectedRouter . '-%')
             ->latest('id')->first();
@@ -107,7 +105,7 @@ class ListTicketsAliado extends Component
         $this->bulk_last_lote = $ultimo ? (int)explode('-', $ultimo->identity)[1] + 1 : 1;
         
         $this->bulk_step = 'processing';
-        $this->processNextChunk();
+        $this->processNextChunk(); // Ejecuta el primer bloque automáticamente
     }
 
     public function processNextChunk()
@@ -121,7 +119,6 @@ class ListTicketsAliado extends Component
 
         $cantidadAProcesar = min($this->bulk_chunk_size, $restantes);
         
-        // Lógica de costo dinámica (Extrae el número al final del nombre del plan)
         $planLower = strtolower($this->bulk_plan);
         $costoFinal = 0;
         $esGratis = str_contains($planLower, 'neutro') || str_contains($planLower, 'cortesia') || str_contains($planLower, 'trial');
@@ -160,15 +157,13 @@ class ListTicketsAliado extends Component
             Ticket::insert($insertData);
             $this->bulk_current_count += $cantidadAProcesar;
 
-            // Llamada recursiva automática si faltan tickets
-            if ($this->bulk_current_count < $this->bulk_total_requested) {
-                $this->processNextChunk();
-            } else {
+            // En modo MANUAL, NO llamamos a processNextChunk() de nuevo automáticamente.
+            // Si el conteo llega al total, finalizamos.
+            if ($this->bulk_current_count >= $this->bulk_total_requested) {
                 $this->finishBulk();
             }
         } else {
-            session()->flash('error', 'Error de comunicación con el Router. El proceso se detuvo en el ticket ' . $this->bulk_current_count);
-            $this->bulk_step = 'input';
+            session()->flash('error', 'Error en la comunicación con el Router en este bloque.');
         }
     }
 
@@ -186,7 +181,6 @@ class ListTicketsAliado extends Component
         $macActual = strtoupper($router->macAddress);
         $tid = "SYNC" . time();
 
-        // Script para extraer usuarios del Mikrotik y enviarlos al Bridge
         $comando = ":local res \"DATA:\"; :foreach i in=[/ip hotspot user find] do={ " .
                    ":local n [/ip hotspot user get \$i name]; :local p [/ip hotspot user get \$i password]; " .
                    ":local pr [/ip hotspot user get \$i profile]; :local u [/ip hotspot user get \$i uptime]; " .
@@ -219,7 +213,6 @@ class ListTicketsAliado extends Component
                     ]
                 );
             }
-            // Limpieza: Eliminar de DB local lo que ya no existe en el Mikrotik
             Ticket::where('router_id', $this->selectedRouter)
                   ->whereNotIn('username', $mikrotikUsernames)
                   ->delete();
