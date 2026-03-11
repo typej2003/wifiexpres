@@ -56,6 +56,10 @@ class ConfigurarRemoto extends Component
     public function ejecutarResetSelectivo()
     {
         $this->validate(['router_id' => 'required']);
+        
+        // Mensaje de suspensión en HTML básico para el router
+        $mensajeSuspendido = "<html><head><meta charset='utf-8'><title>Suspendido</title></head><body style='display:flex;justify-content:center;align-items:center;height:100vh;margin:0;font-family:sans-serif;'><h2>El portal se encuentra suspendido.</h2></body></html>";
+
         $this->iniciarProceso("⚠️ Iniciando Limpieza Selectiva...", [
             ['cmd' => '/ip hotspot user remove [find]', 'desc' => 'Borrando usuarios Hotspot'],
             ['cmd' => '/ip hotspot remove [find]', 'desc' => 'Borrando servidores Hotspot'],
@@ -68,7 +72,8 @@ class ConfigurarRemoto extends Component
             ['cmd' => '/ip hotspot walled-garden ip remove [find]', 'desc' => 'Limpiando Walled Garden IP'],
             ['cmd' => '/ip firewall nat remove [find where comment="Masquerade-Hotspot"]', 'desc' => 'Limpiando NAT previo'],
             ['cmd' => '/user remove [find name!="jose" and name!="admin"]', 'desc' => 'Limpiando usuarios sistema'],
-            ['cmd' => '/file remove [find name="hotspot/login.html"]', 'desc' => 'Eliminando login.html'],
+            // En lugar de borrarlo, lo editamos para que no de error de archivo no encontrado
+            ['cmd' => '/file set [find name="hotspot/login.html"] contents="'.$mensajeSuspendido.'"', 'desc' => 'Marcando portal como Suspendido'],
         ]);
     }
 
@@ -79,9 +84,9 @@ class ConfigurarRemoto extends Component
             'version_id' => 'required'
         ]);
         
-        // Obtener el código de la versión seleccionada
         $version = HotspotVersion::findOrFail($this->version_id);
-        $htmlCode = $version->code;
+        // Limpiamos el código de saltos de línea innecesarios para evitar roturas en el terminal de MikroTik
+        $htmlCode = str_replace(["\r", "\n"], "", $version->code);
 
         $this->iniciarProceso("🚀 Iniciando Provisión Remota Full...", [
             // 1. Infraestructura y Puertos LAN
@@ -104,7 +109,7 @@ class ConfigurarRemoto extends Component
 
             // 5. Hotspot y Reset HTML
             ['cmd' => ':if ([:len [/ip hotspot profile find name="hsprof1"]]=0) do={/ip hotspot profile add name=hsprof1 hotspot-address=192.168.88.1 login-by=http-chap,trial}', 'desc' => 'Perfil de Hotspot'],
-            ['cmd' => '/ip hotspot profile reset-html [find name="hsprof1"]', 'desc' => 'Reset HTML (Refrescar login.html)'],
+            ['cmd' => '/ip hotspot profile reset-html [find name="hsprof1"]', 'desc' => 'Reset HTML (Garantizar login.html)'],
             ['cmd' => ':if ([:len [/ip hotspot find name="hotspot1"]]=0) do={/ip hotspot add name=hotspot1 interface=bridge-lan profile=hsprof1 address-pool=dhcp_pool1 disabled=no}', 'desc' => 'Servidor Hotspot activo'],
 
             // 6. Walled Garden
@@ -112,13 +117,13 @@ class ConfigurarRemoto extends Component
             ['cmd' => '/ip hotspot walled-garden add dst-host=*.biopagobdv.com action=allow; /ip hotspot walled-garden add dst-host=*.banvenez.com; /ip hotspot walled-garden add dst-host=biopago.banvenez.com', 'desc' => 'Walled Garden: Pasarelas BDV'],
             ['cmd' => '/ip hotspot walled-garden add dst-host=fcm.googleapis.com action=allow; /ip hotspot walled-garden add dst-host=mtalk.google.com; /ip hotspot walled-garden add dst-host=*.push.apple.com', 'desc' => 'Walled Garden: Notificaciones'],
 
-            // 7. Walled Garden IP (Acceso Bridge y Pasarelas)
+            // 7. Walled Garden IP
             ['cmd' => '/ip hotspot walled-garden ip add dst-address=190.217.7.106 action=accept; /ip hotspot walled-garden ip add dst-address=190.202.148.187 action=accept', 'desc' => 'Walled Garden IP: Pasarelas'],
             ['cmd' => '/ip hotspot walled-garden ip add dst-port=5228-5230 protocol=tcp action=accept; /ip hotspot walled-garden ip add dst-port=5223 protocol=tcp action=accept', 'desc' => 'Walled Garden IP: Puertos Push'],
             ['cmd' => '/ip hotspot walled-garden ip add dst-address=188.95.113.44 dst-port=3000 protocol=tcp action=accept comment="Bridge Access"', 'desc' => 'Liberando Puerto 3000 (Bridge)'],
 
-            // 8. Instalación de Portal (Código desde DB)
-            ['cmd' => '/file print file="hotspot/login.html"; :delay 2s; /file set "hotspot/login.html" contents="'.$htmlCode.'"', 'desc' => 'Instalando Portal: ' . $version->name],
+            // 8. Edición de login.html con el código real
+            ['cmd' => '/file set [find name="hotspot/login.html"] contents="'.$htmlCode.'"', 'desc' => 'Actualizando contenido: ' . $version->name],
         ]);
     }
 
@@ -183,7 +188,7 @@ class ConfigurarRemoto extends Component
                 $this->logs[] = ($data === "OK") ? "✅ Hecho" : "⚠️ Omitido/Existente";
                 $this->avanzar();
             } elseif ($this->intentos >= 45) {
-                $this->logs[] = "⌛ Timeout en este paso, continuando...";
+                $this->logs[] = "⌛ Continuando proceso...";
                 $this->avanzar();
             }
         } catch (\Exception $e) { }
