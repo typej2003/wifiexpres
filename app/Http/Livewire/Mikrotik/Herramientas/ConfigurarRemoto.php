@@ -64,6 +64,7 @@ class ConfigurarRemoto extends Component
             ['cmd' => '/ip address remove [find where interface!="ether1"]', 'desc' => 'Limpiando IPs'],
             ['cmd' => '/ip hotspot walled-garden remove [find]', 'desc' => 'Limpiando Walled Garden'],
             ['cmd' => '/ip hotspot walled-garden ip remove [find]', 'desc' => 'Limpiando Walled Garden IP'],
+            ['cmd' => '/ip firewall nat remove [find where comment="Masquerade-Hotspot"]', 'desc' => 'Limpiando NAT previo'],
             ['cmd' => '/user remove [find name!="jose" and name!="admin"]', 'desc' => 'Limpiando usuarios sistema'],
         ]);
     }
@@ -73,29 +74,35 @@ class ConfigurarRemoto extends Component
         $this->validate(['router_id' => 'required']);
         
         $this->iniciarProceso("🚀 Iniciando Provisión Remota Full...", [
-            // Infraestructura y Radio
+            // 1. Infraestructura y Puertos LAN
             ['cmd' => ':if ([:len [/user find name="soporte"]]=0) do={/user add name="soporte" password="123" group=full}', 'desc' => 'Creando usuario soporte'],
             ['cmd' => ':if ([:len [/interface bridge find name="bridge-lan"]]=0) do={/interface bridge add name=bridge-lan}', 'desc' => 'Creando Bridge LAN'],
-            ['cmd' => ':foreach i in=[/interface ethernet find where name!="ether1"] do={ :local n [/interface ethernet get $i name]; :if ([:len [/interface bridge port find interface=$n]]=0) do={/interface bridge port add bridge=bridge-lan interface=$n} }', 'desc' => 'Asignando puertos a Bridge'],
+            ['cmd' => ':foreach i in=[/interface ethernet find where name!="ether1"] do={ :local n [/interface ethernet get $i name]; :if ([:len [/interface bridge port find interface=$n]]=0) do={/interface bridge port add bridge=bridge-lan interface=$n} }', 'desc' => 'Habilitando Puertos LAN (Bridge)'],
+            
+            // 2. Radio y Seguridad
             ['cmd' => '/interface wireless disable [find name="wifi1"]', 'desc' => 'Desactivando interfaz wifi1'],
             ['cmd' => '/ip dns set allow-remote-requests=yes servers=8.8.8.8', 'desc' => 'Configurando DNS'],
 
-            // Red IP y DHCP
+            // 3. Salida a Internet (NAT)
+            ['cmd' => ':if ([:len [/ip firewall nat find comment="Masquerade-Hotspot"]]=0) do={/ip firewall nat add chain=srcnat out-interface=ether1 action=masquerade comment="Masquerade-Hotspot"}', 'desc' => 'Configurando Firewall NAT (ether1)'],
+
+            // 4. Capa de Red (IP/DHCP)
             ['cmd' => ':if ([:len [/ip address find address="192.168.88.1/24"]]=0) do={/ip address add address=192.168.88.1/24 interface=bridge-lan}', 'desc' => 'Asignando IP Local'],
             ['cmd' => ':if ([:len [/ip pool find name="dhcp_pool1"]]=0) do={/ip pool add name=dhcp_pool1 ranges=192.168.88.10-192.168.88.254}', 'desc' => 'Creando Pool DHCP'],
-            ['cmd' => ':if ([:len [/ip dhcp-server find name="dhcp-remoto"]]=0) do={/ip dhcp-server add address-pool=dhcp_pool1 disabled=no interface=bridge-lan name=dhcp-remoto}', 'desc' => 'Activando DHCP Server'],
-            ['cmd' => ':if ([:len [/ip dhcp-server network find address="192.168.88.0/24"]]=0) do={/ip dhcp-server network add address=192.168.88.0/24 gateway=192.168.88.1 dns-server=8.8.8.8}', 'desc' => 'Configurando Red DHCP'],
+            ['cmd' => ':if ([:len [/ip dhcp-server find name="dhcp-remoto"]]=0) do={/ip dhcp-server add address-pool=dhcp_pool1 disabled=no interface=bridge-lan name=dhcp-remoto}', 'desc' => 'Servidor DHCP activo'],
+            ['cmd' => ':if ([:len [/ip dhcp-server network find address="192.168.88.0/24"]]=0) do={/ip dhcp-server network add address=192.168.88.0/24 gateway=192.168.88.1 dns-server=8.8.8.8}', 'desc' => 'Red DHCP'],
 
-            // Hotspot
+            // 5. Hotspot y Reset HTML
             ['cmd' => ':if ([:len [/ip hotspot profile find name="hsprof1"]]=0) do={/ip hotspot profile add name=hsprof1 hotspot-address=192.168.88.1 login-by=http-chap,trial}', 'desc' => 'Perfil de Hotspot'],
+            ['cmd' => '/ip hotspot profile reset-html [find name="hsprof1"]', 'desc' => 'Reset HTML (Refrescar login.html)'],
             ['cmd' => ':if ([:len [/ip hotspot find name="hotspot1"]]=0) do={/ip hotspot add name=hotspot1 interface=bridge-lan profile=hsprof1 address-pool=dhcp_pool1 disabled=no}', 'desc' => 'Servidor Hotspot activo'],
 
-            // Walled Garden Host
+            // 6. Walled Garden
             ['cmd' => '/ip hotspot walled-garden add dst-host=wifiexpres.com; /ip hotspot walled-garden add dst-host=*.wifiexpres.com', 'desc' => 'Walled Garden: Dominios Propios'],
             ['cmd' => '/ip hotspot walled-garden add dst-host=*.biopagobdv.com action=allow; /ip hotspot walled-garden add dst-host=*.banvenez.com; /ip hotspot walled-garden add dst-host=biopago.banvenez.com', 'desc' => 'Walled Garden: Pasarelas BDV'],
             ['cmd' => '/ip hotspot walled-garden add dst-host=fcm.googleapis.com action=allow; /ip hotspot walled-garden add dst-host=mtalk.google.com; /ip hotspot walled-garden add dst-host=*.push.apple.com', 'desc' => 'Walled Garden: Notificaciones'],
 
-            // Walled Garden IP y Puertos
+            // 7. Walled Garden IP (Acceso Bridge y Pasarelas)
             ['cmd' => '/ip hotspot walled-garden ip add dst-address=190.217.7.106 action=accept; /ip hotspot walled-garden ip add dst-address=190.202.148.187 action=accept', 'desc' => 'Walled Garden IP: Pasarelas'],
             ['cmd' => '/ip hotspot walled-garden ip add dst-port=5228-5230 protocol=tcp action=accept; /ip hotspot walled-garden ip add dst-port=5223 protocol=tcp action=accept', 'desc' => 'Walled Garden IP: Puertos Push'],
             ['cmd' => '/ip hotspot walled-garden ip add dst-address=188.95.113.44 dst-port=3000 protocol=tcp action=accept comment="Bridge Access"', 'desc' => 'Liberando Puerto 3000 (Bridge)'],
