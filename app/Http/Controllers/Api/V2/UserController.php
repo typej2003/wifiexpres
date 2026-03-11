@@ -158,13 +158,15 @@ class UserController extends Controller
             if (!$router) return response()->json(['success' => false], 404);
             $mac = strtoupper(trim($router->macAddress));
 
+            // --- COMANDO 1: CHECK (Independiente) ---
             $tidCheck = "CHK" . time();
             $cmdCheck = ":local id [/ip hotspot user find name=\"$username\"]; :if ([:len \$id]>0) do={/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidCheck\" http-method=post http-data=\"EXISTE\" keep-result=no} else={/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidCheck\" http-method=post http-data=\"NO_EXISTE\" keep-result=no}";
             
             $this->emitirAlSocket($cmdCheck, $mac, $tidCheck);
             
+            // Espera independiente para el comando 1 (25 segundos máximo)
             $existe = false;
-            for ($i = 0; $i < 40; $i++) {
+            for ($i = 0; $i < 25; $i++) {
                 sleep(1);
                 $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tidCheck]);
                 if ($res->successful() && $res->json('status') === 'ready') { 
@@ -173,13 +175,29 @@ class UserController extends Controller
                 }
             }
 
+            // --- COMANDO 2: CONFIGURACIÓN (Independiente) ---
+            // Al empezar este bloque, el tiempo de espera de este comando "reinicia"
             $tidFinal = "PRE" . time();
             $cmdFinal = $existe 
                 ? ":do {/ip hotspot user set [find name=\"$username\"] password=\"$password\" profile=\"neutro\";/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidFinal\" http-method=post http-data=\"OK\" keep-result=no} on-error={/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidFinal\" http-method=post http-data=\"ERROR\" keep-result=no}"
                 : ":do {/ip hotspot user add name=\"$username\" password=\"$password\" profile=\"neutro\";/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidFinal\" http-method=post http-data=\"OK\" keep-result=no} on-error={/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tidFinal\" http-method=post http-data=\"ERROR\" keep-result=no}";
 
             $this->emitirAlSocket($cmdFinal, $mac, $tidFinal);
-            return response()->json(['success' => $this->esperarConfirmacion($mac, $tidFinal)]);
+            
+            // Espera independiente para el comando 2 (25 segundos máximo)
+            $confirmado = false;
+            for ($j = 0; $j < 25; $j++) {
+                sleep(1);
+                $resFinal = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tidFinal]);
+                if ($resFinal->successful() && $resFinal->json('status') === 'ready') {
+                    $data = trim($resFinal->json('data'));
+                    $confirmado = ($data === 'OK' || $data === 'EXISTE');
+                    break;
+                }
+            }
+
+            return response()->json(['success' => $confirmado]);
+
         } catch (Exception $e) { return response()->json(['success' => false], 500); }
     }
 
