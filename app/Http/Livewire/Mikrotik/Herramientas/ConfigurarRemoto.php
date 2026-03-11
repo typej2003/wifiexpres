@@ -57,7 +57,11 @@ class ConfigurarRemoto extends Component
 
     public function ejecutarResetSelectivo()
     {
-        $this->validate(['router_id' => 'required']);
+        $this->validate([
+            'router_id' => 'required',
+            'soporte_user' => 'required|min:4',
+            'soporte_pass' => 'required|min:4'
+        ]);
         
         $mensajeSuspendido = "<html><body style='text-align:center;padding-top:50px;'><h1>Servicio Suspendido</h1></body></html>";
 

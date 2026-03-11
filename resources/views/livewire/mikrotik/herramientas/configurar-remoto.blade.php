@@ -61,7 +61,7 @@
                                     </div>
                                 </div>
                                 <div class="form-text mt-2" style="font-size: 0.75rem;">
-                                    <i class="bi bi-info-circle"></i> Se creará este usuario y se <strong>eliminará</strong> el usuario 'admin' al finalizar.
+                                    <i class="bi bi-info-circle"></i> Se requiere usuario y contraseña para habilitar las acciones.
                                 </div>
                             </div>
                         </div>
@@ -85,13 +85,13 @@
 
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
-                            <button wire:click="ejecutarConfiguracion" @if(!$router_id || !$version_id || !$soporte_pass || $isConfiguring) disabled @endif
+                            <button wire:click="ejecutarConfiguracion" @if(!$router_id || !$version_id || !$soporte_user || !$soporte_pass || $isConfiguring) disabled @endif
                                 class="btn btn-primary btn-lg rounded-pill fw-bold w-100 py-3 shadow-sm">
                                 <i class="bi bi-rocket-takeoff-fill me-2"></i> INICIAR CONFIG
                             </button>
                         </div>
                         <div class="col-md-3">
-                            <button wire:click="ejecutarResetSelectivo" @if(!$router_id || $isConfiguring) disabled @endif
+                            <button wire:click="ejecutarResetSelectivo" @if(!$router_id || !$soporte_user || !$soporte_pass || $isConfiguring) disabled @endif
                                 class="btn btn-outline-warning btn-lg rounded-pill fw-bold w-100 py-3 shadow-sm">
                                 <i class="bi bi-trash-fill me-1"></i> RESET
                             </button>
