@@ -156,28 +156,23 @@ class UserController extends Controller
             $router = $this->findRouter($identity);
             
             if (!$router) return response()->json(['success' => false], 404);
+            
             $mac = strtoupper(trim($router->macAddress));
             $tid = "PRE" . time();
 
-            // Construimos el comando con concatenación limpia de PHP
-            // Quitamos los saltos de línea y usamos solo comillas dobles escapadas
-            $cmd = ":do { " .
-                " :if ([:len [/ip hotspot user find name=\"$username\"]] > 0) do={ " .
-                "   /ip hotspot user set [find name=\"$username\"] password=\"$password\" profile=\"neutro\" limit-uptime=0s; " .
-                " } else={ " .
-                "   /ip hotspot user add name=\"$username\" password=\"$password\" profile=\"neutro\"; " .
-                " }; " .
-                " /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no; " .
-                "} on-error={ " .
-                " /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"ERROR\" keep-result=no; " .
-                "}";
+            // PASO 1: Solo el comando de creación y el reporte de éxito.
+            // Nota: Asegúrate de que el usuario NO exista antes de probar, 
+            // o el MikroTik detendrá el script por error de duplicado.
+            $cmd = "/ip hotspot user add name=\"$username\" password=\"$password\" profile=\"neutro\"; " .
+                "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no";
 
             $this->emitirAlSocket($cmd, $mac, $tid);
             
-            // Aumentamos ligeramente la espera para este comando crítico
             return response()->json(['success' => $this->esperarConfirmacion($mac, $tid)]);
 
-        } catch (Exception $e) { return response()->json(['success' => false], 500); }
+        } catch (Exception $e) { 
+            return response()->json(['success' => false], 500); 
+        }
     }
 
     /**
