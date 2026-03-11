@@ -1,6 +1,6 @@
 <div class="container-fluid py-4" @if($esperandoRespuesta) wire:poll.1s="checkStatus" @endif>
     <div class="row justify-content-center">
-        <div class="col-md-10 col-lg-8">
+        <div class="col-md-11 col-lg-9">
             <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
                 <div class="card-header bg-primary text-white p-4 d-flex justify-content-between align-items-center">
                     <div>
@@ -41,9 +41,9 @@
                     @if($isConfiguring || $progreso > 0)
                         <div class="mb-4">
                             <div class="d-flex justify-content-between mb-2">
-                                <span class="text-muted small fw-bold">ESTADO DE LA TAREA: {{ $progreso }}%</span>
+                                <span class="text-muted small fw-bold">PROGRESO: {{ $progreso }}%</span>
                                 @if($esperandoRespuesta)
-                                    <span class="badge bg-primary animate__animated animate__pulse animate__infinite">
+                                    <span class="badge bg-primary animate__animated animate__pulse animate__infinite px-3 py-2">
                                         <i class="bi bi-cpu-fill me-1"></i> PROCESANDO ({{ $intentos }}s)
                                     </span>
                                 @endif
@@ -75,11 +75,11 @@
                         </div>
                     </div>
 
-                    <div class="terminal-box bg-dark rounded-4 p-4 shadow-inner">
-                        <div id="logs-container" class="console-text" style="height: 300px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85rem; scroll-behavior: smooth;">
+                    <div class="terminal-box bg-dark rounded-4 p-4 shadow-inner" style="background-color: #0c0c0c !important;">
+                        <div id="logs-container" class="console-text" style="height: 350px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85rem; scroll-behavior: smooth;">
                             @foreach($logs as $log)
                                 <div class="mb-1 text-light border-start border-success border-2 ps-3">
-                                    <span class="text-success fw-bold">mikrotik@wifi:~$</span> 
+                                    <span class="text-success fw-bold">admin@mikrotik:~$</span> 
                                     <span class="ms-2 opacity-90">{{ $log }}</span>
                                 </div>
                             @endforeach
@@ -93,7 +93,6 @@
 
 <script>
     document.addEventListener('livewire:load', function () {
-        // Auto-scroll cada vez que Livewire actualiza
         window.addEventListener('logUpdated', event => {
             const container = document.getElementById('logs-container');
             if (container) {
@@ -101,7 +100,6 @@
             }
         });
 
-        // Observador por si el evento no llega
         const target = document.getElementById('logs-container');
         if (target) {
             new MutationObserver(() => {

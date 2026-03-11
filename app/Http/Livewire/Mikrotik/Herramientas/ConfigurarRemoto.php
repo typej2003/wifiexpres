@@ -16,7 +16,6 @@ class ConfigurarRemoto extends Component
     public $logs = [];
     public $isConfiguring = false;
     
-    // Control de Progreso y Polling
     public $progreso = 0;
     public $abortar = false;
     public $esperandoRespuesta = false;
@@ -52,7 +51,6 @@ class ConfigurarRemoto extends Component
         } catch (\Exception $e) { $this->routerStatus = []; }
     }
 
-    // BOTÓN RESET: Limpieza total
     public function ejecutarResetSelectivo()
     {
         $this->validate(['router_id' => 'required']);
@@ -64,49 +62,45 @@ class ConfigurarRemoto extends Component
             ['cmd' => '/interface bridge port remove [find where interface!="ether1"]', 'desc' => 'Liberando puertos'],
             ['cmd' => '/interface bridge remove [find]', 'desc' => 'Eliminando Bridges'],
             ['cmd' => '/ip address remove [find where interface!="ether1"]', 'desc' => 'Limpiando IPs'],
+            ['cmd' => '/ip hotspot walled-garden remove [find]', 'desc' => 'Limpiando Walled Garden'],
+            ['cmd' => '/ip hotspot walled-garden ip remove [find]', 'desc' => 'Limpiando Walled Garden IP'],
             ['cmd' => '/user remove [find name!="jose" and name!="admin"]', 'desc' => 'Limpiando usuarios sistema'],
         ]);
     }
 
-    // BOTÓN CONFIGURAR: Creación de infraestructura
     public function ejecutarConfiguracion()
     {
         $this->validate(['router_id' => 'required']);
         
-        // Comandos con verificación de existencia para evitar errores de duplicado
-        $this->iniciarProceso("🚀 Iniciando Provisión Remota...", [
-            [
-                'cmd' => ':if ([:len [/user find name="soporte"]]=0) do={/user add name="soporte" password="123" group=full}', 
-                'desc' => 'Usuario de soporte'
-            ],
-            [
-                'cmd' => ':if ([:len [/interface bridge find name="bridge-lan"]]=0) do={/interface bridge add name=bridge-lan}', 
-                'desc' => 'Creando Bridge LAN'
-            ],
-            [
-                'cmd' => ':foreach i in=[/interface ethernet find where name!="ether1"] do={ :local n [/interface ethernet get $i name]; :if ([:len [/interface bridge port find interface=$n]]=0) do={/interface bridge port add bridge=bridge-lan interface=$n} }', 
-                'desc' => 'Asignando puertos a Bridge'
-            ],
-            [
-                'cmd' => ':if ([:len [/ip address find address="192.168.88.1/24"]]=0) do={/ip address add address=192.168.88.1/24 interface=bridge-lan}', 
-                'desc' => 'Asignando IP Local'
-            ],
-            [
-                'cmd' => ':if ([:len [/ip pool find name="dhcp_pool1"]]=0) do={/ip pool add name=dhcp_pool1 ranges=192.168.88.10-192.168.88.254}', 
-                'desc' => 'Creando Pool DHCP'
-            ],
-            [
-                'cmd' => ':if ([:len [/ip dhcp-server find name="dhcp-remoto"]]=0) do={/ip dhcp-server add address-pool=dhcp_pool1 disabled=no interface=bridge-lan name=dhcp-remoto}', 
-                'desc' => 'Activando Servidor DHCP'
-            ],
-            [
-                'cmd' => ':if ([:len [/ip dhcp-server network find address="192.168.88.0/24"]]=0) do={/ip dhcp-server network add address=192.168.88.0/24 gateway=192.168.88.1 dns-server=8.8.8.8}', 
-                'desc' => 'Configurando Red DHCP'
-            ],
-            [
-                'cmd' => '/system identity set name="WIFIEXPRES-CONFIGURADO"', 
-                'desc' => 'Actualizando Identidad'
-            ],
+        $this->iniciarProceso("🚀 Iniciando Provisión Remota Full...", [
+            // Infraestructura y Radio
+            ['cmd' => ':if ([:len [/user find name="soporte"]]=0) do={/user add name="soporte" password="123" group=full}', 'desc' => 'Creando usuario soporte'],
+            ['cmd' => ':if ([:len [/interface bridge find name="bridge-lan"]]=0) do={/interface bridge add name=bridge-lan}', 'desc' => 'Creando Bridge LAN'],
+            ['cmd' => ':foreach i in=[/interface ethernet find where name!="ether1"] do={ :local n [/interface ethernet get $i name]; :if ([:len [/interface bridge port find interface=$n]]=0) do={/interface bridge port add bridge=bridge-lan interface=$n} }', 'desc' => 'Asignando puertos a Bridge'],
+            ['cmd' => '/interface wireless disable [find name="wifi1"]', 'desc' => 'Desactivando interfaz wifi1'],
+            ['cmd' => '/ip dns set allow-remote-requests=yes servers=8.8.8.8', 'desc' => 'Configurando DNS'],
+
+            // Red IP y DHCP
+            ['cmd' => ':if ([:len [/ip address find address="192.168.88.1/24"]]=0) do={/ip address add address=192.168.88.1/24 interface=bridge-lan}', 'desc' => 'Asignando IP Local'],
+            ['cmd' => ':if ([:len [/ip pool find name="dhcp_pool1"]]=0) do={/ip pool add name=dhcp_pool1 ranges=192.168.88.10-192.168.88.254}', 'desc' => 'Creando Pool DHCP'],
+            ['cmd' => ':if ([:len [/ip dhcp-server find name="dhcp-remoto"]]=0) do={/ip dhcp-server add address-pool=dhcp_pool1 disabled=no interface=bridge-lan name=dhcp-remoto}', 'desc' => 'Activando DHCP Server'],
+            ['cmd' => ':if ([:len [/ip dhcp-server network find address="192.168.88.0/24"]]=0) do={/ip dhcp-server network add address=192.168.88.0/24 gateway=192.168.88.1 dns-server=8.8.8.8}', 'desc' => 'Configurando Red DHCP'],
+
+            // Hotspot
+            ['cmd' => ':if ([:len [/ip hotspot profile find name="hsprof1"]]=0) do={/ip hotspot profile add name=hsprof1 hotspot-address=192.168.88.1 login-by=http-chap,trial}', 'desc' => 'Perfil de Hotspot'],
+            ['cmd' => ':if ([:len [/ip hotspot find name="hotspot1"]]=0) do={/ip hotspot add name=hotspot1 interface=bridge-lan profile=hsprof1 address-pool=dhcp_pool1 disabled=no}', 'desc' => 'Servidor Hotspot activo'],
+
+            // Walled Garden Host
+            ['cmd' => '/ip hotspot walled-garden add dst-host=wifiexpres.com; /ip hotspot walled-garden add dst-host=*.wifiexpres.com', 'desc' => 'Walled Garden: Dominios Propios'],
+            ['cmd' => '/ip hotspot walled-garden add dst-host=*.biopagobdv.com action=allow; /ip hotspot walled-garden add dst-host=*.banvenez.com; /ip hotspot walled-garden add dst-host=biopago.banvenez.com', 'desc' => 'Walled Garden: Pasarelas BDV'],
+            ['cmd' => '/ip hotspot walled-garden add dst-host=fcm.googleapis.com action=allow; /ip hotspot walled-garden add dst-host=mtalk.google.com; /ip hotspot walled-garden add dst-host=*.push.apple.com', 'desc' => 'Walled Garden: Notificaciones'],
+
+            // Walled Garden IP y Puertos
+            ['cmd' => '/ip hotspot walled-garden ip add dst-address=190.217.7.106 action=accept; /ip hotspot walled-garden ip add dst-address=190.202.148.187 action=accept', 'desc' => 'Walled Garden IP: Pasarelas'],
+            ['cmd' => '/ip hotspot walled-garden ip add dst-port=5228-5230 protocol=tcp action=accept; /ip hotspot walled-garden ip add dst-port=5223 protocol=tcp action=accept', 'desc' => 'Walled Garden IP: Puertos Push'],
+            ['cmd' => '/ip hotspot walled-garden ip add dst-address=188.95.113.44 dst-port=3000 protocol=tcp action=accept comment="Bridge Access"', 'desc' => 'Liberando Puerto 3000 (Bridge)'],
+
+            ['cmd' => '/system identity set name="WIFIEXPRES-FULL"', 'desc' => 'Actualizando Identidad'],
         ]);
     }
 
@@ -168,7 +162,7 @@ class ConfigurarRemoto extends Component
 
             if ($res->successful() && $res->json('status') === 'ready') {
                 $data = $res->json('data');
-                $this->logs[] = ($data === "OK") ? "✅ Éxito" : "⚠️ Omitido/Ya existe";
+                $this->logs[] = ($data === "OK") ? "✅ Hecho" : "⚠️ Omitido/Existente";
                 $this->avanzar();
             } elseif ($this->intentos >= 45) {
                 $this->logs[] = "⌛ Timeout en este paso, continuando...";
@@ -191,7 +185,7 @@ class ConfigurarRemoto extends Component
         $this->isConfiguring = false;
         $this->esperandoRespuesta = false;
         $this->progreso = 100;
-        $this->logs[] = $this->abortar ? "🛑 Proceso detenido por el usuario." : "🏁 Tarea completada correctamente.";
+        $this->logs[] = $this->abortar ? "🛑 Proceso detenido." : "🏁 Tarea finalizada con éxito.";
         $this->dispatchBrowserEvent('logUpdated');
     }
 
