@@ -68,6 +68,10 @@ class UserController extends Controller
      * 2. LISTADO DE PLANES (Desde Base de Datos)
      * Optimizamos para no consultar el MikroTik aquí.
      */
+    /**
+     * 2. LISTADO DE PLANES (Desde Base de Datos)
+     * Optimizamos para no consultar el MikroTik aquí.
+     */
     public function getPlans(Request $request)
     {
         $identity = $request->query('identity');
@@ -78,8 +82,11 @@ class UserController extends Controller
         }
 
         // Consultamos los planes activos asociados a este router en la DB
+        // Filtramos para excluir perfiles que contengan "cortesia" o "gratis"
         $plans = Plan::where('router_id', $router->id)
                      ->where('is_active', true)
+                     ->where('mikrotik_profile', 'not like', '%cortesia%')
+                     ->where('mikrotik_profile', 'not like', '%gratis%')
                      ->get(['name', 'price', 'mikrotik_profile', 'session_timeout'])
                      ->map(function($p) {
                         return [
