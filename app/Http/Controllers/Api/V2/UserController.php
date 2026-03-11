@@ -156,30 +156,32 @@ class UserController extends Controller
             $router = $this->findRouter($identity);
             
             if (!$router) return response()->json(['success' => false], 404);
+            
             $mac = strtoupper(trim($router->macAddress));
             $tid = "PRE" . time();
 
-            // COMANDO ATÓMICO (Igual que el Trial): 
-            // Busca, decide si agregar o editar, y reporta UN SOLO resultado.
-            $cmd = ":local u \"$username\"; :local p \"$password\"; :local m \"$mac\"; :local t \"$tid\"; " .
-                ":do { " .
-                "  :local id [/ip hotspot user find name=\$u]; " .
-                "  :if ([:len \$id]>0) do={ " .
-                "    /ip hotspot user set \$id password=\$p profile=\"neutro\"; " .
-                "  } else={ " .
-                "    /ip hotspot user add name=\$u password=\$p profile=\"neutro\"; " .
-                "  }; " .
-                "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; " .
-                "} on-error={ " .
-                "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"ERROR\" keep-result=no; " .
-                "}";
+            // COMANDO SIMPLIFICADO: Sin tantas variables locales, directo al grano.
+            // Usamos comillas simples para la URL de MikroTik para evitar conflictos.
+            $cmd = "{
+                :local u \"$username\";
+                :local p \"$password\";
+                :do {
+                    :local found [/ip hotspot user find name=\$u];
+                    :if ([:len \$found] > 0) do={
+                        /ip hotspot user set \$found password=\$p profile=\"neutro\" limit-uptime=0s;
+                    } else={
+                        /ip hotspot user add name=\$u password=\$p profile=\"neutro\";
+                    }
+                    /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no;
+                } on-error={
+                    /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"ERROR\" keep-result=no;
+                }
+            }";
 
+            // Importante: emitirAlSocket ya limpia espacios, así que lo enviamos tranquilo.
             $this->emitirAlSocket($cmd, $mac, $tid);
             
-            // Ahora solo necesitamos UNA espera de 45 segundos, igual que en el Trial.
-            $confirmado = $this->esperarConfirmacion($mac, $tid);
-
-            return response()->json(['success' => $confirmado]);
+            return response()->json(['success' => $this->esperarConfirmacion($mac, $tid)]);
 
         } catch (Exception $e) { 
             return response()->json(['success' => false], 500); 
