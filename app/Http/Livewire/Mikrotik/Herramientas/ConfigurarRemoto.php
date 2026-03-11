@@ -85,8 +85,7 @@ class ConfigurarRemoto extends Component
         
         $version = HotspotVersion::findOrFail($this->version_id);
         
-        // IMPORTANTE: Cambia esto por tu dominio real
-        // El MikroTik usará esta URL para descargar el archivo login.html
+        // Usamos la IP para la descarga inicial por si el DNS aún no propaga
         $baseUrl = "https://wifiexpres.com"; 
         $downloadUrl = $baseUrl . "/api/portal-download/" . $this->version_id;
 
@@ -103,11 +102,19 @@ class ConfigurarRemoto extends Component
             ['cmd' => ':if ([:len [/ip dhcp-server network find address="192.168.88.0/24"]]=0) do={/ip dhcp-server network add address=192.168.88.0/24 gateway=192.168.88.1 dns-server=8.8.8.8}', 'desc' => 'DHCP Network'],
             ['cmd' => ':if ([:len [/ip hotspot profile find name="hsprof1"]]=0) do={/ip hotspot profile add name=hsprof1 hotspot-address=192.168.88.1 login-by=http-chap,trial}', 'desc' => 'Perfil Hotspot'],
             ['cmd' => ':if ([:len [/ip hotspot find name="hotspot1"]]=0) do={/ip hotspot add name=hotspot1 interface=bridge-lan profile=hsprof1 address-pool=dhcp_pool1 disabled=no}', 'desc' => 'Servidor Hotspot'],
-            ['cmd' => '/ip hotspot walled-garden add dst-host=wifiexpres.com; /ip hotspot walled-garden add dst-host=*.wifiexpres.com', 'desc' => 'Walled Garden Dominios'],
-            ['cmd' => '/ip hotspot walled-garden ip add dst-address=188.95.113.44 dst-port=3000 protocol=tcp action=accept', 'desc' => 'Acceso Bridge'],
 
-            // --- MÉTODO POR DESCARGA (EVITA EL TIMEOUT) ---
-            ['cmd' => '/tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" mode=http', 'desc' => 'Descargando e Instalando Portal: ' . $version->name],
+            // --- WALLED GARDEN DOMINIOS (WiFi Expres + Pasarela + Push) ---
+            ['cmd' => '/ip hotspot walled-garden add dst-host=wifiexpres.com; /ip hotspot walled-garden add dst-host=*.wifiexpres.com', 'desc' => 'WG: WiFi Expres'],
+            ['cmd' => '/ip hotspot walled-garden add dst-host=*.biopagobdv.com comment="Pasarela BDV"; /ip hotspot walled-garden add dst-host=*.banvenez.com comment="Pasarela BDV"; /ip hotspot walled-garden add dst-host=biopago.banvenez.com comment="Pasarela BDV"', 'desc' => 'WG: Dominios BDV'],
+            ['cmd' => '/ip hotspot walled-garden add dst-host=fcm.googleapis.com; /ip hotspot walled-garden add dst-host=fcm-xmpp.googleapis.com; /ip hotspot walled-garden add dst-host=mtalk.google.com; /ip hotspot walled-garden add dst-host=*.push.apple.com; /ip hotspot walled-garden add dst-host=appleid.apple.com', 'desc' => 'WG: Notificaciones Push'],
+
+            // --- WALLED GARDEN IP (Pasarela BDV + Bridge + Puertos Push) ---
+            ['cmd' => '/ip hotspot walled-garden ip add dst-address=188.95.113.44 comment="Bridge Socket"', 'desc' => 'WG IP: Bridge'],
+            ['cmd' => '/ip hotspot walled-garden ip add dst-address=190.217.7.106; /ip hotspot walled-garden ip add dst-address=190.217.7.229; /ip hotspot walled-garden ip add dst-address=200.11.243.174; /ip hotspot walled-garden ip add dst-address=190.202.148.187', 'desc' => 'WG IP: Pasarela BDV'],
+            ['cmd' => '/ip hotspot walled-garden ip add dst-port=5228-5230 protocol=tcp; /ip hotspot walled-garden ip add dst-port=5223 protocol=tcp', 'desc' => 'WG IP: Puertos Push'],
+
+            // --- MÉTODO POR DESCARGA ---
+            ['cmd' => '/tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" mode=http; :delay 2s', 'desc' => 'Descargando e Instalando Portal: ' . $version->name],
         ]);
     }
 
