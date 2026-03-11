@@ -40,13 +40,13 @@
                 <div class="comercio-nombre">{{ $router->comercio_nombre ?? 'WIFI EXPRES' }}</div>
                 <span class="ticket-id"># {{ $t->identity }}</span>
                 <table class="creds-table">
-                    <tr><td>PIN:</td><td>{{ $t->username }}</td></tr>
+                    <tr><td>USUARIO:</td><td>{{ $t->username }}</td></tr>
                     @if($t->password != $t->username)
-                        <tr><td>KEY:</td><td>{{ $t->password }}</td></tr>
+                        <tr><td>CONTRASEÑA:</td><td>{{ $t->password }}</td></tr>
                     @endif
                 </table>
                 <div class="plan-box">{{ strtoupper($t->plan) }}</div>
-                <div class="precio">${{ number_format($t->costo, 2) }}</div>
+                <div class="precio">{{ number_format($t->costo, 2) }} BS</div>
                 <div class="qr">
                     {!! QrCode::size(64)->margin(0)->generate("http://".$router->hotspot_url."/login?username=".$t->username."&password=".$t->password) !!}
                 </div>
