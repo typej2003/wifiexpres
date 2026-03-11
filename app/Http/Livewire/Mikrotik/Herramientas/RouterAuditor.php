@@ -21,16 +21,14 @@ class RouterAuditor extends Component
     {
         try {
             $this->error = null;
-            $response = Http::timeout(4)->get($this->bridgeUrl . '/api/routers-online');
+            // Subimos a 10 segundos el timeout para auditoría pesada
+            $response = Http::timeout(10)->get($this->bridgeUrl . '/api/routers-online');
             
             if ($response->successful()) {
                 $this->routersOnline = $response->json();
-            } else {
-                $this->error = "Bridge respondió con error: " . $response->status();
-            }
+            } 
         } catch (\Exception $e) {
-            $this->error = "Error de conexión con el Bridge en " . $this->bridgeUrl;
-            $this->routersOnline = [];
+            $this->error = "Bridge desconectado o lento.";
         }
     }
 

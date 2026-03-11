@@ -145,17 +145,41 @@ app.get('/api/routers-online', (req, res) => {
         const ahora = Date.now();
         const lista = Object.keys(routersEnLinea).map(mac => {
             const macKey = mac.toUpperCase();
+            
+            // Filtramos comandos en tránsito que pertenecen a este router
+            const transito = Object.values(comandosEnTransito)
+                .filter(i => i.mac === macKey)
+                .map(i => ({
+                    tid: i.tid,
+                    cmd: i.cmd,
+                    age: Math.round((ahora - i.timestampInicio) / 1000) + 's'
+                }));
+
+            // Filtramos resultados recientes para este router
+            const resultados = Object.keys(buzonResultados)
+                .filter(key => key.startsWith(macKey))
+                .map(key => ({
+                    tid: key.split('_')[1],
+                    data: buzonResultados[key].data,
+                    timestamp: buzonResultados[key].timestamp
+                }));
+
             return {
                 mac: macKey,
                 identity: routersEnLinea[macKey].identity,
                 ip: routersEnLinea[macKey].ip,
                 lastSeen: Math.round((ahora - routersEnLinea[macKey].lastSeen) / 1000) + 's ago',
-                queueSize: (colasPorRouter[macKey] || []).length,
-                transitCount: Object.values(comandosEnTransito).filter(i => i.mac === macKey).length
+                // Enviamos los arrays detallados que el HTML espera
+                comandosDetalle: colasPorRouter[macKey] || [],
+                transitoDetalle: transito,
+                resultadosDetalle: resultados
             };
         });
         res.json(lista);
-    } catch (e) { res.status(500).json([]); }
+    } catch (e) { 
+        log(`❌ Error Auditoria: ${e.message}`);
+        res.status(500).json([]); 
+    }
 });
 
 app.listen(3000, '0.0.0.0', () => log(`🚀 BRIDGE v3.6 (HYBRID-PARSE) ONLINE`));
