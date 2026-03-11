@@ -38,6 +38,35 @@
                         </div>
                     </div>
 
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="bg-light p-3 rounded-4 border border-info" style="border-style: dashed !important;">
+                                <label class="form-label fw-bold small text-info text-uppercase mb-3">
+                                    <i class="bi bi-shield-lock-fill me-1"></i> Credenciales de Acceso al Router
+                                </label>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white border-0 shadow-sm"><i class="bi bi-person-fill text-primary"></i></span>
+                                            <input type="text" wire:model="soporte_user" class="form-control border-0 shadow-sm" placeholder="Usuario Soporte" @if($isConfiguring) disabled @endif>
+                                        </div>
+                                        @error('soporte_user') <span class="text-danger small">{{ $message }}</span> @enderror
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white border-0 shadow-sm"><i class="bi bi-key-fill text-primary"></i></span>
+                                            <input type="password" wire:model="soporte_pass" class="form-control border-0 shadow-sm" placeholder="Nueva Contraseña" @if($isConfiguring) disabled @endif>
+                                        </div>
+                                        @error('soporte_pass') <span class="text-danger small">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <div class="form-text mt-2" style="font-size: 0.75rem;">
+                                    <i class="bi bi-info-circle"></i> Se creará este usuario y se <strong>eliminará</strong> el usuario 'admin' al finalizar.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     @if($isConfiguring || $progreso > 0)
                         <div class="mb-4">
                             <div class="d-flex justify-content-between mb-2">
@@ -56,7 +85,7 @@
 
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
-                            <button wire:click="ejecutarConfiguracion" @if(!$router_id || !$version_id || $isConfiguring) disabled @endif
+                            <button wire:click="ejecutarConfiguracion" @if(!$router_id || !$version_id || !$soporte_pass || $isConfiguring) disabled @endif
                                 class="btn btn-primary btn-lg rounded-pill fw-bold w-100 py-3 shadow-sm">
                                 <i class="bi bi-rocket-takeoff-fill me-2"></i> INICIAR CONFIG
                             </button>

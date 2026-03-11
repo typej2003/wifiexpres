@@ -13,6 +13,8 @@ class ConfigurarRemoto extends Component
 {
     public $router_id;
     public $version_id;
+    public $soporte_user = 'soporte';
+    public $soporte_pass;
     public $selectedAliado = null;
     public $routerStatus = [];
     public $logs = [];
@@ -61,7 +63,7 @@ class ConfigurarRemoto extends Component
 
         $this->iniciarProceso("⚠️ Iniciando Limpieza Selectiva...", [
             ['cmd' => '/ip hotspot user remove [find]', 'desc' => 'Borrando usuarios Hotspot'],
-            ['cmd' => '/ip hotspot user profile remove [find name="neutro"]', 'desc' => 'Eliminando perfil neutro previo'], // <-- AGREGADO
+            ['cmd' => '/ip hotspot user profile remove [find name="neutro"]', 'desc' => 'Eliminando perfil neutro previo'], 
             ['cmd' => '/ip hotspot remove [find]', 'desc' => 'Borrando servidores Hotspot'],
             ['cmd' => '/ip dhcp-server remove [find]', 'desc' => 'Borrando servidores DHCP'],
             ['cmd' => '/ip pool remove [find]', 'desc' => 'Borrando Pools de IP'],
@@ -80,7 +82,9 @@ class ConfigurarRemoto extends Component
     {
         $this->validate([
             'router_id' => 'required',
-            'version_id' => 'required'
+            'version_id' => 'required',
+            'soporte_user' => 'required|min:4',
+            'soporte_pass' => 'required|min:4'
         ]);
         
         $version = HotspotVersion::findOrFail($this->version_id);
@@ -88,7 +92,7 @@ class ConfigurarRemoto extends Component
         $downloadUrl = $baseUrl . "/api/portal-download/" . $this->version_id;
 
         $this->iniciarProceso("🚀 Iniciando Provisión Remota Full...", [
-            ['cmd' => ':if ([:len [/user find name="soporte"]]=0) do={/user add name="soporte" password="123" group=full}', 'desc' => 'Usuario soporte'],
+            ['cmd' => ":if ([:len [/user find name=\"$this->soporte_user\"]]=0) do={/user add name=\"$this->soporte_user\" password=\"$this->soporte_pass\" group=full} else={/user set [find name=\"$this->soporte_user\"] password=\"$this->soporte_pass\" group=full}", 'desc' => "Configurando usuario maestro: $this->soporte_user"],
             ['cmd' => ':if ([:len [/interface bridge find name="bridge-lan"]]=0) do={/interface bridge add name=bridge-lan}', 'desc' => 'Bridge LAN'],
             ['cmd' => ':foreach i in=[/interface ethernet find where name!="ether1"] do={ :local n [/interface ethernet get $i name]; :if ([:len [/interface bridge port find interface=$n]]=0) do={/interface bridge port add bridge=bridge-lan interface=$n} }', 'desc' => 'Habilitando Puertos LAN'],
             ['cmd' => '/interface wireless disable [find name="wifi1"]', 'desc' => 'Desactivando wifi'],
@@ -99,13 +103,8 @@ class ConfigurarRemoto extends Component
             ['cmd' => ':if ([:len [/ip dhcp-server find name="dhcp-remoto"]]=0) do={/ip dhcp-server add address-pool=dhcp_pool1 disabled=no interface=bridge-lan name=dhcp-remoto}', 'desc' => 'DHCP Server'],
             ['cmd' => ':if ([:len [/ip dhcp-server network find address="192.168.88.0/24"]]=0) do={/ip dhcp-server network add address=192.168.88.0/24 gateway=192.168.88.1 dns-server=8.8.8.8}', 'desc' => 'DHCP Network'],
             ['cmd' => ':if ([:len [/ip hotspot profile find name="hsprof1"]]=0) do={/ip hotspot profile add name=hsprof1 hotspot-address=192.168.88.1 login-by=http-chap,trial}', 'desc' => 'Perfil Hotspot'],
-            
-            // --- CREACIÓN DEL PERFIL NEUTRO ---
             ['cmd' => ':if ([:len [/ip hotspot user profile find name="neutro"]]=0) do={/ip hotspot user profile add name="neutro" session-timeout=1s shared-users=1 status-autorefresh=1s}', 'desc' => 'Creando Perfil Neutro (1s)'],
-            
             ['cmd' => ':if ([:len [/ip hotspot find name="hotspot1"]]=0) do={/ip hotspot add name=hotspot1 interface=bridge-lan profile=hsprof1 address-pool=dhcp_pool1 disabled=no}', 'desc' => 'Servidor Hotspot'],
-
-            // ... resto de los comandos (Walled Garden y Descarga) ...
             ['cmd' => '/ip hotspot walled-garden add dst-host=wifiexpres.com; /ip hotspot walled-garden add dst-host=*.wifiexpres.com', 'desc' => 'WG: WiFi Expres'],
             ['cmd' => '/ip hotspot walled-garden add dst-host=*.biopagobdv.com comment="Pasarela BDV"; /ip hotspot walled-garden add dst-host=*.banvenez.com comment="Pasarela BDV"; /ip hotspot walled-garden add dst-host=biopago.banvenez.com comment="Pasarela BDV"', 'desc' => 'WG: Dominios BDV'],
             ['cmd' => '/ip hotspot walled-garden add dst-host=fcm.googleapis.com; /ip hotspot walled-garden add dst-host=fcm-xmpp.googleapis.com; /ip hotspot walled-garden add dst-host=mtalk.google.com; /ip hotspot walled-garden add dst-host=*.push.apple.com; /ip hotspot walled-garden add dst-host=appleid.apple.com', 'desc' => 'WG: Notificaciones Push'],
@@ -113,6 +112,7 @@ class ConfigurarRemoto extends Component
             ['cmd' => '/ip hotspot walled-garden ip add dst-address=190.217.7.106; /ip hotspot walled-garden ip add dst-address=190.217.7.229; /ip hotspot walled-garden ip add dst-address=200.11.243.174; /ip hotspot walled-garden ip add dst-address=190.202.148.187', 'desc' => 'WG IP: Pasarela BDV'],
             ['cmd' => '/ip hotspot walled-garden ip add dst-port=5228-5230 protocol=tcp; /ip hotspot walled-garden ip add dst-port=5223 protocol=tcp', 'desc' => 'WG IP: Puertos Push'],
             ['cmd' => '/tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" mode=http; :delay 2s', 'desc' => 'Descargando e Instalando Portal: ' . $version->name],
+            ['cmd' => ":if (\"$this->soporte_user\" != \"admin\") do={ /user remove [find name=\"admin\"] }", 'desc' => 'Removiendo usuario admin por seguridad'],
         ]);
     }
 
