@@ -25,7 +25,7 @@ class ListTicketsAliado extends Component
     public $bulk_total_requested = 0;
     public $bulk_current_count = 0;
     public $bulk_last_lote = 0;
-    public $bulk_chunk_size = 30;
+    public $bulk_chunk_size = 30; // Límite de seguridad para evitar errores de servidor
     public $bulk_count = 10, $bulk_plan;
 
     public $showSyncWarning = false;
@@ -82,44 +82,25 @@ class ListTicketsAliado extends Component
     public function backToRouters() { return redirect()->route('aliado.routers'); }
 
     // --- LÓGICA DE IMPRESIÓN ---
-    // --- LÓGICA DE IMPRESIÓN ---
     public function printRange()
     {
         if ($this->tipo_impresion == 'lote') {
-            // Si es por lote, filtramos los que coincidan con el patrón del lote en la identidad
-            // Ejemplo: "1-001-" para el lote 1 del router 1
             $patron = "{$this->selectedRouter}-{$this->lote_imprimir}-";
-            
-            // Buscamos el rango real de ese lote para pasarlo a la ruta existente
-            $primero = Ticket::where('router_id', $this->selectedRouter)
-                ->where('identity', 'LIKE', $patron . '%')
-                ->orderBy('identity', 'asc')->first();
-            
-            $ultimo = Ticket::where('router_id', $this->selectedRouter)
-                ->where('identity', 'LIKE', $patron . '%')
-                ->orderBy('identity', 'desc')->first();
+            $primero = Ticket::where('router_id', $this->selectedRouter)->where('identity', 'LIKE', $patron . '%')->orderBy('identity', 'asc')->first();
+            $ultimo = Ticket::where('router_id', $this->selectedRouter)->where('identity', 'LIKE', $patron . '%')->orderBy('identity', 'desc')->first();
 
             if (!$primero) {
                 session()->flash('error', 'No se encontraron tickets para ese lote.');
                 return;
             }
-
             $desde = $primero->identity;
             $hasta = $ultimo->identity;
         } else {
-            // Si es intervalo manual
             $desde = $this->desde_ticket;
             $hasta = $this->hasta_ticket;
         }
 
-        // Construir URL hacia la ruta definida en tu web.php
-        $url = route('tickets.print', [
-            'router_id' => $this->selectedRouter,
-            'desde' => $desde,
-            'hasta' => $hasta
-        ]);
-
-        // Emitir evento para que el navegador abra la pestaña
+        $url = route('tickets.print', ['router_id' => $this->selectedRouter, 'desde' => $desde, 'hasta' => $hasta]);
         $this->dispatchBrowserEvent('abrirImpresion', ['url' => $url]);
         $this->isPrintModalOpen = false;
     }
@@ -150,6 +131,7 @@ class ListTicketsAliado extends Component
         return null; 
     }
 
+    // --- PROCESAMIENTO POR BLOQUES (AUTO-CICLO) ---
     public function startBulkGeneration()
     {
         $this->validate(['bulk_count' => 'required|integer|min:1', 'bulk_plan' => 'required']);
@@ -166,7 +148,10 @@ class ListTicketsAliado extends Component
     public function processNextChunk()
     {
         $restantes = $this->bulk_total_requested - $this->bulk_current_count;
-        if ($restantes <= 0) { $this->finishBulk(); return; }
+        if ($restantes <= 0) { 
+            $this->finishBulk(); 
+            return; 
+        }
 
         $cantidadAProcesar = min($this->bulk_chunk_size, $restantes);
         
@@ -197,12 +182,17 @@ class ListTicketsAliado extends Component
         if ($this->sendCommandQuick($comandoMasivo)) {
             Ticket::insert($insertData);
             $this->bulk_current_count += $cantidadAProcesar;
-            if ($this->bulk_current_count >= $this->bulk_total_requested) {
-                $this->finishBulk();
+            
+            // Si aún faltan tickets, llamamos al siguiente bloque automáticamente
+            if ($this->bulk_current_count < $this->bulk_total_requested) {
+                $this->processNextChunk();
             } else {
-                session()->flash('chunk_message', "Bloque enviado con éxito.");
-                session()->flash('next_amount', min($this->bulk_chunk_size, $this->bulk_total_requested - $this->bulk_current_count));
+                $this->finishBulk();
             }
+        } else {
+            // Si falla la comunicación en un bloque, detenemos para no corromper la DB local
+            session()->flash('error', 'Error en el bloque de comunicación. Proceso detenido.');
+            $this->bulk_step = 'input';
         }
     }
 
