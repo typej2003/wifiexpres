@@ -16,6 +16,10 @@ class ConfigurarRemoto extends Component
     public $routerStatus = [];
     public $logs = [];
     public $isConfiguring = false;
+    
+    // Propiedades para el progreso
+    public $progreso = 0;
+    public $abortar = false;
 
     protected $bridgeUrl = "http://188.95.113.44:3000";
 
@@ -34,7 +38,6 @@ class ConfigurarRemoto extends Component
             if ($response->successful()) {
                 $onlineRouters = $response->json();
                 $activeMacs = collect($onlineRouters)->map(fn($item) => strtoupper(trim($item['mac'])))->toArray();
-
                 $routers = Router::all();
                 $this->routerStatus = [];
                 foreach ($routers as $r) {
@@ -42,110 +45,111 @@ class ConfigurarRemoto extends Component
                     $this->routerStatus[$r->id] = in_array($macLimpia, $activeMacs);
                 }
             }
-        } catch (\Exception $e) {
-            $this->routerStatus = [];
-        }
+        } catch (\Exception $e) { $this->routerStatus = []; }
     }
 
-    public function emitirAlSocket($comando, $mac, $tid)
+    public function detenerProceso()
     {
+        $this->abortar = true;
+        $this->logs[] = "🛑 Petición de interrupción recibida...";
+    }
+
+    private function enviarComandoUnico($comando, $descripcion, $mac)
+    {
+        $tid = "OP" . rand(1000, 9999);
+        $this->logs[] = "📡 Enviando: $descripcion...";
+        
+        // Construimos el mini-script con reporte inmediato
+        $script = "
+            :local m \"$mac\"; :local t \"$tid\";
+            :do { 
+                $comando; 
+                /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no;
+            } on-error={ 
+                /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"ERROR\" keep-result=no;
+            };
+        ";
+
+        // Limpiar espacios para el Bridge
+        $scriptLimpio = trim(preg_replace('/\s+/', ' ', $script));
+
         try {
-            // Reemplazamos saltos de línea y múltiples espacios para que el bridge lo reciba bien
-            $comandoLimpio = trim(preg_replace('/\s+/', ' ', $comando));
-            return Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
-                ->withBody($comandoLimpio, 'text/plain')
-                ->post("{$this->bridgeUrl}/set-command")
-                ->successful();
-        } catch (\Exception $e) {
-            return false;
-        }
-    }
+            $envio = Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
+                ->withBody($scriptLimpio, 'text/plain')
+                ->post("{$this->bridgeUrl}/set-command");
 
-    public function esperarRespuesta($mac, $tid)
-    {
-        // Aumentamos a 40 segundos por si el router tarda en procesar
-        for ($i = 0; $i < 40; $i++) {
-            sleep(1);
-            try {
+            if (!$envio->successful()) return "FAIL_COMM";
+
+            // Espera de hasta 60 segundos
+            for ($i = 0; $i < 60; $i++) {
+                if ($this->abortar) return "ABORTED";
+                sleep(1);
                 $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
                 if ($res->successful() && $res->json('status') === 'ready') {
-                    return $res->json('data');
+                    return $res->json('data'); // "OK" o "ERROR"
                 }
-            } catch (\Exception $e) { }
+            }
+            return "TIMEOUT";
+        } catch (\Exception $e) {
+            return "EXCEPTION";
         }
-        return null;
     }
 
     public function ejecutarResetSelectivo()
     {
         $this->validate(['router_id' => 'required']);
-        $this->logs = []; 
-        
+        $this->isConfiguring = true;
+        $this->abortar = false;
+        $this->progreso = 0;
+        $this->logs = [];
+
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper($router->macAddress);
-        $tid = "RESET" . time();
 
-        $this->isConfiguring = true;
-        $this->logs[] = "⚠️ Iniciando limpieza SEGURA en: " . ($router->identity ?? $mac);
+        // DEFINICIÓN DE PASOS COMANDO POR COMANDO
+        $pasos = [
+            ['cmd' => '/ip hotspot user remove [find]', 'desc' => 'Eliminando Usuarios Hotspot'],
+            ['cmd' => '/ip hotspot remove [find]', 'desc' => 'Eliminando Servidores Hotspot'],
+            ['cmd' => '/ip hotspot walled-garden remove [find]', 'desc' => 'Limpiando Walled Garden'],
+            ['cmd' => '/ip dhcp-server remove [find]', 'desc' => 'Eliminando Servidores DHCP'],
+            ['cmd' => '/ip pool remove [find]', 'desc' => 'Limpiando Pools de IP'],
+            ['cmd' => '/interface bridge port remove [find where interface!="ether1"]', 'desc' => 'Desconectando puertos del Bridge'],
+            ['cmd' => '/interface bridge remove [find]', 'desc' => 'Eliminando Bridges'],
+            ['cmd' => '/ip address remove [find where interface!="ether1"]', 'desc' => 'Limpiando Direcciones IP'],
+            ['cmd' => '/user remove [find name!="jose" and name!="admin"]', 'desc' => 'Limpiando Usuarios del Sistema'],
+        ];
 
-        // SCRIPT CON PROTECCIÓN DE CONECTIVIDAD
-        // No borramos puertos que sean ether1 para no perder el bridge-socket
-        $script = "
-            :local m \"$mac\"; :local t \"$tid\"; :local r \"RES:\";
-            
-            :do { 
-                # Borrar puertos EXCEPTO ether1
-                /interface bridge port remove [find where interface!=\"ether1\"]; 
-                :set r (\$r . \"Puertos_Limpios,\") 
-            } on-error={ :set r (\$r . \"Err_Puertos,\") };
+        $total = count($pasos);
 
-            :do { 
-                # Borrar bridges EXCEPTO si tienen a ether1 (por si acaso)
-                :foreach b in=[/interface bridge find] do={
-                    :local bName [/interface bridge get \$b name];
-                    :local hasEther1 [/interface bridge port find where bridge=\$bName and interface=\"ether1\"];
-                    :if ([:len \$hasEther1] = 0) do={
-                        /interface bridge remove \$b;
-                    }
-                };
-                :set r (\$r . \"Bridges_Limpios\") 
-            } on-error={ :set r (\$r . \"Err_Bridges\") };
-
-            /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$r keep-result=no;
-        ";
-
-        if ($this->emitirAlSocket($script, $mac, $tid)) {
-            $this->logs[] = "📡 Comando enviado. Procesando en MikroTik...";
-            $res = $this->esperarRespuesta($mac, $tid);
-            
-            if ($res) {
-                $limpio = str_replace("RES:", "", $res);
-                $pasos = explode(',', $limpio);
-                foreach ($pasos as $paso) {
-                    $item = trim($paso);
-                    if (empty($item)) continue;
-                    $this->logs[] = (str_contains($item, 'Err')) ? "🔸 Info: $item" : "🔹 Success: $item";
-                }
-                $this->logs[] = "✅ Limpieza completada sin perder conexión.";
-            } else {
-                $this->logs[] = "❌ Error: Timeout. El equipo pudo haber perdido conexión o el script falló.";
+        foreach ($pasos as $index => $paso) {
+            if ($this->abortar) {
+                $this->logs[] = "⛔ Proceso abortado por el usuario.";
+                break;
             }
-        } else {
-            $this->logs[] = "❌ Error: Fallo al contactar el Bridge.";
+
+            $resultado = $this->enviarComandoUnico($paso['cmd'], $paso['desc'], $mac);
+
+            if ($resultado === "OK") {
+                $this->logs[] = "✅ " . $paso['desc'] . " finalizado.";
+            } elseif ($resultado === "TIMEOUT") {
+                $this->logs[] = "⌛ " . $paso['desc'] . " no respondió (Timeout), continuando...";
+            } else {
+                $this->logs[] = "⚠️ " . $paso['desc'] . " falló o ya estaba limpio ($resultado).";
+            }
+
+            $this->progreso = round((($index + 1) / total) * 100);
         }
 
+        $this->logs[] = "🏁 Fin del procedimiento.";
         $this->isConfiguring = false;
+        $this->progreso = 100;
     }
 
     public function render()
     {
-        $aliados = User::where('role', 'aliado')->get();
-        $query = Router::query();
-        if ($this->selectedAliado) { $query->where('user_id', $this->selectedAliado); }
-
         return view('livewire.mikrotik.herramientas.configurar-remoto', [
-            'routers' => $query->get(),
-            'aliados' => $aliados,
+            'routers' => Router::all(),
+            'aliados' => User::where('role', 'aliado')->get()
         ]);
     }
 }

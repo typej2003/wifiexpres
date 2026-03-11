@@ -5,98 +5,71 @@
                 <div class="card-header bg-primary text-white p-4 d-flex justify-content-between align-items-center">
                     <div>
                         <h5 class="mb-0 fw-bold text-uppercase tracking-wider">
-                            <i class="bi bi-terminal-fill me-2"></i>Provisionamiento Maestro
+                            <i class="bi bi-terminal-fill me-2"></i>Reset Maestro Selectivo
                         </h5>
-                        <small class="opacity-75">Panel de Administración Global</small>
                     </div>
                     <button wire:click="refreshStatus" class="btn btn-sm btn-light rounded-pill px-3 fw-bold">
-                        <i class="bi bi-arrow-clockwise me-1"></i> ACTUALIZAR ESTADOS
+                        <i class="bi bi-arrow-clockwise me-1"></i> REFRESCAR
                     </button>
                 </div>
                 
                 <div class="card-body p-4 p-lg-5">
-                    <div class="row g-4 mb-4">
-                        {{-- FILTRO POR ALIADO --}}
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small text-muted">Filtrar por Aliado</label>
-                            <select wire:model="selectedAliado" wire:change="refreshStatus" class="form-select border-0 bg-light rounded-3 shadow-sm">
-                                <option value="">Todos los aliados</option>
-                                @foreach($aliados as $aliado)
-                                    <option value="{{ $aliado->id }}">{{ $aliado->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        {{-- SELECCIÓN DE ROUTER ACTIVO --}}
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small text-muted">Router Destino (Solo Online)</label>
-                            <select wire:model="router_id" class="form-select border-0 bg-light rounded-3 shadow-sm">
-                                <option value="">Seleccione un router...</option>
-                                @foreach($routers as $r)
-                                    @php $isOnline = $routerStatus[$r->id] ?? false; @endphp
-                                    <option value="{{ $r->id }}" {{ !$isOnline ? 'disabled' : '' }}>
-                                        {{ $isOnline ? '🟢' : '🔴' }} {{ $r->identity ?? 'MikroTik' }} - {{ $r->macAddress }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                    {{-- SELECTOR DE ROUTER --}}
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-muted">Seleccionar MikroTik</label>
+                        <select wire:model="router_id" class="form-select border-0 bg-light rounded-3 shadow-sm py-3" @if($isConfiguring) disabled @endif>
+                            <option value="">Seleccione...</option>
+                            @foreach($routers as $r)
+                                <option value="{{ $r->id }}">{{ ($routerStatus[$r->id] ?? false) ? '🟢' : '🔴' }} {{ $r->identity }}</option>
+                            @endforeach
+                        </select>
                     </div>
 
-                    <div class="alert alert-info border-0 rounded-4 shadow-sm mb-4">
-                        <div class="d-flex">
-                            <i class="bi bi-info-circle-fill fs-4 me-3"></i>
-                            <div>
-                                <h6 class="fw-bold mb-1">¿Qué se configurará?</h6>
-                                <ul class="small mb-0 opacity-85">
-                                    <li>Usuario: <strong>soporte</strong> / Clave: <strong>123</strong></li>
-                                    <li>Bridge LAN automático (Excluye ether1)</li>
-                                    <li>IP: 192.168.88.1/24 + DHCP Server Activo</li>
-                                </ul>
+                    {{-- BARRA DE PROGRESO --}}
+                    @if($isConfiguring || $progreso > 0)
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted small fw-bold">Progreso del Reset</span>
+                                <span class="text-primary small fw-bold">{{ $progreso }}%</span>
+                            </div>
+                            <div class="progress" style="height: 12px; border-radius: 10px; background-color: #e9ecef;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" 
+                                     style="width: {{ $progreso }}%; transition: width 0.5s ease;"></div>
                             </div>
                         </div>
-                    </div>
+                    @endif
 
-                    {{-- Busca la sección de botones y agrega este nuevo botón --}}
+                    {{-- BOTONES DE ACCIÓN --}}
                     <div class="row g-3 mb-5">
                         <div class="col-md-8">
                             <button 
-                                wire:click="ejecutarConfiguracion" 
+                                wire:click="ejecutarResetSelectivo" 
                                 wire:loading.attr="disabled"
-                                @if(!$router_id || !($routerStatus[$router_id] ?? false)) disabled @endif
-                                class="btn btn-primary btn-lg rounded-pill fw-bold shadow-sm w-100 py-3">
-                                <span wire:loading wire:target="ejecutarConfiguracion" class="spinner-border spinner-border-sm me-2"></span>
-                                <i class="bi bi-rocket-takeoff-fill me-2"></i> LANZAR CONFIGURACIÓN
+                                @if(!$router_id || $isConfiguring) disabled @endif
+                                class="btn btn-warning btn-lg rounded-pill fw-bold shadow-sm w-100 py-3">
+                                <i class="bi bi-trash-fill me-2"></i> INICIAR RESET SELECTIVO
                             </button>
                         </div>
                         <div class="col-md-4">
                             <button 
-                                onclick="confirm('¿Estás seguro? Se borrarán Hotspots, Bridges e IPs (excepto ether1). Los scripts de automatización se mantendrán.') || event.stopImmediatePropagation()"
-                                wire:click="ejecutarResetSelectivo" 
-                                wire:loading.attr="disabled"
-                                @if(!$router_id || !($routerStatus[$router_id] ?? false)) disabled @endif
-                                class="btn btn-outline-warning btn-lg rounded-pill fw-bold shadow-sm w-100 py-3">
-                                <span wire:loading wire:target="ejecutarResetSelectivo" class="spinner-border spinner-border-sm me-2"></span>
-                                <i class="bi bi-trash-fill me-2"></i> RESET SELECTIVO
+                                wire:click="detenerProceso" 
+                                @if(!$isConfiguring || $abortar) disabled @endif
+                                class="btn btn-danger btn-lg rounded-pill fw-bold shadow-sm w-100 py-3">
+                                <i class="bi bi-x-circle-fill me-2"></i> ABORTAR
                             </button>
                         </div>
                     </div>
 
-                    {{-- TERMINAL DE LOGS --}}
-                    <div class="terminal-box bg-dark rounded-4 p-4 shadow-inner" style="border: 1px solid #333;">
-                        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom border-secondary pb-2">
-                            <span class="text-secondary small fw-bold"><i class="bi bi-cpu me-1"></i> OUTPUT LOGS</span>
-                            <span class="badge {{ $isConfiguring ? 'bg-warning text-dark' : 'bg-success' }} rounded-pill">
-                                {{ $isConfiguring ? 'PROCESANDO...' : 'SISTEMA READY' }}
-                            </span>
-                        </div>
-                        <div class="console-text" style="height: 250px; overflow-y: auto; font-family: 'Courier New', Courier, monospace;">
+                    {{-- CONSOLA DE LOGS --}}
+                    <div class="terminal-box bg-dark rounded-4 p-4 shadow-inner">
+                        <div class="console-text" style="height: 300px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85rem;">
                             @forelse($logs as $log)
-                                <div class="mb-2">
-                                    <span class="text-primary fw-bold">root@wifi:~$</span> 
+                                <div class="mb-1">
+                                    <span class="text-success fw-bold">mikrotik@system:~$</span> 
                                     <span class="text-light ms-2">{{ $log }}</span>
                                 </div>
                             @empty
-                                <div class="text-secondary small italic text-center mt-5">Ninguna operación iniciada.</div>
+                                <div class="text-secondary text-center mt-5">Esperando órdenes...</div>
                             @endforelse
                         </div>
                     </div>
@@ -105,10 +78,3 @@
         </div>
     </div>
 </div>
-
-<style>
-    .terminal-box { background-color: #0c0c0c !important; }
-    .console-text::-webkit-scrollbar { width: 6px; }
-    .console-text::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
-    .bg-success-soft { background-color: rgba(25, 135, 84, 0.1); }
-</style>
