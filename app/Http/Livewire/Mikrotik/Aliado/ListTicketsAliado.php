@@ -9,6 +9,7 @@ use App\Models\Router;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class ListTicketsAliado extends Component
 {
@@ -16,27 +17,27 @@ class ListTicketsAliado extends Component
 
     protected $paginationTheme = 'bootstrap';
 
+    // Estado de la UI
     public $selectedRouter = null, $router_name = ''; 
-    public $isModalOpen = false, $isBulkModalOpen = false, $isConfigModalOpen = false, $isPrintModalOpen = false;
+    public $isBulkModalOpen = false, $isConfigModalOpen = false, $isPrintModalOpen = false;
     public $showOverlay = false;
 
-    // --- VARIABLES DE CONTROL DE LOTES ---
+    // --- VARIABLES DE CONTROL DE LOTES (CHUNKS) ---
     public $bulk_step = 'input'; 
     public $bulk_total_requested = 0;
     public $bulk_current_count = 0;
     public $bulk_last_lote = 0;
-    public $bulk_chunk_size = 30; // Límite de seguridad para evitar errores de servidor
+    public $bulk_chunk_size = 30; // Límite de seguridad
     public $bulk_count = 10, $bulk_plan;
 
-    public $showSyncWarning = false;
     protected $bridgeUrl = "http://188.95.113.44:3000";
 
-    public $ticket_id, $username, $password, $identity, $plan;
+    // Datos de Configuración / Diseño
     public $comercio_nombre, $hotspot_url, $logo_actual, $nuevo_logo;
     public $mikrotik_profiles = []; 
     
-    public $tipo_impresion = 'lote'; 
-    public $lote_imprimir, $desde_ticket, $hasta_ticket;
+    // Variables de Impresión
+    public $tipo_impresion = 'lote', $lote_imprimir, $desde_ticket, $hasta_ticket;
 
     public function mount($id = null)
     {
@@ -57,54 +58,7 @@ class ListTicketsAliado extends Component
         }
     }
 
-    // --- ACCIONES DE TICKETS ---
-    public function anularTicket($id) {
-        Ticket::where('id', $id)->update(['estado' => 'anulado', 'anulado' => true]);
-        session()->flash('message', 'Ticket anulado correctamente.');
-    }
-
-    public function restaurarTicket($id) {
-        Ticket::where('id', $id)->update(['estado' => 'disponible', 'anulado' => false]);
-        session()->flash('message', 'Ticket restaurado.');
-    }
-
-    // --- MODALES ---
-    public function openBulkModal() { 
-        $this->bulk_step = 'input';
-        $this->loadMikrotikProfiles(); 
-        $this->isBulkModalOpen = true; 
-    }
-    public function closeBulkModal() { $this->isBulkModalOpen = false; }
-    public function openConfigModal() { $this->isConfigModalOpen = true; }
-    public function closeConfigModal() { $this->isConfigModalOpen = false; }
-    public function openPrintModal() { $this->isPrintModalOpen = true; }
-    public function closePrintModal() { $this->isPrintModalOpen = false; }
-    public function backToRouters() { return redirect()->route('aliado.routers'); }
-
-    // --- LÓGICA DE IMPRESIÓN ---
-    public function printRange()
-    {
-        if ($this->tipo_impresion == 'lote') {
-            $patron = "{$this->selectedRouter}-{$this->lote_imprimir}-";
-            $primero = Ticket::where('router_id', $this->selectedRouter)->where('identity', 'LIKE', $patron . '%')->orderBy('identity', 'asc')->first();
-            $ultimo = Ticket::where('router_id', $this->selectedRouter)->where('identity', 'LIKE', $patron . '%')->orderBy('identity', 'desc')->first();
-
-            if (!$primero) {
-                session()->flash('error', 'No se encontraron tickets para ese lote.');
-                return;
-            }
-            $desde = $primero->identity;
-            $hasta = $ultimo->identity;
-        } else {
-            $desde = $this->desde_ticket;
-            $hasta = $this->hasta_ticket;
-        }
-
-        $url = route('tickets.print', ['router_id' => $this->selectedRouter, 'desde' => $desde, 'hasta' => $hasta]);
-        $this->dispatchBrowserEvent('abrirImpresion', ['url' => $url]);
-        $this->isPrintModalOpen = false;
-    }
-
+    // --- COMUNICACIÓN CON EL BRIDGE MIKROTIK ---
     protected function sendCommandQuick($comando, $tid = null)
     {
         $router = Router::findOrFail($this->selectedRouter);
@@ -118,27 +72,38 @@ class ListTicketsAliado extends Component
 
             if (!$response->successful()) return null;
 
-            for ($i = 0; $i < 12; $i++) {
+            // Polling para esperar el resultado del Bridge
+            for ($i = 0; $i < 15; $i++) {
                 $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
                 if ($res->successful() && $res->json('status') === 'ready') {
                     $output = $res->json('data');
                     if (str_contains(strtolower($output), 'failure')) return null;
                     return $output ?: "SUCCESS";
                 }
-                usleep(700000); 
+                usleep(700000); // 0.7 segundos entre intentos
             }
-        } catch (\Exception $e) { Log::error($e->getMessage()); }
+        } catch (\Exception $e) { 
+            Log::error("Error Bridge: " . $e->getMessage()); 
+        }
         return null; 
     }
 
-    // --- PROCESAMIENTO POR BLOQUES (AUTO-CICLO) ---
+    // --- GENERACIÓN MASIVA POR BLOQUES (AUTO-RECURSIVA) ---
     public function startBulkGeneration()
     {
-        $this->validate(['bulk_count' => 'required|integer|min:1', 'bulk_plan' => 'required']);
+        $this->validate([
+            'bulk_count' => 'required|integer|min:1|max:500', 
+            'bulk_plan' => 'required'
+        ]);
+
         $this->bulk_total_requested = (int)$this->bulk_count;
         $this->bulk_current_count = 0;
         
-        $ultimo = Ticket::where('router_id', $this->selectedRouter)->where('identity', 'LIKE', $this->selectedRouter . '-%')->latest('id')->first();
+        // Calcular el número de lote (basado en el último ticket del router)
+        $ultimo = Ticket::where('router_id', $this->selectedRouter)
+            ->where('identity', 'LIKE', $this->selectedRouter . '-%')
+            ->latest('id')->first();
+            
         $this->bulk_last_lote = $ultimo ? (int)explode('-', $ultimo->identity)[1] + 1 : 1;
         
         $this->bulk_step = 'processing';
@@ -148,6 +113,7 @@ class ListTicketsAliado extends Component
     public function processNextChunk()
     {
         $restantes = $this->bulk_total_requested - $this->bulk_current_count;
+        
         if ($restantes <= 0) { 
             $this->finishBulk(); 
             return; 
@@ -155,10 +121,14 @@ class ListTicketsAliado extends Component
 
         $cantidadAProcesar = min($this->bulk_chunk_size, $restantes);
         
+        // Lógica de costo dinámica (Extrae el número al final del nombre del plan)
         $planLower = strtolower($this->bulk_plan);
-        $esGratis = str_contains($planLower, 'neutro') || str_contains($planLower, 'cortesia') || str_contains($planLower, 'trial');
         $costoFinal = 0;
-        if (!$esGratis && preg_match('/(\d+(\.\d+)?)$/', $this->bulk_plan, $m)) $costoFinal = (float)$m[0];
+        $esGratis = str_contains($planLower, 'neutro') || str_contains($planLower, 'cortesia') || str_contains($planLower, 'trial');
+        
+        if (!$esGratis && preg_match('/(\d+(\.\d+)?)$/', $this->bulk_plan, $m)) {
+            $costoFinal = (float)$m[0];
+        }
 
         $comandoMasivo = ""; 
         $insertData = [];
@@ -173,25 +143,31 @@ class ListTicketsAliado extends Component
             $comandoMasivo .= ":do { /ip hotspot user add name=\"$usernameStr\" password=\"$passStr\" profile=\"$this->bulk_plan\" comment=\"$identityStr\" } on-error={}; \n";
             
             $insertData[] = [
-                'router_id' => $this->selectedRouter, 'identity' => $identityStr, 'username' => $usernameStr, 
-                'password' => $passStr, 'plan' => $this->bulk_plan, 'costo' => $costoFinal, 'tiempo_uso' => '00:00:00',
-                'tiempo_consumido' => '0s', 'estado' => 'disponible', 'sincronizado' => true, 'created_at' => now(), 'updated_at' => now()
+                'router_id' => $this->selectedRouter,
+                'identity' => $identityStr,
+                'username' => $usernameStr, 
+                'password' => $passStr,
+                'plan' => $this->bulk_plan,
+                'costo' => $costoFinal,
+                'estado' => 'disponible',
+                'sincronizado' => true,
+                'created_at' => now(),
+                'updated_at' => now()
             ];
         }
 
         if ($this->sendCommandQuick($comandoMasivo)) {
             Ticket::insert($insertData);
             $this->bulk_current_count += $cantidadAProcesar;
-            
-            // Si aún faltan tickets, llamamos al siguiente bloque automáticamente
+
+            // Llamada recursiva automática si faltan tickets
             if ($this->bulk_current_count < $this->bulk_total_requested) {
                 $this->processNextChunk();
             } else {
                 $this->finishBulk();
             }
         } else {
-            // Si falla la comunicación en un bloque, detenemos para no corromper la DB local
-            session()->flash('error', 'Error en el bloque de comunicación. Proceso detenido.');
+            session()->flash('error', 'Error de comunicación con el Router. El proceso se detuvo en el ticket ' . $this->bulk_current_count);
             $this->bulk_step = 'input';
         }
     }
@@ -199,9 +175,10 @@ class ListTicketsAliado extends Component
     public function finishBulk() {
         $this->bulk_step = 'input';
         $this->isBulkModalOpen = false;
-        session()->flash('message', 'Lote generado con éxito.');
+        session()->flash('message', 'Lote de tickets generado exitosamente.');
     }
 
+    // --- SINCRONIZACIÓN CON EL ROUTER ---
     public function syncPendingTickets()
     {
         $this->showOverlay = true; 
@@ -209,6 +186,7 @@ class ListTicketsAliado extends Component
         $macActual = strtoupper($router->macAddress);
         $tid = "SYNC" . time();
 
+        // Script para extraer usuarios del Mikrotik y enviarlos al Bridge
         $comando = ":local res \"DATA:\"; :foreach i in=[/ip hotspot user find] do={ " .
                    ":local n [/ip hotspot user get \$i name]; :local p [/ip hotspot user get \$i password]; " .
                    ":local pr [/ip hotspot user get \$i profile]; :local u [/ip hotspot user get \$i uptime]; " .
@@ -227,16 +205,49 @@ class ListTicketsAliado extends Component
                 $p = explode(',', $fila);
                 $uName = $p[0];
                 if (in_array($uName, ['default-trial', 'default']) || empty($p[2])) continue;
+                
                 $mikrotikUsernames[] = $uName;
 
                 Ticket::updateOrCreate(
                     ['router_id' => $this->selectedRouter, 'username' => $uName],
-                    ['password' => $p[1] ?? '', 'plan' => $p[2], 'identity' => $p[5] ?: "IMP-{$uName}", 'tiempo_consumido' => $p[3] ?: '0s', 'sincronizado' => true]
+                    [
+                        'password' => $p[1] ?? '', 
+                        'plan' => $p[2], 
+                        'identity' => $p[5] ?: "IMP-{$uName}", 
+                        'tiempo_consumido' => $p[3] ?: '0s', 
+                        'sincronizado' => true
+                    ]
                 );
             }
-            Ticket::where('router_id', $this->selectedRouter)->whereNotIn('username', $mikrotikUsernames)->delete();
+            // Limpieza: Eliminar de DB local lo que ya no existe en el Mikrotik
+            Ticket::where('router_id', $this->selectedRouter)
+                  ->whereNotIn('username', $mikrotikUsernames)
+                  ->delete();
+                  
+            session()->flash('message', 'Sincronización finalizada.');
+        } else {
+            session()->flash('error', 'No se pudo sincronizar con el router.');
         }
         $this->showOverlay = false; 
+    }
+
+    // --- CONFIGURACIÓN DE DISEÑO ---
+    public function saveConfig()
+    {
+        $router = Router::find($this->selectedRouter);
+        
+        if ($this->nuevo_logo) {
+            $path = $this->nuevo_logo->store('logos', 'public');
+            $router->comercio_logo = $path;
+            $this->logo_actual = $path;
+        }
+
+        $router->comercio_nombre = $this->comercio_nombre;
+        $router->hotspot_url = $this->hotspot_url;
+        $router->save();
+
+        $this->isConfigModalOpen = false;
+        session()->flash('message', 'Diseño actualizado correctamente.');
     }
 
     public function loadMikrotikProfiles()
@@ -247,11 +258,54 @@ class ListTicketsAliado extends Component
         if ($raw && str_contains($raw, 'DATA:')) {
             $profiles = [];
             foreach (explode('|', str_replace('DATA:', '', $raw)) as $name) {
-                if (!empty($name) && !in_array($name, ['default', 'neutro'])) $profiles[] = ['name' => $name, 'display' => $name];
+                if (!empty($name) && !in_array($name, ['default', 'neutro'])) {
+                    $profiles[] = ['name' => $name, 'display' => $name];
+                }
             }
             $this->mikrotik_profiles = $profiles;
         }
     }
+
+    // --- IMPRESIÓN Y ACCIONES ---
+    public function printRange()
+    {
+        if ($this->tipo_impresion == 'lote') {
+            $patron = "{$this->selectedRouter}-{$this->lote_imprimir}-";
+            $primero = Ticket::where('router_id', $this->selectedRouter)->where('identity', 'LIKE', $patron . '%')->orderBy('identity', 'asc')->first();
+            $ultimo = Ticket::where('router_id', $this->selectedRouter)->where('identity', 'LIKE', $patron . '%')->orderBy('identity', 'desc')->first();
+
+            if (!$primero) {
+                session()->flash('error', 'No hay tickets en este lote.');
+                return;
+            }
+            $desde = $primero->identity;
+            $hasta = $ultimo->identity;
+        } else {
+            $desde = $this->desde_ticket;
+            $hasta = $this->hasta_ticket;
+        }
+
+        $url = route('tickets.print', ['router_id' => $this->selectedRouter, 'desde' => $desde, 'hasta' => $hasta]);
+        $this->dispatchBrowserEvent('abrirImpresion', ['url' => $url]);
+        $this->isPrintModalOpen = false;
+    }
+
+    public function anularTicket($id) {
+        Ticket::where('id', $id)->update(['estado' => 'anulado', 'anulado' => true]);
+    }
+
+    public function restaurarTicket($id) {
+        Ticket::where('id', $id)->update(['estado' => 'disponible', 'anulado' => false]);
+    }
+
+    // --- UI MODALS ---
+    public function openBulkModal() { $this->bulk_step = 'input'; $this->loadMikrotikProfiles(); $this->isBulkModalOpen = true; }
+    public function closeBulkModal() { $this->isBulkModalOpen = false; }
+    public function openConfigModal() { $this->isConfigModalOpen = true; }
+    public function closeConfigModal() { $this->isConfigModalOpen = false; }
+    public function openPrintModal() { $this->isPrintModalOpen = true; }
+    public function closePrintModal() { $this->isPrintModalOpen = false; }
+    public function backToRouters() { return redirect()->route('aliado.routers'); }
 
     public function render()
     {

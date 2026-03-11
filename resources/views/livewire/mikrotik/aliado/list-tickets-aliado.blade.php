@@ -87,40 +87,57 @@
         <div class="card-footer bg-white p-3">{{ $tickets->links() }}</div>
     </div>
 
-    {{-- MODAL GENERAR LOTE --}}
+    {{-- MODAL GENERAR LOTE (ACTUALIZADO PARA AUTO-CHUNKS) --}}
     @if($isBulkModalOpen)
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); z-index: 1050;">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content rounded-4 border-0 shadow-lg">
                 <div class="modal-header bg-dark text-white border-0 p-4">
-                    <h5 class="modal-title fw-bold">Generar Lote</h5>
-                    <button wire:click="closeBulkModal" class="btn-close btn-close-white"></button>
+                    <h5 class="modal-title fw-bold">Generador Masivo</h5>
+                    @if($bulk_step === 'input')
+                        <button wire:click="closeBulkModal" class="btn-close btn-close-white"></button>
+                    @endif
                 </div>
-                <div class="modal-body p-4">
+                <div class="modal-body p-4 text-center">
                     @if($bulk_step === 'input')
                         <div class="mb-3 text-start">
-                            <label class="form-label small fw-bold">CANTIDAD DE TICKETS</label>
-                            <input type="number" wire:model.defer="bulk_count" class="form-control rounded-3 border-0 bg-light fw-bold fs-5">
+                            <label class="form-label small fw-bold text-muted">CANTIDAD TOTAL</label>
+                            <input type="number" wire:model.defer="bulk_count" class="form-control rounded-3 border-0 bg-light fw-bold fs-4 text-center" placeholder="Ej: 100">
+                            <small class="text-muted">Se crearán en bloques de {{ $bulk_chunk_size }} para evitar errores.</small>
                         </div>
-                        <div class="mb-3 text-start">
-                            <label class="form-label small fw-bold">PLAN ASOCIADO</label>
-                            <select wire:model.defer="bulk_plan" class="form-select rounded-3 border-0 bg-light">
+                        <div class="mb-4 text-start">
+                            <label class="form-label small fw-bold text-muted">PLAN ASOCIADO</label>
+                            <select wire:model.defer="bulk_plan" class="form-select rounded-3 border-0 bg-light fw-bold">
                                 <option value="">Seleccione un plan...</option>
                                 @foreach($mikrotik_profiles as $p)
                                     <option value="{{ $p['name'] }}">{{ $p['display'] }}</option>
                                 @endforeach
                             </select>
                         </div>
-                        <button wire:click="startBulkGeneration" class="btn btn-dark w-100 rounded-pill py-3 fw-bold">INICIAR PROCESO</button>
+                        <button wire:click="startBulkGeneration" class="btn btn-dark w-100 rounded-pill py-3 fw-bold shadow">
+                            INICIAR GENERACIÓN
+                        </button>
                     @else
-                        <div class="py-3 text-center">
-                            <div class="progress rounded-pill mb-3" style="height: 15px;">
-                                <div class="progress-bar bg-primary progress-bar-striped progress-bar-animated" style="width: {{ ($bulk_current_count / $bulk_total_requested) * 100 }}%"></div>
+                        {{-- PROCESO AUTOMÁTICO --}}
+                        <div class="py-3">
+                            <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
+                            <h5 class="fw-bold">CREANDO TICKETS...</h5>
+                            <p class="text-muted small">Por favor, mantenga esta ventana abierta.</p>
+                            
+                            @php $porcentaje = $bulk_total_requested > 0 ? ($bulk_current_count / $bulk_total_requested) * 100 : 0; @endphp
+                            
+                            <div class="progress rounded-pill mb-3 shadow-sm" style="height: 20px;">
+                                <div class="progress-bar bg-primary progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" 
+                                     style="width: {{ $porcentaje }}%; transition: width 0.4s ease;">
+                                    {{ round($porcentaje) }}%
+                                </div>
                             </div>
-                            <p>Procesado: {{ $bulk_current_count }} / {{ $bulk_total_requested }}</p>
-                            @if(session()->has('chunk_message') && $bulk_current_count < $bulk_total_requested)
-                                <button wire:click="processNextChunk" class="btn btn-primary w-100 rounded-pill py-3 fw-bold">SIGUIENTE BLOQUE ({{ session('next_amount') }})</button>
-                            @endif
+                            
+                            <div class="d-flex justify-content-between align-items-center px-2">
+                                <span class="fw-bold text-muted small">PROGRESADO: {{ $bulk_current_count }}</span>
+                                <span class="fw-bold text-primary small">META: {{ $bulk_total_requested }}</span>
+                            </div>
                         </div>
                     @endif
                 </div>
@@ -234,20 +251,10 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // Este es el puente entre Livewire y el navegador
             window.addEventListener('abrirImpresion', event => {
                 if(event.detail.url) {
                     window.open(event.detail.url, '_blank');
                 }
-            });
-        });
-    </script>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Escuchar el evento de Livewire para abrir el PDF en pestaña nueva
-            window.addEventListener('abrirImpresion', event => {
-                window.open(event.detail.url, '_blank');
             });
         });
     </script>
