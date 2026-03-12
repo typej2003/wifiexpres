@@ -10,7 +10,6 @@ use App\Models\Plan;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class ListTicketsAliado extends Component
 {
@@ -23,7 +22,7 @@ class ListTicketsAliado extends Component
     public $isBulkModalOpen = false, $isConfigModalOpen = false, $isPrintModalOpen = false;
     public $showOverlay = false;
 
-    // --- VARIABLES DE CONTROL DE LOTES (MANUAL) ---
+    // --- VARIABLES DE CONTROL DE LOTES ---
     public $bulk_step = 'input'; 
     public $bulk_total_requested = 0;
     public $bulk_current_count = 0; 
@@ -33,7 +32,7 @@ class ListTicketsAliado extends Component
 
     protected $bridgeUrl = "http://188.95.113.44:3000";
 
-    // Datos de Configuración / Diseño
+    // Datos de Configuración
     public $comercio_nombre, $hotspot_url, $logo_actual, $nuevo_logo;
     public $mikrotik_profiles = []; 
     
@@ -62,7 +61,7 @@ class ListTicketsAliado extends Component
     protected function sendCommandQuick($comando, $tid = null)
     {
         $router = Router::findOrFail($this->selectedRouter);
-        $mac = strtoupper($router->macAddress);
+        $mac = strtoupper(trim($router->macAddress));
         $tid = $tid ?? uniqid('Q');
 
         try {
@@ -72,11 +71,12 @@ class ListTicketsAliado extends Component
 
             if (!$response->successful()) return null;
 
+            // Esperar confirmación (Polling al Bridge)
             for ($i = 0; $i < 15; $i++) {
                 $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
                 if ($res->successful() && $res->json('status') === 'ready') {
                     $output = $res->json('data');
-                    if (str_contains(strtolower($output), 'failure')) return null;
+                    if (str_contains(strtolower($output), 'error')) return null;
                     return $output ?: "SUCCESS";
                 }
                 usleep(700000); 
@@ -85,13 +85,54 @@ class ListTicketsAliado extends Component
         return null; 
     }
 
+    // --- NUEVO MÉTODO DE ANULACIÓN BASADO EN TU LÓGICA ---
+    public function anularTicket($id)
+    {
+        $ticket = Ticket::find($id);
+        if (!$ticket) return;
+
+        $router = Router::find($this->selectedRouter);
+        $mac = strtoupper(trim($router->macAddress));
+        $tid = "ANUL" . time();
+        $username = $ticket->username;
+
+        // Implementando tu lógica de fetch y on-error
+        $cmd = ":do {/ip hotspot user set [find name=\"$username\"] profile=\"neutro\" limit-uptime=0s;/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no} on-error={/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"ERROR\" keep-result=no}";
+
+        if ($this->sendCommandQuick($cmd, $tid)) {
+            $ticket->update(['estado' => 'anulado', 'anulado' => true]);
+            session()->flash('message', "Ticket $username anulado correctamente.");
+        } else {
+            session()->flash('error', "No se pudo anular: el MikroTik no confirmó la operación.");
+        }
+    }
+
+    // --- NUEVO MÉTODO DE RESTAURACIÓN BASADO EN TU LÓGICA ---
+    public function restaurarTicket($id)
+    {
+        $ticket = Ticket::find($id);
+        if (!$ticket) return;
+
+        $router = Router::find($this->selectedRouter);
+        $mac = strtoupper(trim($router->macAddress));
+        $tid = "REST" . time();
+        $username = $ticket->username;
+        $profile = $ticket->plan;
+
+        // Implementando tu lógica con el perfil original y reseteo de tiempo
+        $cmd = ":do {/ip hotspot user set [find name=\"$username\"] profile=\"$profile\" limit-uptime=0s;/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no} on-error={/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"ERROR\" keep-result=no}";
+
+        if ($this->sendCommandQuick($cmd, $tid)) {
+            $ticket->update(['estado' => 'disponible', 'anulado' => false]);
+            session()->flash('message', "Ticket $username restaurado al perfil $profile.");
+        } else {
+            session()->flash('error', "No se pudo restaurar: el MikroTik no confirmó la operación.");
+        }
+    }
+
     public function startBulkGeneration()
     {
-        $this->validate([
-            'bulk_count' => 'required|integer|min:1', 
-            'bulk_plan' => 'required'
-        ]);
-
+        $this->validate(['bulk_count' => 'required|integer|min:1', 'bulk_plan' => 'required']);
         $this->bulk_total_requested = (int)$this->bulk_count;
         $this->bulk_current_count = 0;
         
@@ -100,7 +141,6 @@ class ListTicketsAliado extends Component
             ->latest('id')->first();
             
         $this->bulk_last_lote = $ultimo ? (int)explode('-', $ultimo->identity)[1] + 1 : 1;
-        
         $this->bulk_step = 'processing';
         $this->processNextChunk(); 
     }
@@ -135,16 +175,9 @@ class ListTicketsAliado extends Component
             $comandoMasivo .= ":do { /ip hotspot user add name=\"$usernameStr\" password=\"$passStr\" profile=\"$this->bulk_plan\" comment=\"$identityStr\" } on-error={}; \n";
             
             $insertData[] = [
-                'router_id' => $this->selectedRouter,
-                'identity' => $identityStr,
-                'username' => $usernameStr, 
-                'password' => $passStr,
-                'plan' => $this->bulk_plan,
-                'costo' => $costoFinal,
-                'estado' => 'disponible',
-                'sincronizado' => true,
-                'created_at' => now(),
-                'updated_at' => now()
+                'router_id' => $this->selectedRouter, 'identity' => $identityStr, 'username' => $usernameStr, 
+                'password' => $passStr, 'plan' => $this->bulk_plan, 'costo' => $costoFinal,
+                'estado' => 'disponible', 'sincronizado' => true, 'created_at' => now(), 'updated_at' => now()
             ];
         }
 
@@ -152,14 +185,8 @@ class ListTicketsAliado extends Component
             Ticket::insert($insertData);
             $this->bulk_current_count += $cantidadAProcesar;
         } else {
-            session()->flash('error', 'Error en el bloque actual. El router no respondió correctamente.');
+            session()->flash('error', 'Error en el bloque actual.');
         }
-    }
-
-    public function finishBulk() {
-        $this->bulk_step = 'input';
-        $this->isBulkModalOpen = false;
-        session()->flash('message', 'Lote de tickets generado exitosamente.');
     }
 
     public function syncPendingTickets()
@@ -182,9 +209,7 @@ class ListTicketsAliado extends Component
             foreach ($filas as $fila) {
                 $p = explode(',', $fila);
                 if (count($p) < 3) continue;
-
-                $uName = $p[0];
-                $planNombre = $p[2];
+                $uName = $p[0]; $planNombre = $p[2];
                 $planLower = strtolower($planNombre);
                 if ($uName === 'default-trial') continue;
                 $mikrotikUsernames[] = $uName;
@@ -192,32 +217,23 @@ class ListTicketsAliado extends Component
                 $costoCalculado = 0;
                 $esGratis = str_contains($planLower, 'neutro') || str_contains($planLower, 'cortesia') || str_contains($planLower, 'trial') || $planLower === 'default';
                 if (!$esGratis && str_contains($planNombre, '-')) {
-                    if (preg_match('/-(\d+(\.\d+)?)$/', $planNombre, $m)) {
-                        $costoCalculado = (float)$m[1];
-                    }
+                    if (preg_match('/-(\d+(\.\d+)?)$/', $planNombre, $m)) $costoCalculado = (float)$m[1];
                 }
 
                 $tiempoUsoValue = 0;
-                if ($planLower !== 'default' && $planLower !== 'unknown') {
-                    $planData = $planesCaché->get($planNombre);
-                    if ($planData) $tiempoUsoValue = $planData->session_timeout;
-                }
+                $planData = $planesCaché->get($planNombre);
+                if ($planData) $tiempoUsoValue = $planData->session_timeout;
 
                 Ticket::updateOrCreate(
                     ['router_id' => $this->selectedRouter, 'username' => $uName],
                     [
-                        'password' => $p[1] ?? '',
-                        'plan' => $planNombre,
-                        'costo' => $costoCalculado,
-                        'identity' => $p[5] ?: "IMP-{$uName}",
-                        'tiempo_consumido' => $p[3] ?: '0s',
-                        'tiempo_uso' => $tiempoUsoValue ?: '0s',
-                        'sincronizado' => true
+                        'password' => $p[1] ?? '', 'plan' => $planNombre, 'costo' => $costoCalculado,
+                        'identity' => $p[5] ?: "IMP-{$uName}", 'tiempo_consumido' => $p[3] ?: '0s',
+                        'tiempo_uso' => $tiempoUsoValue ?: '0s', 'sincronizado' => true
                     ]
                 );
             }
             Ticket::where('router_id', $this->selectedRouter)->whereNotIn('username', $mikrotikUsernames)->delete();
-            session()->flash('message', 'Sincronización finalizada.');
         }
         $this->showOverlay = false; 
     }
@@ -256,7 +272,7 @@ class ListTicketsAliado extends Component
             $patron = "{$this->selectedRouter}-{$this->lote_imprimir}-";
             $primero = Ticket::where('router_id', $this->selectedRouter)->where('identity', 'LIKE', $patron . '%')->orderBy('identity', 'asc')->first();
             $ultimo = Ticket::where('router_id', $this->selectedRouter)->where('identity', 'LIKE', $patron . '%')->orderBy('identity', 'desc')->first();
-            if (!$primero) { session()->flash('error', 'No hay tickets en este lote.'); return; }
+            if (!$primero) { session()->flash('error', 'No hay tickets.'); return; }
             $desde = $primero->identity; $hasta = $ultimo->identity;
         } else { $desde = $this->desde_ticket; $hasta = $this->hasta_ticket; }
         $url = route('tickets.print', ['router_id' => $this->selectedRouter, 'desde' => $desde, 'hasta' => $hasta]);
@@ -264,38 +280,7 @@ class ListTicketsAliado extends Component
         $this->isPrintModalOpen = false;
     }
 
-    public function anularTicket($id)
-    {
-        $ticket = Ticket::find($id);
-        if (!$ticket) return;
-
-        // Comando más robusto: busca por nombre y cambia perfil a neutro
-        $comando = "/ip hotspot user set [find name=\"{$ticket->username}\"] profile=neutro";
-        
-        if ($this->sendCommandQuick($comando, "ANUL-" . $ticket->username)) {
-            $ticket->update(['estado' => 'anulado', 'anulado' => true]);
-            session()->flash('message', "Ticket {$ticket->username} anulado correctamente.");
-        } else {
-            session()->flash('error', "No se pudo modificar: el MikroTik no respondió correctamente.");
-        }
-    }
-
-    public function restaurarTicket($id)
-    {
-        $ticket = Ticket::find($id);
-        if (!$ticket) return;
-
-        // Comando más robusto: restaura al perfil original guardado en la DB
-        $comando = "/ip hotspot user set [find name=\"{$ticket->username}\"] profile=\"{$ticket->plan}\"";
-        
-        if ($this->sendCommandQuick($comando, "REST-" . $ticket->username)) {
-            $ticket->update(['estado' => 'disponible', 'anulado' => false]);
-            session()->flash('message', "Ticket {$ticket->username} restaurado al perfil {$ticket->plan}.");
-        } else {
-            session()->flash('error', "No se pudo restaurar: el MikroTik no respondió correctamente.");
-        }
-    }
-    
+    public function finishBulk() { $this->bulk_step = 'input'; $this->isBulkModalOpen = false; }
     public function openBulkModal() { $this->bulk_step = 'input'; $this->loadMikrotikProfiles(); $this->isBulkModalOpen = true; }
     public function closeBulkModal() { $this->isBulkModalOpen = false; }
     public function openConfigModal() { $this->isConfigModalOpen = true; }
