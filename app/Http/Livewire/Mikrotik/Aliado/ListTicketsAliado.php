@@ -6,6 +6,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use App\Models\Ticket;
 use App\Models\Router;
+use App\Models\Plan;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -176,7 +177,7 @@ class ListTicketsAliado extends Component
             $datos = str_replace('DATA:', '', $raw);
             $filas = array_filter(explode('|', trim($datos, "| ")));
             $mikrotikUsernames = [];
-            $planesCaché = \App\Models\Plan::where('router_id', $this->selectedRouter)->get()->keyBy('mikrotik_profile');
+            $planesCaché = Plan::where('router_id', $this->selectedRouter)->get()->keyBy('mikrotik_profile');
 
             foreach ($filas as $fila) {
                 $p = explode(',', $fila);
@@ -268,6 +269,7 @@ class ListTicketsAliado extends Component
         $ticket = Ticket::find($id);
         if (!$ticket) return;
 
+        // Comando más robusto: busca por nombre y cambia perfil a neutro
         $comando = "/ip hotspot user set [find name=\"{$ticket->username}\"] profile=neutro";
         
         if ($this->sendCommandQuick($comando, "ANUL-" . $ticket->username)) {
@@ -283,6 +285,7 @@ class ListTicketsAliado extends Component
         $ticket = Ticket::find($id);
         if (!$ticket) return;
 
+        // Comando más robusto: restaura al perfil original guardado en la DB
         $comando = "/ip hotspot user set [find name=\"{$ticket->username}\"] profile=\"{$ticket->plan}\"";
         
         if ($this->sendCommandQuick($comando, "REST-" . $ticket->username)) {
