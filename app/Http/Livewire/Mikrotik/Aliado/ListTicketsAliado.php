@@ -87,33 +87,25 @@ class ListTicketsAliado extends Component
 
     public function startBulkGeneration()
     {
-        // 1. Validaciones de entrada
+        // 1. Validaciones
         if (!$this->bulk_plan || !$this->bulk_count) {
-            session()->flash('error', 'Debe seleccionar un plan y una cantidad válida.');
+            session()->flash('error', 'Faltan datos para generar el lote.');
             return;
         }
 
-        // 2. Obtener datos del Plan (Precio y Session Timeout)
+        // 2. Obtener información del Plan y Router
         $planInfo = \App\Models\Plan::where('mikrotik_profile', $this->bulk_plan)
                     ->where('router_id', $this->selectedRouter)
                     ->first();
+                    
+        $router = \App\Models\Router::find($this->selectedRouter);
 
-        if (!$planInfo) {
-            session()->flash('error', 'El perfil seleccionado no está registrado en la base de datos de planes.');
+        if (!$planInfo || !$router) {
+            session()->flash('error', 'No se encontró la configuración del plan o del router.');
             return;
         }
 
-        // Determinar costo según el nombre del plan (Regla: neutro, cortesia, trial = 0)
-        $costo = $planInfo->price;
-        $planNombreLower = strtolower($planInfo->name);
-        if (str_contains($planNombreLower, 'neutro') || 
-            str_contains($planNombreLower, 'cortesia') || 
-            str_contains($planNombreLower, 'trial')) {
-            $costo = 0;
-        }
-
-        // 3. Determinar el número de Lote basado en selectedRouter
-        // Buscamos el último ticket generado para este router específico
+        // 3. Determinar Lote
         $ultimoTicket = \App\Models\Ticket::where('router_id', $this->selectedRouter)
                         ->orderBy('id', 'desc')
                         ->first();
@@ -121,51 +113,70 @@ class ListTicketsAliado extends Component
         $nuevoLote = 1;
         if ($ultimoTicket && str_contains($ultimoTicket->identity, '-')) {
             $partes = explode('-', $ultimoTicket->identity);
-            // El formato es router-lote-secuencia, el lote es el segundo índice [1]
-            if (count($partes) >= 2) {
-                $nuevoLote = (int)$partes[1] + 1;
-            }
+            if (count($partes) >= 2) { $nuevoLote = (int)$partes[1] + 1; }
         }
 
-        // 4. Preparar la data para el insert masivo
+        // 4. Conectar al MikroTik
+        $api = new \App\Services\MikrotikApiService(); // Asegúrate de que esta sea tu clase de servicio
+        if (!$api->connect($router->ip, $router->user, $router->password, $router->port)) {
+            session()->flash('error', 'No se pudo conectar con el MikroTik. Verifique la conexión.');
+            return;
+        }
+
+        // 5. Preparar Data y Enviar a MikroTik
         $ticketsData = [];
         $now = now();
+        $errors = 0;
 
         for ($i = 1; $i <= $this->bulk_count; $i++) {
-            // Secuencia con ceros (0001, 0002...)
             $secuencia = str_pad($i, 4, '0', STR_PAD_LEFT);
-            
-            // Identidad unificada: router_id-lote-secuencia
             $formatoUnico = "{$this->selectedRouter}-{$nuevoLote}-{$secuencia}";
-            
-            // Password aleatorio de 5 dígitos
             $password = rand(10000, 99999);
 
+            // --- ENVIAR AL MIKROTIK VIA API ---
+            // Comando: /ip/hotspot/user/add
+            $response = $api->comm("/ip/hotspot/user/add", [
+                "name"     => $formatoUnico,
+                "password" => (string)$password,
+                "profile"  => $this->bulk_plan,
+                "comment"  => "Lote {$nuevoLote} - " . $now->format('Y-m-d'),
+            ]);
+
+            // Verificar si hubo error en este ticket específico
+            if (isset($response['!trap'])) {
+                $errors++;
+                continue; 
+            }
+
+            // Si el MikroTik lo aceptó, lo preparamos para la BD
             $ticketsData[] = [
                 'router_id'    => $this->selectedRouter,
                 'username'     => $formatoUnico,
                 'password'     => $password,
                 'identity'     => $formatoUnico,
                 'plan'         => $this->bulk_plan,
-                'costo'        => $costo,
+                'costo'        => ($planInfo->price > 0 && !str_contains(strtolower($planInfo->name), 'neutro')) ? $planInfo->price : 0,
                 'estado'       => 'disponible',
-                'tiempo_uso'   => $planInfo->session_timeout, // session timeout del perfil
+                'tiempo_uso'   => $planInfo->session_timeout,
                 'sincronizado' => 1,
                 'created_at'   => $now,
                 'updated_at'   => $now,
             ];
         }
 
-        try {
-            // 5. Insertar registros
+        $api->disconnect();
+
+        // 6. Guardar en BD local
+        if (count($ticketsData) > 0) {
             \App\Models\Ticket::insert($ticketsData);
-            
-            session()->flash('message', "¡Éxito! Se generó el Lote #{$nuevoLote} con {$this->bulk_count} tickets.");
-            $this->closeBulkModal();
-            
-        } catch (\Exception $e) {
-            session()->flash('error', 'Error en la base de datos: ' . $e->getMessage());
+            session()->flash('message', "Lote #{$nuevoLote} creado: " . count($ticketsData) . " en MikroTik y BD.");
         }
+
+        if ($errors > 0) {
+            session()->flash('error', "No se pudieron crear {$errors} tickets (posiblemente duplicados en el router).");
+        }
+
+        $this->closeBulkModal();
     }
 
     public function processNextChunk()
