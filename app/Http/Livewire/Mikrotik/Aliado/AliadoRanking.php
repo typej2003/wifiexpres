@@ -14,13 +14,11 @@ class AliadoRanking extends Component
     
     protected $paginationTheme = 'bootstrap';
     
-    // Filtros Comunes
+    // Filtros y Navegación
     public $search = '';
     public $activeTab = 'ranking'; // 'ranking' o 'locations'
-    
-    // Propiedades Ranking
+    public $soloTickets = false;   // Filtro global para ocultar MACs
     public $sortDirection = 'desc';
-    public $soloTickets = false;
 
     public function updatingSearch()
     {
@@ -44,6 +42,7 @@ class AliadoRanking extends Component
         $routerIds = Router::where('user_id', $user->id)->pluck('id');
 
         if ($this->activeTab === 'ranking') {
+            // LÓGICA DE RANKING
             $query = TicketLog::whereIn('router_id', $routerIds)
                 ->join('routers', 'ticket_logs.router_id', '=', 'routers.id')
                 ->select(
@@ -64,15 +63,19 @@ class AliadoRanking extends Component
                 ->orderBy('total_conexiones', $this->sortDirection)
                 ->paginate(15);
         } else {
-            // Lógica para Ubicaciones (Logs detallados)
-            $data = TicketLog::with('router')
+            // LÓGICA DE RASTREO POR ANTENA
+            $query = TicketLog::with('router')
                 ->whereIn('router_id', $routerIds)
                 ->where(function($q) {
                     $q->where('username', 'like', '%' . $this->search . '%')
                       ->orWhere('mac_address', 'like', '%' . $this->search . '%');
-                })
-                ->latest()
-                ->paginate(20);
+                });
+
+            if ($this->soloTickets) {
+                $query->where('username', 'NOT REGEXP', '^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$');
+            }
+
+            $data = $query->latest()->paginate(20);
         }
 
         return view('livewire.mikrotik.aliado.aliado-ranking', [
