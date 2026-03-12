@@ -87,28 +87,41 @@ class ListTicketsAliado extends Component
 
     public function startBulkGeneration()
     {
-        // 1. Validaciones iniciales
+        // 1. Validaciones
         if (!$this->bulk_plan || !$this->bulk_count) {
-            session()->flash('error', 'Debe seleccionar un plan y una cantidad.');
+            session()->flash('error', 'Faltan datos para generar el lote.');
             return;
         }
 
-        // 2. Obtener el Session-Timeout del plan/perfil
-        // Asumimos que tienes una tabla 'profiles' o similar donde guardas la info de MikroTik
-        $perfilData = \App\Models\Profile::where('name', $this->bulk_plan)
-                        ->where('router_id', $this->router_id)
-                        ->first();
+        // 2. Buscar el Plan en la BD para obtener el session_timeout y el precio
+        // Usamos el mikrotik_profile para coincidir con la selección del modal
+        $planInfo = \App\Models\Plan::where('mikrotik_profile', $this->bulk_plan)
+                    ->where('router_id', $this->router_id)
+                    ->first();
 
-        // El tiempo de uso es el session_timeout del perfil, si no existe ponemos 00:00:00 o null
-        $tiempoUso = $perfilData ? $perfilData->session_timeout : '00:00:00';
+        if (!$planInfo) {
+            session()->flash('error', 'El perfil seleccionado no existe en la base de datos de planes.');
+            return;
+        }
 
-        // 3. Preparar los datos para el insert masivo
+        // 3. Definir valores según el plan encontrado
+        $tiempoUso = $planInfo->session_timeout; 
+        $costo = $planInfo->price;
+
+        // Aplicar regla de costo cero según tus notas guardadas
+        $planNombreLower = strtolower($planInfo->name);
+        if (str_contains($planNombreLower, 'neutro') || 
+            str_contains($planNombreLower, 'cortesia') || 
+            str_contains($planNombreLower, 'trial')) {
+            $costo = 0;
+        }
+
+        // 4. Preparar la data para el Insert masivo
         $ticketsData = [];
         $now = now();
 
         for ($i = 0; $i < $this->bulk_count; $i++) {
-            // Tu lógica de generación de pins (ejemplo simple)
-            $username = $this->generateUniqueUsername(); 
+            $username = $this->generateUniqueUsername(); // Tu lógica de generación
             $password = rand(10000, 99999);
             $identity = $this->generateIdentity($i);
 
@@ -118,9 +131,9 @@ class ListTicketsAliado extends Component
                 'password'     => $password,
                 'identity'     => $identity,
                 'plan'         => $this->bulk_plan,
-                'costo'        => $this->getPlanCost($this->bulk_plan), // Tu lógica de costo
+                'costo'        => $costo,
                 'estado'       => 'disponible',
-                'tiempo_uso'   => $tiempoUso, // <--- AQUÍ SE SOLUCIONA EL ERROR
+                'tiempo_uso'   => $tiempoUso, // Se llena con el session_timeout del plan
                 'sincronizado' => 1,
                 'created_at'   => $now,
                 'updated_at'   => $now,
@@ -128,14 +141,15 @@ class ListTicketsAliado extends Component
         }
 
         try {
-            // 4. Insertar en la base de datos
+            // 5. Ejecución del Insert
             \App\Models\Ticket::insert($ticketsData);
             
-            session()->flash('message', 'Lote de ' . $this->bulk_count . ' tickets generado con éxito.');
+            $this->bulk_step = 'input'; // Resetear estado del modal si es necesario
+            session()->flash('message', "Lote generado con éxito. Tiempo de uso: {$tiempoUso}");
             $this->closeBulkModal();
             
         } catch (\Exception $e) {
-            session()->flash('error', 'Error al generar lote: ' . $e->getMessage());
+            session()->flash('error', 'Error SQL: ' . $e->getMessage());
         }
     }
 
