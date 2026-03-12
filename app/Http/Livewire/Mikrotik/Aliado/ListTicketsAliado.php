@@ -125,7 +125,11 @@ class ListTicketsAliado extends Component
             }
         }
 
-        $comandoMasivo = ""; 
+        $router = Router::find($this->selectedRouter);
+        $mac = strtoupper(trim($router->macAddress));
+        $tid = "BULK" . time() . $this->bulk_current_count;
+
+        $comandoInterno = ""; 
         $insertData = [];
 
         for ($i = 1; $i <= $cantidadAProcesar; $i++) {
@@ -135,7 +139,7 @@ class ListTicketsAliado extends Component
             $usernameStr = "{$this->selectedRouter}{$this->bulk_last_lote}{$secStr}";
             $passStr = (string)rand(10000, 99999);
 
-            $comandoMasivo .= ":do { /ip hotspot user add name=\"$usernameStr\" password=\"$passStr\" profile=\"$this->bulk_plan\" comment=\"$identityStr\" } on-error={}; \n";
+            $comandoInterno .= "/ip hotspot user add name=\"$usernameStr\" password=\"$passStr\" profile=\"$this->bulk_plan\" comment=\"$identityStr\";\n";
             
             $insertData[] = [
                 'router_id' => $this->selectedRouter,
@@ -151,7 +155,15 @@ class ListTicketsAliado extends Component
             ];
         }
 
-        if ($this->sendCommandQuick($comandoMasivo)) {
+        // Estructura de comando con reporte al Bridge vía Socket
+        $cmdFinal = ":do {
+            $comandoInterno
+            /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no
+        } on-error={
+            /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"ERROR\" keep-result=no
+        }";
+
+        if ($this->sendCommandQuick($cmdFinal, $tid)) {
             Ticket::insert($insertData);
             $this->bulk_current_count += $cantidadAProcesar;
             
@@ -162,13 +174,14 @@ class ListTicketsAliado extends Component
             }
         } else {
             $this->bulk_step = 'input';
-            session()->flash('error', 'Error en el bloque actual. El router no respondió.');
+            session()->flash('error', 'Error en el bloque actual. El router no confirmó la operación.');
         }
     }
 
     public function finishBulk() {
         $this->bulk_step = 'input';
         $this->isBulkModalOpen = false;
+        $this->bulk_current_count = 0;
         session()->flash('message', 'Lote de tickets generado exitosamente.');
     }
 
@@ -247,7 +260,6 @@ class ListTicketsAliado extends Component
 
     public function loadMikrotikProfiles()
     {
-        // Se cargan los planes de la DB filtrando por el router actual y que estén activos
         $this->mikrotik_profiles = Plan::where('router_id', $this->selectedRouter)
             ->active()
             ->get()
