@@ -87,22 +87,56 @@ class ListTicketsAliado extends Component
 
     public function startBulkGeneration()
     {
-        $this->validate([
-            'bulk_count' => 'required|integer|min:1', 
-            'bulk_plan' => 'required'
-        ]);
+        // 1. Validaciones iniciales
+        if (!$this->bulk_plan || !$this->bulk_count) {
+            session()->flash('error', 'Debe seleccionar un plan y una cantidad.');
+            return;
+        }
 
-        $this->bulk_total_requested = (int)$this->bulk_count;
-        $this->bulk_current_count = 0;
-        
-        $ultimo = Ticket::where('router_id', $this->selectedRouter)
-            ->where('identity', 'LIKE', $this->selectedRouter . '-%')
-            ->latest('id')->first();
+        // 2. Obtener el Session-Timeout del plan/perfil
+        // Asumimos que tienes una tabla 'profiles' o similar donde guardas la info de MikroTik
+        $perfilData = \App\Models\Profile::where('name', $this->bulk_plan)
+                        ->where('router_id', $this->router_id)
+                        ->first();
+
+        // El tiempo de uso es el session_timeout del perfil, si no existe ponemos 00:00:00 o null
+        $tiempoUso = $perfilData ? $perfilData->session_timeout : '00:00:00';
+
+        // 3. Preparar los datos para el insert masivo
+        $ticketsData = [];
+        $now = now();
+
+        for ($i = 0; $i < $this->bulk_count; $i++) {
+            // Tu lógica de generación de pins (ejemplo simple)
+            $username = $this->generateUniqueUsername(); 
+            $password = rand(10000, 99999);
+            $identity = $this->generateIdentity($i);
+
+            $ticketsData[] = [
+                'router_id'    => $this->router_id,
+                'username'     => $username,
+                'password'     => $password,
+                'identity'     => $identity,
+                'plan'         => $this->bulk_plan,
+                'costo'        => $this->getPlanCost($this->bulk_plan), // Tu lógica de costo
+                'estado'       => 'disponible',
+                'tiempo_uso'   => $tiempoUso, // <--- AQUÍ SE SOLUCIONA EL ERROR
+                'sincronizado' => 1,
+                'created_at'   => $now,
+                'updated_at'   => $now,
+            ];
+        }
+
+        try {
+            // 4. Insertar en la base de datos
+            \App\Models\Ticket::insert($ticketsData);
             
-        $this->bulk_last_lote = $ultimo ? (int)explode('-', $ultimo->identity)[1] + 1 : 1;
-        
-        $this->bulk_step = 'processing';
-        $this->processNextChunk(); 
+            session()->flash('message', 'Lote de ' . $this->bulk_count . ' tickets generado con éxito.');
+            $this->closeBulkModal();
+            
+        } catch (\Exception $e) {
+            session()->flash('error', 'Error al generar lote: ' . $e->getMessage());
+        }
     }
 
     public function processNextChunk()

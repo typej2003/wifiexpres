@@ -21,7 +21,7 @@ class CreateTicketsTable extends Migration
             $table->string('identity')->nullable();
             $table->decimal('costo', 12,2)->default(0);
             $table->string('plan'); // Ej: "5MB", "Premium"
-            $table->string('tiempo_uso'); // Ej: "1h", "1d"
+            $table->string('tiempo_uso')->default('00:00:00')->change();
             $table->boolean('activado')->default(false);
             $table->timestamp('fecha_uso')->nullable();
             $table->boolean('anulado')->default(false);
