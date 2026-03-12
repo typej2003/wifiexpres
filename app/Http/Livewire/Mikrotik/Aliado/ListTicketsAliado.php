@@ -155,13 +155,14 @@ class ListTicketsAliado extends Component
             ];
         }
 
-        // Estructura de comando con reporte al Bridge vía Socket
         $cmdFinal = ":do {
             $comandoInterno
             /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no
         } on-error={
             /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"ERROR\" keep-result=no
         }";
+
+        $this->bulk_step = 'processing';
 
         if ($this->sendCommandQuick($cmdFinal, $tid)) {
             Ticket::insert($insertData);
@@ -170,11 +171,12 @@ class ListTicketsAliado extends Component
             if ($this->bulk_current_count >= $this->bulk_total_requested) {
                 $this->finishBulk();
             } else {
-                $this->processNextChunk();
+                // Si faltan tickets, mostramos el paso "continue" para que el usuario presione el botón
+                $this->bulk_step = 'continue';
             }
         } else {
-            $this->bulk_step = 'input';
-            session()->flash('error', 'Error en el bloque actual. El router no confirmó la operación.');
+            $this->bulk_step = 'continue'; // Permitir reintentar el bloque si falla
+            session()->flash('error', 'El router no respondió al bloque actual. Intente de nuevo.');
         }
     }
 
