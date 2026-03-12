@@ -23,7 +23,7 @@ class ListTicketsAliado extends Component
     public $isBulkModalOpen = false, $isConfigModalOpen = false, $isPrintModalOpen = false;
     public $showOverlay = false;
 
-    // --- VARIABLES DE CONTROL DE LOTES (MANUAL) ---
+    // --- VARIABLES DE CONTROL DE LOTES ---
     public $bulk_step = 'input'; 
     public $bulk_total_requested = 0;
     public $bulk_current_count = 0; 
@@ -76,10 +76,11 @@ class ListTicketsAliado extends Component
                 $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
                 if ($res->successful() && $res->json('status') === 'ready') {
                     $output = $res->json('data');
+                    // Validación crucial: Si el MikroTik reporta error en su lógica interna
                     if (str_contains(strtolower($output), 'failure') || str_contains(strtolower($output), 'error')) return null;
                     return $output ?: "SUCCESS";
                 }
-                usleep(700000); 
+                usleep(800000); 
             }
         } catch (\Exception $e) { Log::error("Error Bridge: " . $e->getMessage()); }
         return null; 
@@ -92,11 +93,9 @@ class ListTicketsAliado extends Component
             return;
         }
 
-        // 1. Configurar estado inicial de la generación
         $this->bulk_total_requested = (int)$this->bulk_count;
         $this->bulk_current_count = 0;
 
-        // 2. Determinar el Lote buscando el último ticket del router
         $ultimoTicket = Ticket::where('router_id', $this->selectedRouter)
                         ->orderBy('id', 'desc')
                         ->first();
@@ -109,7 +108,6 @@ class ListTicketsAliado extends Component
             }
         }
 
-        // 3. Procesar el primer bloque automáticamente
         $this->processNextChunk();
     }
 
@@ -123,7 +121,6 @@ class ListTicketsAliado extends Component
 
         $cantidadAProcesar = min($this->bulk_chunk_size, $restantes);
         
-        // Buscar el plan para obtener costo y tiempo de uso real
         $planInfo = Plan::where('mikrotik_profile', $this->bulk_plan)
                         ->where('router_id', $this->selectedRouter)
                         ->first();
@@ -133,7 +130,6 @@ class ListTicketsAliado extends Component
             return;
         }
 
-        // Regla de costo: neutro, cortesia, trial = 0
         $planLower = strtolower($planInfo->name);
         $costoFinal = $planInfo->price;
         if (preg_match('/neutro|cortesia|trial/i', $planLower)) {
@@ -150,7 +146,6 @@ class ListTicketsAliado extends Component
         for ($i = 1; $i <= $cantidadAProcesar; $i++) {
             $posGlobal = $this->bulk_current_count + $i;
             $secStr = str_pad($posGlobal, 4, '0', STR_PAD_LEFT);
-            // Identidad: router-lote-secuencia
             $identityStr = "{$this->selectedRouter}-{$this->bulk_last_lote}-{$secStr}";
             $usernameStr = $identityStr; 
             $passStr = (string)rand(10000, 99999);
@@ -165,7 +160,7 @@ class ListTicketsAliado extends Component
                 'plan'         => $this->bulk_plan,
                 'costo'        => $costoFinal,
                 'estado'       => 'disponible',
-                'tiempo_uso'   => $planInfo->session_timeout, // SE LLENA PARA EVITAR ERROR 1364
+                'tiempo_uso'   => $planInfo->session_timeout,
                 'sincronizado' => true,
                 'created_at'   => now(),
                 'updated_at'   => now()
@@ -181,7 +176,10 @@ class ListTicketsAliado extends Component
 
         $this->bulk_step = 'processing';
 
-        if ($this->sendCommandQuick($cmdFinal, $tid)) {
+        $response = $this->sendCommandQuick($cmdFinal, $tid);
+
+        // SOLO SI EL MIKROTIK RESPONDIÓ "OK" O "SUCCESS" PROCEDEMOS
+        if ($response && !str_contains(strtoupper($response), 'ERROR')) {
             Ticket::insert($insertData);
             $this->bulk_current_count += $cantidadAProcesar;
             
@@ -191,8 +189,9 @@ class ListTicketsAliado extends Component
                 $this->bulk_step = 'continue';
             }
         } else {
-            $this->bulk_step = 'continue';
-            session()->flash('error', 'El router no respondió. Reintente este bloque.');
+            // Si falló el MikroTik, no avanzamos el contador y mostramos error
+            $this->bulk_step = 'continue'; 
+            session()->flash('error', 'El MikroTik no pudo procesar este bloque. Verifique conexión.');
         }
     }
 
