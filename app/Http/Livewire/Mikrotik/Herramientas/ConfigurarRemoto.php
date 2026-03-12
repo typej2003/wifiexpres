@@ -165,10 +165,15 @@ class ConfigurarRemoto extends Component
 
         $this->logs[] = "📡 Enviando: " . $paso['desc'];
 
-        // Cambia esto temporalmente para depurar:
-$script = "{$paso['cmd']}; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no";
-
-        // $script = ":do { {$paso['cmd']}; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"ERR\" keep-result=no }";
+        // EXPLICACIÓN:
+        // El primer fetch (en $paso['cmd']) debe ser limpio.
+        // El segundo fetch (el de retorno al bridge) DEBE usar http-method=post.
+        $script = ":do { 
+            {$paso['cmd']}; 
+            /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no 
+        } on-error={ 
+            /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"ERR\" keep-result=no 
+        }";
         
         $scriptLimpio = trim(preg_replace('/\s+/', ' ', $script));
 
