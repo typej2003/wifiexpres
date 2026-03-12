@@ -115,79 +115,100 @@
         <div class="card-footer bg-white p-3 border-0">{{ $tickets->links() }}</div>
     </div>
 
-    {{-- MODAL GENERAR LOTE --}}
+    {{-- MODAL GENERAR LOTE (ÚNICA SECCIÓN MODIFICADA) --}}
     @if($isBulkModalOpen)
-    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); z-index: 1050;">
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.6); z-index: 1050; backdrop-filter: blur(5px);">
         <div class="modal-dialog modal-dialog-centered" wire:init="loadMikrotikProfiles">
             <div class="modal-content rounded-4 border-0 shadow-lg">
-                <div class="modal-header bg-dark text-white border-0 p-4">
-                    <h5 class="modal-title fw-bold">Generación de Tickets</h5>
+                <div class="modal-header border-0 p-4 pb-0">
+                    <h5 class="modal-title fw-800 text-dark"><i class="bi bi-stack text-primary me-2"></i>Generar Nuevo Lote</h5>
                     @if($bulk_step === 'input' || $bulk_step === 'continue')
-                        <button wire:click="closeBulkModal" class="btn-close btn-close-white"></button>
+                        <button wire:click="closeBulkModal" class="btn-close"></button>
                     @endif
                 </div>
                 
-                <div class="modal-body p-4 text-center">
+                <div class="modal-body p-4">
                     @if(count($mikrotik_profiles) == 0)
-                        <div class="py-4">
-                            <div class="spinner-border text-primary" role="status"></div>
-                            <p class="text-muted small mt-2">Cargando perfiles desde MikroTik...</p>
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary mb-3" role="status"></div>
+                            <p class="text-muted fw-bold">Accediendo al MikroTik...</p>
                         </div>
                     @else
                         @if($bulk_step === 'input')
-                            <div class="mb-3 text-start">
-                                <label class="form-label small fw-bold text-muted">CANTIDAD TOTAL A GENERAR</label>
-                                <input type="number" wire:model.defer="bulk_count" class="form-control rounded-3 border-0 bg-light fw-bold fs-4 text-center">
-                                <small class="text-muted d-block mt-1">Lotes mayores a 30 se procesarán por partes para estabilidad.</small>
+                            <div class="mb-4">
+                                <label class="form-label small fw-bold text-secondary mb-2">¿CUÁNTOS TICKETS DESEA CREAR?</label>
+                                <div class="input-group input-group-lg shadow-sm rounded-3 overflow-hidden border-0">
+                                    <span class="input-group-text bg-white border-0 text-primary"><i class="bi bi-plus-lg"></i></span>
+                                    <input type="number" wire:model.defer="bulk_count" class="form-control border-0 fw-bold" placeholder="Ej. 50">
+                                </div>
+                                <div class="mt-2 d-flex align-items-center text-muted">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    <small>Recomendamos lotes de 30 para mayor rapidez.</small>
+                                </div>
                             </div>
-                            <div class="mb-4 text-start">
-                                <label class="form-label small fw-bold text-muted">SELECCIONE EL PLAN</label>
-                                <select wire:model.defer="bulk_plan" class="form-select rounded-3 border-0 bg-light fw-bold">
-                                    <option value="">Seleccione un perfil...</option>
+
+                            <div class="mb-4">
+                                <label class="form-label small fw-bold text-secondary mb-2">PLAN O VELOCIDAD</label>
+                                <select wire:model.defer="bulk_plan" class="form-select form-select-lg border-0 bg-light fw-bold shadow-sm">
+                                    <option value="">-- Seleccione un Perfil --</option>
                                     @foreach($mikrotik_profiles as $p)
                                         <option value="{{ $p['name'] }}">{{ $p['display'] }}</option>
                                     @endforeach
                                 </select>
                             </div>
-                            <button wire:click="startBulkGeneration" wire:loading.attr="disabled" class="btn btn-dark w-100 rounded-pill py-3 fw-bold shadow">
-                                <span wire:loading.remove wire:target="startBulkGeneration">INICIAR PROCESO</span>
-                                <span wire:loading wire:target="startBulkGeneration">CONECTANDO...</span>
+
+                            <button wire:click="startBulkGeneration" wire:loading.attr="disabled" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-sm transition-all">
+                                <span wire:loading.remove wire:target="startBulkGeneration">
+                                    GENERAR AHORA <i class="bi bi-arrow-right ms-2"></i>
+                                </span>
+                                <span wire:loading wire:target="startBulkGeneration">
+                                    <span class="spinner-border spinner-border-sm me-2"></span>PROCESANDO...
+                                </span>
                             </button>
 
                         @elseif($bulk_step === 'processing' || $bulk_step === 'continue')
-                            <div class="py-3">
-                                <h6 class="fw-bold mb-3 text-uppercase text-muted">Progreso de Creación</h6>
+                            <div class="text-center py-2">
                                 @php 
                                     $porcentaje = $bulk_total_requested > 0 ? ($bulk_current_count / $bulk_total_requested) * 100 : 0; 
                                     $faltan = $bulk_total_requested - $bulk_current_count;
                                 @endphp
                                 
-                                <div class="progress rounded-pill mb-3 shadow-sm" style="height: 25px;">
-                                    <div class="progress-bar bg-primary progress-bar-striped progress-bar-animated" role="progressbar" style="width: {{ $porcentaje }}%">
-                                        {{ round($porcentaje) }}%
-                                    </div>
+                                <div class="d-flex justify-content-between align-items-end mb-2">
+                                    <h4 class="fw-800 mb-0">{{ round($porcentaje) }}%</h4>
+                                    <span class="text-muted small fw-bold">{{ $bulk_current_count }} de {{ $bulk_total_requested }} completados</span>
                                 </div>
 
-                                <div class="d-flex justify-content-between mb-4">
-                                    <span class="badge bg-light text-dark border">Creados: <b>{{ $bulk_current_count }}</b></span>
-                                    <span class="badge bg-light text-primary border">Restantes: <b>{{ $faltan }}</b></span>
+                                <div class="progress rounded-pill mb-4 shadow-sm" style="height: 12px; background-color: #e9ecef;">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated rounded-pill bg-primary" 
+                                         role="progressbar" 
+                                         style="width: {{ $porcentaje }}%">
+                                    </div>
                                 </div>
 
                                 @if($bulk_step === 'processing')
-                                    <div class="alert alert-info border-0 rounded-4">
-                                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                                        Procesando lote en el MikroTik...
+                                    <div class="p-3 border rounded-4 bg-light mb-2">
+                                        <div class="d-flex align-items-center justify-content-center text-primary">
+                                            <div class="spinner-grow spinner-grow-sm me-3" role="status"></div>
+                                            <span class="fw-bold">Escribiendo en MikroTik...</span>
+                                        </div>
                                     </div>
                                 @elseif($bulk_step === 'continue')
-                                    <div class="p-3 bg-light rounded-4 mb-4">
-                                        <p class="small text-muted mb-0">El bloque anterior se completó. Presione el botón para continuar con los siguientes 30 tickets.</p>
+                                    <div class="alert alert-success border-0 rounded-4 mb-4 text-start">
+                                        <div class="d-flex">
+                                            <i class="bi bi-check-circle-fill fs-4 me-3"></i>
+                                            <div>
+                                                <h6 class="fw-bold mb-1">¡Bloque Completado!</h6>
+                                                <p class="small mb-0 text-dark">Se han creado los primeros tickets. Presiona el botón de abajo para continuar con los siguientes.</p>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <button wire:click="processNextChunk" wire:loading.attr="disabled" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-lg fs-5">
+                                    
+                                    <button wire:click="processNextChunk" wire:loading.attr="disabled" class="btn btn-success w-100 rounded-pill py-3 fw-bold shadow-lg">
                                         <span wire:loading.remove wire:target="processNextChunk">
-                                            <i class="bi bi-play-circle-fill me-2"></i> CREAR SIGUIENTES TICKETS
+                                            CONTINUAR CON EL RESTO <i class="bi bi-fast-forward-fill ms-2"></i>
                                         </span>
                                         <span wire:loading wire:target="processNextChunk">
-                                            <span class="spinner-border spinner-border-sm me-2"></span> ENVIANDO BLOQUE...
+                                            <span class="spinner-border spinner-border-sm me-2"></span>ENVIANDO...
                                         </span>
                                     </button>
                                 @endif
@@ -339,5 +360,7 @@
         .preview-plan-box { background: #000; color: #fff; font-size: 10px; padding: 4px; font-weight: bold; margin: 5px 0; }
         .preview-comercio-nombre { font-weight: 800; font-size: 12px; margin-top: 5px; text-transform: uppercase; }
         .progress-bar { transition: width .6s ease; }
+        .fw-800 { font-weight: 800; }
+        .transition-all { transition: all 0.3s ease; }
     </style>
 </div>

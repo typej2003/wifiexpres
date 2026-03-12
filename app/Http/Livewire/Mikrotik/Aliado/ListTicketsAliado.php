@@ -87,96 +87,30 @@ class ListTicketsAliado extends Component
 
     public function startBulkGeneration()
     {
-        // 1. Validaciones
         if (!$this->bulk_plan || !$this->bulk_count) {
             session()->flash('error', 'Faltan datos para generar el lote.');
             return;
         }
 
-        // 2. Obtener información del Plan y Router
-        $planInfo = \App\Models\Plan::where('mikrotik_profile', $this->bulk_plan)
-                    ->where('router_id', $this->selectedRouter)
-                    ->first();
-                    
-        $router = \App\Models\Router::find($this->selectedRouter);
+        // 1. Configurar estado inicial de la generación
+        $this->bulk_total_requested = (int)$this->bulk_count;
+        $this->bulk_current_count = 0;
 
-        if (!$planInfo || !$router) {
-            session()->flash('error', 'No se encontró la configuración del plan o del router.');
-            return;
-        }
-
-        // 3. Determinar Lote
-        $ultimoTicket = \App\Models\Ticket::where('router_id', $this->selectedRouter)
+        // 2. Determinar el Lote buscando el último ticket del router
+        $ultimoTicket = Ticket::where('router_id', $this->selectedRouter)
                         ->orderBy('id', 'desc')
                         ->first();
         
-        $nuevoLote = 1;
+        $this->bulk_last_lote = 1;
         if ($ultimoTicket && str_contains($ultimoTicket->identity, '-')) {
             $partes = explode('-', $ultimoTicket->identity);
-            if (count($partes) >= 2) { $nuevoLote = (int)$partes[1] + 1; }
-        }
-
-        // 4. Conectar al MikroTik
-        $api = new \App\Services\MikrotikApiService(); // Asegúrate de que esta sea tu clase de servicio
-        if (!$api->connect($router->ip, $router->user, $router->password, $router->port)) {
-            session()->flash('error', 'No se pudo conectar con el MikroTik. Verifique la conexión.');
-            return;
-        }
-
-        // 5. Preparar Data y Enviar a MikroTik
-        $ticketsData = [];
-        $now = now();
-        $errors = 0;
-
-        for ($i = 1; $i <= $this->bulk_count; $i++) {
-            $secuencia = str_pad($i, 4, '0', STR_PAD_LEFT);
-            $formatoUnico = "{$this->selectedRouter}-{$nuevoLote}-{$secuencia}";
-            $password = rand(10000, 99999);
-
-            // --- ENVIAR AL MIKROTIK VIA API ---
-            // Comando: /ip/hotspot/user/add
-            $response = $api->comm("/ip/hotspot/user/add", [
-                "name"     => $formatoUnico,
-                "password" => (string)$password,
-                "profile"  => $this->bulk_plan,
-                "comment"  => "Lote {$nuevoLote} - " . $now->format('Y-m-d'),
-            ]);
-
-            // Verificar si hubo error en este ticket específico
-            if (isset($response['!trap'])) {
-                $errors++;
-                continue; 
+            if (count($partes) >= 2) { 
+                $this->bulk_last_lote = (int)$partes[1] + 1; 
             }
-
-            // Si el MikroTik lo aceptó, lo preparamos para la BD
-            $ticketsData[] = [
-                'router_id'    => $this->selectedRouter,
-                'username'     => $formatoUnico,
-                'password'     => $password,
-                'identity'     => $formatoUnico,
-                'plan'         => $this->bulk_plan,
-                'costo'        => ($planInfo->price > 0 && !str_contains(strtolower($planInfo->name), 'neutro')) ? $planInfo->price : 0,
-                'estado'       => 'disponible',
-                'tiempo_uso'   => $planInfo->session_timeout,
-                'sincronizado' => 1,
-                'created_at'   => $now,
-                'updated_at'   => $now,
-            ];
         }
 
-        $api->disconnect();
-
-        // 6. Guardar en BD local
-        if (count($ticketsData) > 0) {
-            \App\Models\Ticket::insert($ticketsData);
-            session()->flash('message', "Lote #{$nuevoLote} creado: " . count($ticketsData) . " en MikroTik y BD.");
-        }
-
-        if ($errors > 0) {
-            session()->flash('error', "No se pudieron crear {$errors} tickets (posiblemente duplicados en el router).");
-        }
-
-        $this->closeBulkModal();
+        // 3. Procesar el primer bloque automáticamente
+        $this->processNextChunk();
     }
 
     public function processNextChunk()
@@ -188,20 +122,27 @@ class ListTicketsAliado extends Component
         }
 
         $cantidadAProcesar = min($this->bulk_chunk_size, $restantes);
-        $planLower = strtolower($this->bulk_plan);
-        $costoFinal = 0;
+        
+        // Buscar el plan para obtener costo y tiempo de uso real
+        $planInfo = Plan::where('mikrotik_profile', $this->bulk_plan)
+                        ->where('router_id', $this->selectedRouter)
+                        ->first();
 
-        $esGratis = str_contains($planLower, 'neutro') || str_contains($planLower, 'cortesia') || str_contains($planLower, 'trial') || $planLower === 'default';
+        if (!$planInfo) {
+            session()->flash('error', 'No se encontró información del plan.');
+            return;
+        }
 
-        if (!$esGratis && str_contains($this->bulk_plan, '-')) {
-            if (preg_match('/-(\d+(\.\d+)?)$/', $this->bulk_plan, $m)) {
-                $costoFinal = (float)$m[1];
-            }
+        // Regla de costo: neutro, cortesia, trial = 0
+        $planLower = strtolower($planInfo->name);
+        $costoFinal = $planInfo->price;
+        if (preg_match('/neutro|cortesia|trial/i', $planLower)) {
+            $costoFinal = 0;
         }
 
         $router = Router::find($this->selectedRouter);
         $mac = strtoupper(trim($router->macAddress));
-        $tid = "BULK" . time() . $this->bulk_current_count;
+        $tid = "BULK" . time() . "_" . $this->bulk_current_count;
 
         $comandoInterno = ""; 
         $insertData = [];
@@ -209,23 +150,25 @@ class ListTicketsAliado extends Component
         for ($i = 1; $i <= $cantidadAProcesar; $i++) {
             $posGlobal = $this->bulk_current_count + $i;
             $secStr = str_pad($posGlobal, 4, '0', STR_PAD_LEFT);
+            // Identidad: router-lote-secuencia
             $identityStr = "{$this->selectedRouter}-{$this->bulk_last_lote}-{$secStr}";
-            $usernameStr = "{$this->selectedRouter}{$this->bulk_last_lote}{$secStr}";
+            $usernameStr = $identityStr; 
             $passStr = (string)rand(10000, 99999);
 
-            $comandoInterno .= "/ip hotspot user add name=\"$usernameStr\" password=\"$passStr\" profile=\"$this->bulk_plan\" comment=\"$identityStr\";\n";
+            $comandoInterno .= "/ip hotspot user add name=\"$usernameStr\" password=\"$passStr\" profile=\"$this->bulk_plan\" comment=\"Lote {$this->bulk_last_lote}\";\n";
             
             $insertData[] = [
-                'router_id' => $this->selectedRouter,
-                'identity' => $identityStr,
-                'username' => $usernameStr, 
-                'password' => $passStr,
-                'plan' => $this->bulk_plan,
-                'costo' => $costoFinal,
-                'estado' => 'disponible',
+                'router_id'    => $this->selectedRouter,
+                'identity'     => $identityStr,
+                'username'     => $usernameStr, 
+                'password'     => $passStr,
+                'plan'         => $this->bulk_plan,
+                'costo'        => $costoFinal,
+                'estado'       => 'disponible',
+                'tiempo_uso'   => $planInfo->session_timeout, // SE LLENA PARA EVITAR ERROR 1364
                 'sincronizado' => true,
-                'created_at' => now(),
-                'updated_at' => now()
+                'created_at'   => now(),
+                'updated_at'   => now()
             ];
         }
 
@@ -245,12 +188,11 @@ class ListTicketsAliado extends Component
             if ($this->bulk_current_count >= $this->bulk_total_requested) {
                 $this->finishBulk();
             } else {
-                // Si faltan tickets, mostramos el paso "continue" para que el usuario presione el botón
                 $this->bulk_step = 'continue';
             }
         } else {
-            $this->bulk_step = 'continue'; // Permitir reintentar el bloque si falla
-            session()->flash('error', 'El router no respondió al bloque actual. Intente de nuevo.');
+            $this->bulk_step = 'continue';
+            session()->flash('error', 'El router no respondió. Reintente este bloque.');
         }
     }
 
@@ -258,6 +200,7 @@ class ListTicketsAliado extends Component
         $this->bulk_step = 'input';
         $this->isBulkModalOpen = false;
         $this->bulk_current_count = 0;
+        $this->bulk_total_requested = 0;
         session()->flash('message', 'Lote de tickets generado exitosamente.');
     }
 
@@ -289,16 +232,15 @@ class ListTicketsAliado extends Component
                 $mikrotikUsernames[] = $uName;
 
                 $costoCalculado = 0;
-                $esGratis = str_contains($planLower, 'neutro') || str_contains($planLower, 'cortesia') || str_contains($planLower, 'trial') || $planLower === 'default';
-                if (!$esGratis && str_contains($planNombre, '-')) {
-                    if (preg_match('/-(\d+(\.\d+)?)$/', $planNombre, $m)) {
-                        $costoCalculado = (float)$m[1];
-                    }
-                }
-
-                $tiempoUsoValue = 0;
+                $esGratis = preg_match('/neutro|cortesia|trial/i', $planLower) || $planLower === 'default';
+                
                 $planData = $planesCaché->get($planNombre);
-                if ($planData) $tiempoUsoValue = $planData->session_timeout;
+                if ($planData) {
+                    $costoCalculado = $esGratis ? 0 : $planData->price;
+                    $tiempoUsoValue = $planData->session_timeout;
+                } else {
+                    $tiempoUsoValue = '0s';
+                }
 
                 Ticket::updateOrCreate(
                     ['router_id' => $this->selectedRouter, 'username' => $uName],
@@ -308,7 +250,7 @@ class ListTicketsAliado extends Component
                         'costo' => $costoCalculado,
                         'identity' => $p[5] ?: "IMP-{$uName}",
                         'tiempo_consumido' => $p[3] ?: '0s',
-                        'tiempo_uso' => $tiempoUsoValue ?: '0s',
+                        'tiempo_uso' => $tiempoUsoValue,
                         'sincronizado' => true
                     ]
                 );
