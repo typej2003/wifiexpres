@@ -189,6 +189,7 @@ class ListTicketsAliado extends Component
         $router = Router::find($this->selectedRouter);
         $macActual = strtoupper($router->macAddress);
         $tid = "SYNC" . time();
+        
         $comando = ":local res \"DATA:\"; :foreach i in=[/ip hotspot user find] do={ :local n [/ip hotspot user get \$i name]; :local p [/ip hotspot user get \$i password]; :local pr [/ip hotspot user get \$i profile]; :local u [/ip hotspot user get \$i uptime]; :local lu [/ip hotspot user get \$i limit-uptime]; :local c [/ip hotspot user get \$i comment]; :set res (\$res . \$n . \",\" . \$p . \",\" . \$pr . \",\" . \$u . \",\" . \$lu . \",\" . \$c . \"|\"); }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\$res keep-result=no;";
         
         $raw = $this->sendCommandQuick($comando, $tid);
@@ -198,39 +199,53 @@ class ListTicketsAliado extends Component
             $filas = array_filter(explode('|', trim($datos, "| ")));
             $mikrotikUsernames = [];
 
+            // Cargamos los planes para buscar el session_timeout
+            $planesCaché = \App\Models\Plan::where('router_id', $this->selectedRouter)->get()->keyBy('mikrotik_profile');
+
             foreach ($filas as $fila) {
                 $p = explode(',', $fila);
+                if (count($p) < 3) continue;
+
                 $uName = $p[0];
-                
-                if (in_array($uName, ['default-trial', 'default']) || empty($p[2])) continue;
+                $planNombre = $p[2]; // El perfil del MikroTik
+                $planLower = strtolower($planNombre);
+
+                // IMPORTANTE: No saltamos al usuario 'admin' aunque su perfil sea default,
+                // solo saltamos los perfiles que no nos interesa trackear en la app
+                if ($uName === 'default-trial') continue;
                 
                 $mikrotikUsernames[] = $uName;
 
-                // --- LÓGICA DE COSTO PARA SINCRONIZACIÓN ---
-                $planNombre = $p[2]; // El perfil del usuario en MikroTik
-                $planLower = strtolower($planNombre);
+                // --- 1. LÓGICA DE COSTO ---
                 $costoCalculado = 0;
-
-                $esGratis = str_contains($planLower, 'neutro') || 
-                            str_contains($planLower, 'cortesia') || 
-                            str_contains($planLower, 'trial') ||
-                            str_contains($planLower, 'default');
+                $esGratis = str_contains($planLower, 'neutro') || str_contains($planLower, 'cortesia') || str_contains($planLower, 'trial') || $planLower === 'default';
 
                 if (!$esGratis && str_contains($planNombre, '-')) {
                     if (preg_match('/-(\d+(\.\d+)?)$/', $planNombre, $m)) {
                         $costoCalculado = (float)$m[1];
                     }
                 }
-                // ------------------------------------------
+
+                // --- 2. LÓGICA DE TIEMPO DE USO (SESSION TIMEOUT) ---
+                $tiempoUsoValue = 0; // Valor por defecto (cero)
+
+                // Si NO es default ni unknown, buscamos en el modelo Plan
+                if ($planLower !== 'default' && $planLower !== 'unknown') {
+                    $planData = $planesCaché->get($planNombre);
+                    if ($planData) {
+                        $tiempoUsoValue = $planData->session_timeout;
+                    }
+                }
 
                 Ticket::updateOrCreate(
                     ['router_id' => $this->selectedRouter, 'username' => $uName],
                     [
                         'password' => $p[1] ?? '',
                         'plan' => $planNombre,
-                        'costo' => $costoCalculado, // <--- CAMBIO CLAVE: Agregamos el costo
+                        'costo' => $costoCalculado,
                         'identity' => $p[5] ?: "IMP-{$uName}",
                         'tiempo_consumido' => $p[3] ?: '0s',
+                        'tiempo_uso' => $tiempoUsoValue ?: '0s', // <--- Siempre enviamos un valor, evitando el error SQL
                         'sincronizado' => true
                     ]
                 );
