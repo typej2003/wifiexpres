@@ -293,9 +293,48 @@ class ListTicketsAliado extends Component
         $this->isPrintModalOpen = false;
     }
 
-    public function anularTicket($id) { Ticket::where('id', $id)->update(['estado' => 'anulado', 'anulado' => true]); }
-    public function restaurarTicket($id) { Ticket::where('id', $id)->update(['estado' => 'disponible', 'anulado' => false]); }
+    public function anularTicket($id)
+    {
+        $ticket = Ticket::find($id);
+        if (!$ticket) return;
 
+        // 1. Actualizamos localmente
+        $ticket->update([
+            'estado' => 'anulado',
+            'anulado' => true
+        ]);
+
+        // 2. Comando MikroTik: Cambiar a perfil 'neutro'
+        $comando = "/ip hotspot user set [find name=\"{$ticket->username}\"] profile=neutro";
+        
+        if ($this->sendCommandQuick($comando, "ANUL-" . $ticket->username)) {
+            session()->flash('message', "Ticket {$ticket->username} anulado correctamente.");
+        } else {
+            session()->flash('error', "El ticket se anuló localmente, pero el MikroTik no respondió.");
+        }
+    }
+
+    public function restaurarTicket($id)
+    {
+        $ticket = Ticket::find($id);
+        if (!$ticket) return;
+
+        // 1. Actualizamos localmente
+        $ticket->update([
+            'estado' => 'disponible',
+            'anulado' => false
+        ]);
+
+        // 2. Comando MikroTik: Volver al perfil original guardado en la columna 'plan'
+        $comando = "/ip hotspot user set [find name=\"{$ticket->username}\"] profile=\"{$ticket->plan}\"";
+        
+        if ($this->sendCommandQuick($comando, "REST-" . $ticket->username)) {
+            session()->flash('message', "Ticket {$ticket->username} restaurado al perfil {$ticket->plan}.");
+        } else {
+            session()->flash('error', "Se restauró localmente, pero no se pudo actualizar el MikroTik.");
+        }
+    }
+    
     public function openBulkModal() { $this->bulk_step = 'input'; $this->loadMikrotikProfiles(); $this->isBulkModalOpen = true; }
     public function closeBulkModal() { $this->isBulkModalOpen = false; }
     public function openConfigModal() { $this->isConfigModalOpen = true; }
