@@ -8,10 +8,18 @@
                             <h3 class="fw-bold mb-0">Ranking de Fidelidad</h3>
                             <p class="text-muted">Análisis detallado de usuarios recurrentes por router.</p>
                         </div>
-                        <div class="col-md-4">
-                            <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0 rounded-start-pill"><i class="bi bi-search"></i></span>
-                                <input wire:model="search" type="text" class="form-control border-start-0 rounded-end-pill" placeholder="Buscar usuario o ticket...">
+                        
+                        <div class="d-flex align-items-center gap-4">
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" wire:model="soloTickets" id="switchSoloTickets">
+                                <label class="form-check-label small fw-bold text-muted" for="switchSoloTickets">OCULTAR MACs</label>
+                            </div>
+
+                            <div style="min-width: 300px;">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0 rounded-start-pill"><i class="bi bi-search"></i></span>
+                                    <input wire:model="search" type="text" class="form-control border-start-0 rounded-end-pill" placeholder="Buscar usuario o ticket...">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -23,7 +31,6 @@
                                     <th class="ps-4">Usuario</th>
                                     <th>Router / Local</th>
                                     <th class="text-center">
-                                        {{-- Botón de ordenamiento añadido --}}
                                         <button wire:click="toggleSort" class="btn btn-link text-decoration-none text-muted p-0 small fw-bold shadow-none">
                                             CONEXIONES
                                             <i class="bi {{ $sortDirection === 'desc' ? 'bi-arrow-down' : 'bi-arrow-up' }} ms-1"></i>
