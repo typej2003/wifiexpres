@@ -26,7 +26,7 @@ setInterval(() => {
             return;
         }
         // Re-encolar si no hubo respuesta en 10s
-        if (ahora - item.timestampUltimoEnvio > 30000) {
+        if (ahora - item.timestampUltimoEnvio > 10000) {
             item.timestampUltimoEnvio = ahora;
             if (!colasPorRouter[item.mac]) colasPorRouter[item.mac] = [];
             if(item.cmd) {
@@ -109,13 +109,12 @@ app.get('/get-long-task', (req, res) => {
  * Corregido para detectar mac/tid en Query y Body simultáneamente
  */
 app.all('/post-result', (req, res) => {
-    const mac = (req.query.mac || req.headers['x-mac'] || req.body?.mac)?.toUpperCase();
-    const tid = (req.query.tid || req.headers['x-id'] || req.body?.tid);
+    // Intenta obtener MAC y TID de la URL o del cuerpo (en caso de que venga como JSON/Form)
+    const mac = (req.query.mac || req.body?.mac)?.toUpperCase();
+    const tid = req.query.tid || req.body?.tid;
     
-    // Prioriza el body para evitar el límite de la URL
-    let data = req.body;
-    if (typeof data !== 'string') data = JSON.stringify(data);
-    if (!data || data === '{}') data = req.query.data;
+    // Captura el contenido: Si el body es texto plano, lo usa; si no, busca en query.data
+    const data = (typeof req.body === 'string' && req.body.length > 0) ? req.body : req.query.data;
     
     if (mac && tid && data) {
         delete comandosEnTransito[tid];
@@ -183,5 +182,4 @@ app.get('/api/routers-online', (req, res) => {
     }
 });
 
-const server = app.listen(3000, '0.0.0.0', () => log(`🚀 BRIDGE v3.6 (HYBRID-PARSE) ONLINE`));
-server.keepAliveTimeout = 65000; // Un poco más que tu timeout de comandos
+app.listen(3000, '0.0.0.0', () => log(`🚀 BRIDGE v3.6 (HYBRID-PARSE) ONLINE`));
