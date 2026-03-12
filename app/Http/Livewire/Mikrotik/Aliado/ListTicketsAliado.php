@@ -10,7 +10,6 @@ use App\Models\Plan;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class ListTicketsAliado extends Component
 {
@@ -28,7 +27,7 @@ class ListTicketsAliado extends Component
     public $bulk_total_requested = 0;
     public $bulk_current_count = 0; 
     public $bulk_last_lote = 0;
-    public $bulk_chunk_size = 30; 
+    public $bulk_chunk_size = 20; 
     public $bulk_count = 10, $bulk_plan;
 
     protected $bridgeUrl = "http://188.95.113.44:3000";
@@ -66,21 +65,21 @@ class ListTicketsAliado extends Component
         $tid = $tid ?? uniqid('Q');
 
         try {
-            $response = Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
+            $response = Http::timeout(5)->withHeaders(['x-mac' => $mac, 'x-id' => $tid])
                 ->withBody(trim($comando), 'text/plain')
                 ->post("{$this->bridgeUrl}/set-command");
 
             if (!$response->successful()) return null;
 
-            for ($i = 0; $i < 15; $i++) {
+            for ($i = 0; $i < 20; $i++) {
                 $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
                 if ($res->successful() && $res->json('status') === 'ready') {
-                    $output = $res->json('data');
-                    // Validación crucial: Si el MikroTik reporta error en su lógica interna
-                    if (str_contains(strtolower($output), 'failure') || str_contains(strtolower($output), 'error')) return null;
+                    $output = trim($res->json('data'));
+                    if (strtoupper($output) === 'OK') return 'SUCCESS';
+                    if (str_contains(strtolower($output), 'error') || str_contains(strtolower($output), 'failure')) return null;
                     return $output ?: "SUCCESS";
                 }
-                usleep(800000); 
+                usleep(900000); 
             }
         } catch (\Exception $e) { Log::error("Error Bridge: " . $e->getMessage()); }
         return null; 
@@ -120,10 +119,7 @@ class ListTicketsAliado extends Component
         }
 
         $cantidadAProcesar = min($this->bulk_chunk_size, $restantes);
-        
-        $planInfo = Plan::where('mikrotik_profile', $this->bulk_plan)
-                        ->where('router_id', $this->selectedRouter)
-                        ->first();
+        $planInfo = Plan::where('mikrotik_profile', $this->bulk_plan)->where('router_id', $this->selectedRouter)->first();
 
         if (!$planInfo) {
             session()->flash('error', 'No se encontró información del plan.');
@@ -131,14 +127,11 @@ class ListTicketsAliado extends Component
         }
 
         $planLower = strtolower($planInfo->name);
-        $costoFinal = $planInfo->price;
-        if (preg_match('/neutro|cortesia|trial/i', $planLower)) {
-            $costoFinal = 0;
-        }
+        $costoFinal = preg_match('/neutro|cortesia|trial/i', $planLower) ? 0 : $planInfo->price;
 
         $router = Router::find($this->selectedRouter);
         $mac = strtoupper(trim($router->macAddress));
-        $tid = "BULK" . time() . "_" . $this->bulk_current_count;
+        $tid = "BULK_" . time();
 
         $comandoInterno = ""; 
         $insertData = [];
@@ -147,51 +140,41 @@ class ListTicketsAliado extends Component
             $posGlobal = $this->bulk_current_count + $i;
             $secStr = str_pad($posGlobal, 4, '0', STR_PAD_LEFT);
             $identityStr = "{$this->selectedRouter}-{$this->bulk_last_lote}-{$secStr}";
-            $usernameStr = $identityStr; 
             $passStr = (string)rand(10000, 99999);
 
-            $comandoInterno .= "/ip hotspot user add name=\"$usernameStr\" password=\"$passStr\" profile=\"$this->bulk_plan\" comment=\"Lote {$this->bulk_last_lote}\";\n";
+            $comandoInterno .= "/ip hotspot user add name=\"$identityStr\" password=\"$passStr\" profile=\"$this->bulk_plan\" comment=\"Lote {$this->bulk_last_lote}\";\n";
             
             $insertData[] = [
                 'router_id'    => $this->selectedRouter,
                 'identity'     => $identityStr,
-                'username'     => $usernameStr, 
+                'username'     => $identityStr, 
                 'password'     => $passStr,
                 'plan'         => $this->bulk_plan,
                 'costo'        => $costoFinal,
                 'estado'       => 'disponible',
-                'tiempo_uso'   => $planInfo->session_timeout,
+                'tiempo_uso'   => $planInfo->session_timeout ?? '0s',
                 'sincronizado' => true,
                 'created_at'   => now(),
                 'updated_at'   => now()
             ];
         }
 
-        $cmdFinal = ":do {
-            $comandoInterno
-            /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no
-        } on-error={
-            /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"ERROR\" keep-result=no
-        }";
+        $cmdFinal = ":do { $comandoInterno /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"ERROR\" keep-result=no }";
 
         $this->bulk_step = 'processing';
+        $res = $this->sendCommandQuick($cmdFinal, $tid);
 
-        $response = $this->sendCommandQuick($cmdFinal, $tid);
-
-        // SOLO SI EL MIKROTIK RESPONDIÓ "OK" O "SUCCESS" PROCEDEMOS
-        if ($response && !str_contains(strtoupper($response), 'ERROR')) {
+        if ($res === 'SUCCESS') {
             Ticket::insert($insertData);
             $this->bulk_current_count += $cantidadAProcesar;
-            
             if ($this->bulk_current_count >= $this->bulk_total_requested) {
                 $this->finishBulk();
             } else {
                 $this->bulk_step = 'continue';
             }
         } else {
-            // Si falló el MikroTik, no avanzamos el contador y mostramos error
-            $this->bulk_step = 'continue'; 
-            session()->flash('error', 'El MikroTik no pudo procesar este bloque. Verifique conexión.');
+            $this->bulk_step = 'continue';
+            session()->flash('error', 'El MikroTik no confirmó la creación. Reintente el bloque.');
         }
     }
 
@@ -218,38 +201,29 @@ class ListTicketsAliado extends Component
             $datos = str_replace('DATA:', '', $raw);
             $filas = array_filter(explode('|', trim($datos, "| ")));
             $mikrotikUsernames = [];
-            $planesCaché = Plan::where('router_id', $this->selectedRouter)->get()->keyBy('mikrotik_profile');
+            $planesCache = Plan::where('router_id', $this->selectedRouter)->get()->keyBy('mikrotik_profile');
 
             foreach ($filas as $fila) {
                 $p = explode(',', $fila);
                 if (count($p) < 3) continue;
-
                 $uName = $p[0];
-                $planNombre = $p[2];
-                $planLower = strtolower($planNombre);
                 if ($uName === 'default-trial') continue;
                 $mikrotikUsernames[] = $uName;
 
-                $costoCalculado = 0;
+                $planNombre = $p[2];
+                $planData = $planesCache->get($planNombre);
+                $planLower = strtolower($planNombre);
                 $esGratis = preg_match('/neutro|cortesia|trial/i', $planLower) || $planLower === 'default';
-                
-                $planData = $planesCaché->get($planNombre);
-                if ($planData) {
-                    $costoCalculado = $esGratis ? 0 : $planData->price;
-                    $tiempoUsoValue = $planData->session_timeout;
-                } else {
-                    $tiempoUsoValue = '0s';
-                }
 
                 Ticket::updateOrCreate(
                     ['router_id' => $this->selectedRouter, 'username' => $uName],
                     [
                         'password' => $p[1] ?? '',
                         'plan' => $planNombre,
-                        'costo' => $costoCalculado,
+                        'costo' => ($planData && !$esGratis) ? $planData->price : 0,
                         'identity' => $p[5] ?: "IMP-{$uName}",
                         'tiempo_consumido' => $p[3] ?: '0s',
-                        'tiempo_uso' => $tiempoUsoValue,
+                        'tiempo_uso' => $planData->session_timeout ?? '0s',
                         'sincronizado' => true
                     ]
                 );
@@ -275,19 +249,6 @@ class ListTicketsAliado extends Component
         session()->flash('message', 'Diseño actualizado.');
     }
 
-    public function loadMikrotikProfiles()
-    {
-        $this->mikrotik_profiles = Plan::where('router_id', $this->selectedRouter)
-            ->active()
-            ->get()
-            ->map(function($plan) {
-                return [
-                    'name' => $plan->mikrotik_profile,
-                    'display' => $plan->name
-                ];
-            })->toArray();
-    }
-
     public function printRange()
     {
         if ($this->tipo_impresion == 'lote') {
@@ -297,6 +258,7 @@ class ListTicketsAliado extends Component
             if (!$primero) { session()->flash('error', 'No hay tickets en este lote.'); return; }
             $desde = $primero->identity; $hasta = $ultimo->identity;
         } else { $desde = $this->desde_ticket; $hasta = $this->hasta_ticket; }
+        
         $url = route('tickets.print', ['router_id' => $this->selectedRouter, 'desde' => $desde, 'hasta' => $hasta]);
         $this->dispatchBrowserEvent('abrirImpresion', ['url' => $url]);
         $this->isPrintModalOpen = false;
@@ -333,7 +295,13 @@ class ListTicketsAliado extends Component
             session()->flash('error', "Error al restaurar.");
         }
     }
-    
+
+    public function loadMikrotikProfiles()
+    {
+        $this->mikrotik_profiles = Plan::where('router_id', $this->selectedRouter)
+            ->active()->get()->map(fn($p) => ['name' => $p->mikrotik_profile, 'display' => $p->name])->toArray();
+    }
+
     public function openBulkModal() { $this->bulk_step = 'input'; $this->loadMikrotikProfiles(); $this->isBulkModalOpen = true; }
     public function closeBulkModal() { $this->isBulkModalOpen = false; }
     public function openConfigModal() { $this->isConfigModalOpen = true; }
