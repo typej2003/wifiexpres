@@ -87,23 +87,23 @@ class ListTicketsAliado extends Component
 
     public function startBulkGeneration()
     {
-        // 1. Validaciones
+        // 1. Validaciones de entrada
         if (!$this->bulk_plan || !$this->bulk_count) {
-            session()->flash('error', 'Faltan datos para generar el lote.');
+            session()->flash('error', 'Debe seleccionar un plan y una cantidad válida.');
             return;
         }
 
-        // 2. Obtener información del Plan (Precio y Session Timeout)
+        // 2. Obtener datos del Plan (Precio y Session Timeout)
         $planInfo = \App\Models\Plan::where('mikrotik_profile', $this->bulk_plan)
-                    ->where('router_id', $this->router_id)
+                    ->where('router_id', $this->selectedRouter)
                     ->first();
 
         if (!$planInfo) {
-            session()->flash('error', 'El perfil no existe en la base de datos de planes.');
+            session()->flash('error', 'El perfil seleccionado no está registrado en la base de datos de planes.');
             return;
         }
 
-        // Lógica de costo basada en tus reglas
+        // Determinar costo según el nombre del plan (Regla: neutro, cortesia, trial = 0)
         $costo = $planInfo->price;
         $planNombreLower = strtolower($planInfo->name);
         if (str_contains($planNombreLower, 'neutro') || 
@@ -112,46 +112,44 @@ class ListTicketsAliado extends Component
             $costo = 0;
         }
 
-        // 3. Determinar el número de Lote
-        // Buscamos el último ticket de este router para extraer su lote
-        $ultimoTicket = \App\Models\Ticket::where('router_id', $this->router_id)
+        // 3. Determinar el número de Lote basado en selectedRouter
+        // Buscamos el último ticket generado para este router específico
+        $ultimoTicket = \App\Models\Ticket::where('router_id', $this->selectedRouter)
                         ->orderBy('id', 'desc')
                         ->first();
         
         $nuevoLote = 1;
         if ($ultimoTicket && str_contains($ultimoTicket->identity, '-')) {
-            // Asumiendo formato router_id-lote-secuencia
             $partes = explode('-', $ultimoTicket->identity);
+            // El formato es router-lote-secuencia, el lote es el segundo índice [1]
             if (count($partes) >= 2) {
                 $nuevoLote = (int)$partes[1] + 1;
             }
         }
 
-        // 4. Preparar data para el insert masivo
+        // 4. Preparar la data para el insert masivo
         $ticketsData = [];
         $now = now();
-        $routerId = $this->router_id;
 
         for ($i = 1; $i <= $this->bulk_count; $i++) {
-            // Formato de secuencia con ceros a la izquierda (ej: 0001)
+            // Secuencia con ceros (0001, 0002...)
             $secuencia = str_pad($i, 4, '0', STR_PAD_LEFT);
             
-            // Identidad / Username: router_id-lote-secuencia
-            // Ejemplo: 1-5-0001 (Router 1, Lote 5, Ticket 1)
-            $formatoUnico = "{$routerId}-{$nuevoLote}-{$secuencia}";
+            // Identidad unificada: router_id-lote-secuencia
+            $formatoUnico = "{$this->selectedRouter}-{$nuevoLote}-{$secuencia}";
             
-            // Generar un Password aleatorio de 5 dígitos
+            // Password aleatorio de 5 dígitos
             $password = rand(10000, 99999);
 
             $ticketsData[] = [
-                'router_id'    => $routerId,
-                'username'     => $formatoUnico, // router_id-lote-secuencia
+                'router_id'    => $this->selectedRouter,
+                'username'     => $formatoUnico,
                 'password'     => $password,
-                'identity'     => $formatoUnico, // router_id-lote-secuencia
+                'identity'     => $formatoUnico,
                 'plan'         => $this->bulk_plan,
                 'costo'        => $costo,
                 'estado'       => 'disponible',
-                'tiempo_uso'   => $planInfo->session_timeout,
+                'tiempo_uso'   => $planInfo->session_timeout, // session timeout del perfil
                 'sincronizado' => 1,
                 'created_at'   => $now,
                 'updated_at'   => $now,
@@ -159,14 +157,14 @@ class ListTicketsAliado extends Component
         }
 
         try {
-            // 5. Insertar en bloque
+            // 5. Insertar registros
             \App\Models\Ticket::insert($ticketsData);
             
-            session()->flash('message', "Lote #{$nuevoLote} generado con {$this->bulk_count} tickets.");
+            session()->flash('message', "¡Éxito! Se generó el Lote #{$nuevoLote} con {$this->bulk_count} tickets.");
             $this->closeBulkModal();
             
         } catch (\Exception $e) {
-            session()->flash('error', 'Error al insertar: ' . $e->getMessage());
+            session()->flash('error', 'Error en la base de datos: ' . $e->getMessage());
         }
     }
 
