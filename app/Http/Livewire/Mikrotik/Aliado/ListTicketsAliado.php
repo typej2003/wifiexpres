@@ -190,18 +190,52 @@ class ListTicketsAliado extends Component
         $macActual = strtoupper($router->macAddress);
         $tid = "SYNC" . time();
         $comando = ":local res \"DATA:\"; :foreach i in=[/ip hotspot user find] do={ :local n [/ip hotspot user get \$i name]; :local p [/ip hotspot user get \$i password]; :local pr [/ip hotspot user get \$i profile]; :local u [/ip hotspot user get \$i uptime]; :local lu [/ip hotspot user get \$i limit-uptime]; :local c [/ip hotspot user get \$i comment]; :set res (\$res . \$n . \",\" . \$p . \",\" . \$pr . \",\" . \$u . \",\" . \$lu . \",\" . \$c . \"|\"); }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\$res keep-result=no;";
+        
         $raw = $this->sendCommandQuick($comando, $tid);
+        
         if ($raw && str_contains($raw, 'DATA:')) {
             $datos = str_replace('DATA:', '', $raw);
             $filas = array_filter(explode('|', trim($datos, "| ")));
             $mikrotikUsernames = [];
+
             foreach ($filas as $fila) {
                 $p = explode(',', $fila);
                 $uName = $p[0];
+                
                 if (in_array($uName, ['default-trial', 'default']) || empty($p[2])) continue;
+                
                 $mikrotikUsernames[] = $uName;
-                Ticket::updateOrCreate(['router_id' => $this->selectedRouter, 'username' => $uName], ['password' => $p[1] ?? '', 'plan' => $p[2], 'identity' => $p[5] ?: "IMP-{$uName}", 'tiempo_consumido' => $p[3] ?: '0s', 'sincronizado' => true]);
+
+                // --- LÓGICA DE COSTO PARA SINCRONIZACIÓN ---
+                $planNombre = $p[2]; // El perfil del usuario en MikroTik
+                $planLower = strtolower($planNombre);
+                $costoCalculado = 0;
+
+                $esGratis = str_contains($planLower, 'neutro') || 
+                            str_contains($planLower, 'cortesia') || 
+                            str_contains($planLower, 'trial') ||
+                            str_contains($planLower, 'default');
+
+                if (!$esGratis && str_contains($planNombre, '-')) {
+                    if (preg_match('/-(\d+(\.\d+)?)$/', $planNombre, $m)) {
+                        $costoCalculado = (float)$m[1];
+                    }
+                }
+                // ------------------------------------------
+
+                Ticket::updateOrCreate(
+                    ['router_id' => $this->selectedRouter, 'username' => $uName],
+                    [
+                        'password' => $p[1] ?? '',
+                        'plan' => $planNombre,
+                        'costo' => $costoCalculado, // <--- CAMBIO CLAVE: Agregamos el costo
+                        'identity' => $p[5] ?: "IMP-{$uName}",
+                        'tiempo_consumido' => $p[3] ?: '0s',
+                        'sincronizado' => true
+                    ]
+                );
             }
+            
             Ticket::where('router_id', $this->selectedRouter)->whereNotIn('username', $mikrotikUsernames)->delete();
             session()->flash('message', 'Sincronización finalizada.');
         }
