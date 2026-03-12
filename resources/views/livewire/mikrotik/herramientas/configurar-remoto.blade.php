@@ -60,9 +60,6 @@
                                         @error('soporte_pass') <span class="text-danger small">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
-                                <div class="form-text mt-2" style="font-size: 0.75rem;">
-                                    <i class="bi bi-info-circle"></i> Se requiere usuario y contraseña para habilitar las acciones.
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -120,7 +117,7 @@
                         </div>
                     @endif
                     
-                    <div class="terminal-box bg-dark rounded-4 p-4 shadow-inner" style="background-color: #0c0c0c !important;">
+                    <div class="terminal-box bg-dark rounded-4 p-4 shadow-inner mb-3" style="background-color: #0c0c0c !important;">
                         <div id="logs-container" class="console-text" style="height: 350px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85rem; scroll-behavior: smooth;">
                             @foreach($logs as $log)
                                 <div class="mb-1 text-light border-start border-success border-2 ps-3">
@@ -130,6 +127,21 @@
                             @endforeach
                         </div>
                     </div>
+
+                    <div class="row">
+                        <div class="col-12">
+                            <button wire:click="forzarCopiadoLogin" 
+                                @if(!$router_id || !$version_id || $isConfiguring) disabled @endif
+                                class="btn btn-secondary rounded-3 fw-bold w-100 py-2 shadow-sm border-0" 
+                                style="background-color: #2c3e50;">
+                                <i class="bi bi-file-earmark-arrow-down-fill me-2"></i> FORZAR COPIADO DE LOGIN.HTML (VERSIÓN SELECCIONADA)
+                            </button>
+                            <p class="text-muted small mt-2 text-center">
+                                <i class="bi bi-info-circle"></i> Esto solo descargará el archivo HTML en la carpeta <code>hotspot/</code> sin alterar la configuración del router.
+                            </p>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>

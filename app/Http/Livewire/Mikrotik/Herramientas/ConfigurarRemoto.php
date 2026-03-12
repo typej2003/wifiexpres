@@ -121,6 +121,24 @@ class ConfigurarRemoto extends Component
         ]);
     }
 
+    /**
+     * Fuerza la descarga exclusiva del archivo login.html
+     */
+    public function forzarCopiadoLogin()
+    {
+        $this->validate([
+            'router_id' => 'required',
+            'version_id' => 'required'
+        ]);
+
+        $version = HotspotVersion::findOrFail($this->version_id);
+        $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $this->version_id;
+
+        $this->iniciarProceso("📥 Forzando actualización de portal...", [
+            ['cmd' => '/tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" mode=http; :delay 2s', 'desc' => 'Descargando login.html version: ' . $version->name],
+        ]);
+    }
+
     private function iniciarProceso($mensaje, $listaPasos)
     {
         $this->isConfiguring = true;
