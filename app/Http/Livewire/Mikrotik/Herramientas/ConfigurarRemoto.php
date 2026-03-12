@@ -115,8 +115,8 @@ class ConfigurarRemoto extends Component
             ['cmd' => '/ip hotspot walled-garden ip add dst-address=188.95.113.44 comment="Bridge Socket"', 'desc' => 'WG IP: Bridge'],
             ['cmd' => '/ip hotspot walled-garden ip add dst-address=190.217.7.106; /ip hotspot walled-garden ip add dst-address=190.217.7.229; /ip hotspot walled-garden ip add dst-address=200.11.243.174; /ip hotspot walled-garden ip add dst-address=190.202.148.187', 'desc' => 'WG IP: Pasarela BDV'],
             ['cmd' => '/ip hotspot walled-garden ip add dst-port=5228-5230 protocol=tcp; /ip hotspot walled-garden ip add dst-port=5223 protocol=tcp', 'desc' => 'WG IP: Puertos Push'],
-            ['cmd' => '/tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" mode=http; :delay 2s', 'desc' => 'Descargando e Instalando Portal: ' . $version->name],
-            ['cmd' => ":if (\"$this->soporte_user\" != \"admin\") do={ /user remove [find name=\"admin\"] }", 'desc' => 'Removiendo usuario admin por seguridad'],
+            // Busca esta línea en ejecutarConfiguracion() y cámbiala:
+            ['cmd' => '/tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => 'Descargando e Instalando Portal: ' . $version->name],['cmd' => ":if (\"$this->soporte_user\" != \"admin\") do={ /user remove [find name=\"admin\"] }", 'desc' => 'Removiendo usuario admin por seguridad'],
             ['cmd' => '/system reboot', 'desc' => 'Reiniciando Router para aplicar cambios y cerrar sesiones'],
         ]);
     }
