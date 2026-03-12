@@ -80,7 +80,6 @@
                     @forelse($tickets as $t)
                         <tr wire:key="ticket-{{ $t->id }}" class="{{ $t->anulado ? 'opacity-50' : '' }}">
                             <td class="px-4">
-                                {{-- CAMBIO AQUÍ: Se muestra $t->username en lugar de $t->identity --}}
                                 <span class="fw-bold d-block text-dark">{{ $t->username }}</span>
                                 <small class="text-muted font-monospace">Pass: {{ $t->password }}</small>
                             </td>
@@ -92,8 +91,18 @@
                             <td><code class="text-dark fw-bold">{{ $t->tiempo_consumido ?: '0s' }}</code></td>
                             <td class="text-end px-4">
                                 <div class="btn-group btn-group-sm border rounded-pill overflow-hidden shadow-sm">
-                                    <button wire:click="{{ $t->anulado ? 'restaurarTicket' : 'anularTicket' }}({{ $t->id }})" class="btn btn-white border-0" title="{{ $t->anulado ? 'Restaurar' : 'Anular' }}">
-                                        <i class="bi {{ $t->anulado ? 'bi-arrow-counterclockwise text-success' : 'bi-x-circle text-danger' }}"></i>
+                                    {{-- BOTÓN CON SPINNER --}}
+                                    <button wire:click="{{ $t->anulado ? 'restaurarTicket' : 'anularTicket' }}({{ $t->id }})" 
+                                            wire:loading.attr="disabled"
+                                            wire:target="{{ $t->anulado ? 'restaurarTicket' : 'anularTicket' }}({{ $t->id }})"
+                                            class="btn btn-white border-0" 
+                                            title="{{ $t->anulado ? 'Restaurar' : 'Anular' }}">
+                                        
+                                        <span wire:loading.remove wire:target="{{ $t->anulado ? 'restaurarTicket' : 'anularTicket' }}({{ $t->id }})">
+                                            <i class="bi {{ $t->anulado ? 'bi-arrow-counterclockwise text-success' : 'bi-x-circle text-danger' }}"></i>
+                                        </span>
+                                        
+                                        <span wire:loading wire:target="{{ $t->anulado ? 'restaurarTicket' : 'anularTicket' }}({{ $t->id }})" class="spinner-border spinner-border-sm text-primary"></span>
                                     </button>
                                 </div>
                             </td>
@@ -107,7 +116,7 @@
         <div class="card-footer bg-white p-3 border-0">{{ $tickets->links() }}</div>
     </div>
 
-    {{-- MODAL GENERAR LOTE (PROGRESO POR BLOQUES) --}}
+    {{-- MODAL GENERAR LOTE --}}
     @if($isBulkModalOpen)
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); z-index: 1050;">
         <div class="modal-dialog modal-dialog-centered" wire:init="loadMikrotikProfiles">
@@ -141,51 +150,29 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <button wire:click="startBulkGeneration" class="btn btn-dark w-100 rounded-pill py-3 fw-bold shadow">
-                                INICIAR PROCESO
+                            <button wire:click="startBulkGeneration" wire:loading.attr="disabled" class="btn btn-dark w-100 rounded-pill py-3 fw-bold shadow">
+                                <span wire:loading.remove wire:target="startBulkGeneration text-white">INICIAR PROCESO</span>
+                                <span wire:loading wire:target="startBulkGeneration text-white">PROCESANDO...</span>
                             </button>
                         @else
                             <div class="py-3">
                                 <h6 class="fw-bold mb-3 text-uppercase text-muted">Estado del Lote</h6>
-                                
                                 @php $porcentaje = $bulk_total_requested > 0 ? ($bulk_current_count / $bulk_total_requested) * 100 : 0; @endphp
-                                
                                 <div class="progress rounded-pill mb-3 shadow-sm" style="height: 25px;">
-                                    <div class="progress-bar bg-primary progress-bar-striped progress-bar-animated" 
-                                         role="progressbar" 
-                                         style="width: {{ $porcentaje }}%">
-                                        {{ round($porcentaje) }}%
-                                    </div>
+                                    <div class="progress-bar bg-primary progress-bar-striped progress-bar-animated" style="width: {{ $porcentaje }}%">{{ round($porcentaje) }}%</div>
                                 </div>
-                                
                                 <p class="fw-bold mb-4">
                                     <span class="text-primary fs-4">{{ $bulk_current_count }}</span> 
                                     <span class="text-muted">/ {{ $bulk_total_requested }} tickets creados</span>
                                 </p>
 
                                 @if($bulk_current_count < $bulk_total_requested)
-                                    <div class="alert alert-info border-0 rounded-4 py-3 mb-4">
-                                        <i class="bi bi-info-circle-fill me-2"></i>
-                                        Listo para enviar el siguiente bloque de <strong>{{ session('next_amount', 30) }}</strong> tickets.
-                                    </div>
-                                    
                                     <button wire:click="processNextChunk" wire:loading.attr="disabled" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-lg fs-5">
-                                        <span wire:loading.remove wire:target="processNextChunk">
-                                            <i class="bi bi-play-fill me-1"></i> PROCESAR SIGUIENTE BLOQUE
-                                        </span>
-                                        <span wire:loading wire:target="processNextChunk">
-                                            <span class="spinner-border spinner-border-sm me-2"></span> ENVIANDO A MIKROTIK...
-                                        </span>
+                                        <span wire:loading.remove wire:target="processNextChunk"><i class="bi bi-play-fill me-1"></i> SIGUIENTE BLOQUE</span>
+                                        <span wire:loading wire:target="processNextChunk"><span class="spinner-border spinner-border-sm me-2"></span> ENVIANDO...</span>
                                     </button>
                                 @else
-                                    <div class="alert alert-success border-0 rounded-4 py-3 mb-4 shadow-sm">
-                                        <i class="bi bi-check-all fs-4 d-block mb-1"></i>
-                                        <strong>¡PROCESO COMPLETADO!</strong><br>
-                                        Todos los tickets han sido creados y sincronizados.
-                                    </div>
-                                    <button wire:click="finishBulk" class="btn btn-dark w-100 rounded-pill py-3 fw-bold">
-                                        FINALIZAR Y VER TICKETS
-                                    </button>
+                                    <button wire:click="finishBulk" class="btn btn-dark w-100 rounded-pill py-3 fw-bold">FINALIZAR Y VER TICKETS</button>
                                 @endif
                             </div>
                         @endif
@@ -244,7 +231,7 @@
     </div>
     @endif
 
-    {{-- MODAL CONFIGURACIÓN DE DISEÑO --}}
+    {{-- MODAL CONFIGURACIÓN --}}
     @if($isConfigModalOpen)
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); z-index: 1050;">
         <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -260,25 +247,21 @@
                                 <label class="form-label small fw-bold text-muted">LOGOTIPO</label>
                                 <div class="d-flex align-items-center gap-3 p-3 border rounded-4 bg-light">
                                     <div class="bg-white p-1 rounded shadow-sm d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-                                        @if($nuevo_logo)
-                                            <img src="{{ $nuevo_logo->temporaryUrl() }}" style="max-width: 100%; max-height: 100%;">
-                                        @elseif($logo_actual)
-                                            <img src="{{ asset('storage/'.$logo_actual) }}" style="max-width: 100%; max-height: 100%;">
-                                        @else
-                                            <i class="bi bi-image text-muted fs-3"></i>
-                                        @endif
+                                        @if($nuevo_logo) <img src="{{ $nuevo_logo->temporaryUrl() }}" style="max-width: 100%; max-height: 100%;">
+                                        @elseif($logo_actual) <img src="{{ asset('storage/'.$logo_actual) }}" style="max-width: 100%; max-height: 100%;">
+                                        @else <i class="bi bi-image text-muted fs-3"></i> @endif
                                     </div>
                                     <div class="flex-grow-1">
                                         <input type="file" wire:model="nuevo_logo" class="form-control form-control-sm border-0 bg-transparent shadow-none">
                                     </div>
                                 </div>
                             </div>
-                            <div class="mb-3 text-start">
-                                <label class="form-label small fw-bold text-muted">NOMBRE DEL NEGOCIO</label>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-muted text-start d-block">NOMBRE DEL NEGOCIO</label>
                                 <input type="text" wire:model="comercio_nombre" class="form-control rounded-3 border-0 bg-light shadow-none">
                             </div>
-                            <div class="mb-3 text-start">
-                                <label class="form-label small fw-bold text-muted">URL DEL PORTAL</label>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-muted text-start d-block">URL DEL PORTAL</label>
                                 <input type="text" wire:model="hotspot_url" class="form-control rounded-3 border-0 bg-light shadow-none">
                             </div>
                         </div>
@@ -330,12 +313,13 @@
         .spin-icon { animation: spin 1s linear infinite; display: inline-block; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .btn-white { background-color: #fff; }
-        .real-ticket-preview { width: 160px; height: 380px; background: #fff; border: 1px solid #ddd; padding: 15px 10px; display: flex; flex-direction: column; text-align: center; }
+        .real-ticket-preview { width: 160px; height: 380px; background: #fff; border: 1px solid #ddd; padding: 15px 10px; display: flex; flex-direction: column; text-align: center; border-radius: 4px; }
         .logo-wrapper { width: 50px; height: 50px; margin: 0 auto; display: flex; align-items: center; justify-content: center; }
         .preview-logo-img { max-width: 100%; max-height: 100%; }
         .preview-creds-box { background: #f8f9fa; padding: 8px; margin: 10px 0; border: 1px solid #eee; border-radius: 6px; }
         .preview-label { font-size: 9px; color: #777; display: block; }
         .preview-text-value { font-size: 13px; font-weight: bold; font-family: monospace; display: block; }
         .preview-plan-box { background: #000; color: #fff; font-size: 10px; padding: 4px; font-weight: bold; margin: 5px 0; }
+        .preview-comercio-nombre { font-weight: 800; font-size: 12px; margin-top: 5px; text-transform: uppercase; }
     </style>
 </div>

@@ -25,7 +25,7 @@ class ListTicketsAliado extends Component
     // --- VARIABLES DE CONTROL DE LOTES (MANUAL) ---
     public $bulk_step = 'input'; 
     public $bulk_total_requested = 0;
-    public $bulk_current_count = 0; // Tickets ya creados exitosamente
+    public $bulk_current_count = 0; 
     public $bulk_last_lote = 0;
     public $bulk_chunk_size = 30; 
     public $bulk_count = 10, $bulk_plan;
@@ -84,7 +84,6 @@ class ListTicketsAliado extends Component
         return null; 
     }
 
-    // --- GENERACIÓN MASIVA POR BLOQUES (MODO MANUAL) ---
     public function startBulkGeneration()
     {
         $this->validate([
@@ -95,7 +94,6 @@ class ListTicketsAliado extends Component
         $this->bulk_total_requested = (int)$this->bulk_count;
         $this->bulk_current_count = 0;
         
-        // Determinar el número de lote (correlativo)
         $ultimo = Ticket::where('router_id', $this->selectedRouter)
             ->where('identity', 'LIKE', $this->selectedRouter . '-%')
             ->latest('id')->first();
@@ -103,39 +101,23 @@ class ListTicketsAliado extends Component
         $this->bulk_last_lote = $ultimo ? (int)explode('-', $ultimo->identity)[1] + 1 : 1;
         
         $this->bulk_step = 'processing';
-        $this->processNextChunk(); // Ejecuta el primer bloque de 30
+        $this->processNextChunk(); 
     }
 
     public function processNextChunk()
     {
         $restantes = $this->bulk_total_requested - $this->bulk_current_count;
-        
-        if ($restantes <= 0) { 
-            return; 
-        }
+        if ($restantes <= 0) return;
 
         $cantidadAProcesar = min($this->bulk_chunk_size, $restantes);
-        
-        // --- LÓGICA DE COSTO CORREGIDA ---
         $planLower = strtolower($this->bulk_plan);
         $costoFinal = 0;
 
-        // 1. Verificamos si es un plan de cortesía o trial
-        $esGratis = str_contains($planLower, 'neutro') || 
-                    str_contains($planLower, 'cortesia') || 
-                    str_contains($planLower, 'trial') ||
-                    str_contains($planLower, 'default');
+        $esGratis = str_contains($planLower, 'neutro') || str_contains($planLower, 'cortesia') || str_contains($planLower, 'trial') || str_contains($planLower, 'default');
 
-        if (!$esGratis) {
-            // 2. Solo buscamos costo si el plan contiene un guion "-"
-            if (str_contains($this->bulk_plan, '-')) {
-                // Extraemos el número después del último guion
-                if (preg_match('/-(\d+(\.\d+)?)$/', $this->bulk_plan, $m)) {
-                    $costoFinal = (float)$m[1];
-                }
-            } else {
-                // Si no tiene guion, el costo es 0 (según tu instrucción)
-                $costoFinal = 0;
+        if (!$esGratis && str_contains($this->bulk_plan, '-')) {
+            if (preg_match('/-(\d+(\.\d+)?)$/', $this->bulk_plan, $m)) {
+                $costoFinal = (float)$m[1];
             }
         }
 
@@ -168,10 +150,6 @@ class ListTicketsAliado extends Component
         if ($this->sendCommandQuick($comandoMasivo)) {
             Ticket::insert($insertData);
             $this->bulk_current_count += $cantidadAProcesar;
-
-            if ($this->bulk_current_count >= $this->bulk_total_requested) {
-                // Finalizado
-            }
         } else {
             session()->flash('error', 'Error en el bloque actual. El router no respondió correctamente.');
         }
@@ -198,8 +176,6 @@ class ListTicketsAliado extends Component
             $datos = str_replace('DATA:', '', $raw);
             $filas = array_filter(explode('|', trim($datos, "| ")));
             $mikrotikUsernames = [];
-
-            // Cargamos los planes para buscar el session_timeout
             $planesCaché = \App\Models\Plan::where('router_id', $this->selectedRouter)->get()->keyBy('mikrotik_profile');
 
             foreach ($filas as $fila) {
@@ -207,34 +183,23 @@ class ListTicketsAliado extends Component
                 if (count($p) < 3) continue;
 
                 $uName = $p[0];
-                $planNombre = $p[2]; // El perfil del MikroTik
+                $planNombre = $p[2];
                 $planLower = strtolower($planNombre);
-
-                // IMPORTANTE: No saltamos al usuario 'admin' aunque su perfil sea default,
-                // solo saltamos los perfiles que no nos interesa trackear en la app
                 if ($uName === 'default-trial') continue;
-                
                 $mikrotikUsernames[] = $uName;
 
-                // --- 1. LÓGICA DE COSTO ---
                 $costoCalculado = 0;
                 $esGratis = str_contains($planLower, 'neutro') || str_contains($planLower, 'cortesia') || str_contains($planLower, 'trial') || $planLower === 'default';
-
                 if (!$esGratis && str_contains($planNombre, '-')) {
                     if (preg_match('/-(\d+(\.\d+)?)$/', $planNombre, $m)) {
                         $costoCalculado = (float)$m[1];
                     }
                 }
 
-                // --- 2. LÓGICA DE TIEMPO DE USO (SESSION TIMEOUT) ---
-                $tiempoUsoValue = 0; // Valor por defecto (cero)
-
-                // Si NO es default ni unknown, buscamos en el modelo Plan
+                $tiempoUsoValue = 0;
                 if ($planLower !== 'default' && $planLower !== 'unknown') {
                     $planData = $planesCaché->get($planNombre);
-                    if ($planData) {
-                        $tiempoUsoValue = $planData->session_timeout;
-                    }
+                    if ($planData) $tiempoUsoValue = $planData->session_timeout;
                 }
 
                 Ticket::updateOrCreate(
@@ -245,12 +210,11 @@ class ListTicketsAliado extends Component
                         'costo' => $costoCalculado,
                         'identity' => $p[5] ?: "IMP-{$uName}",
                         'tiempo_consumido' => $p[3] ?: '0s',
-                        'tiempo_uso' => $tiempoUsoValue ?: '0s', // <--- Siempre enviamos un valor, evitando el error SQL
+                        'tiempo_uso' => $tiempoUsoValue ?: '0s',
                         'sincronizado' => true
                     ]
                 );
             }
-            
             Ticket::where('router_id', $this->selectedRouter)->whereNotIn('username', $mikrotikUsernames)->delete();
             session()->flash('message', 'Sincronización finalizada.');
         }
@@ -260,8 +224,14 @@ class ListTicketsAliado extends Component
     public function saveConfig()
     {
         $router = Router::find($this->selectedRouter);
-        if ($this->nuevo_logo) { $path = $this->nuevo_logo->store('logos', 'public'); $router->comercio_logo = $path; $this->logo_actual = $path; }
-        $router->comercio_nombre = $this->comercio_nombre; $router->hotspot_url = $this->hotspot_url; $router->save();
+        if ($this->nuevo_logo) { 
+            $path = $this->nuevo_logo->store('logos', 'public'); 
+            $router->comercio_logo = $path; 
+            $this->logo_actual = $path; 
+        }
+        $router->comercio_nombre = $this->comercio_nombre; 
+        $router->hotspot_url = $this->hotspot_url; 
+        $router->save();
         $this->isConfigModalOpen = false;
         session()->flash('message', 'Diseño actualizado.');
     }
@@ -298,19 +268,13 @@ class ListTicketsAliado extends Component
         $ticket = Ticket::find($id);
         if (!$ticket) return;
 
-        // 1. Actualizamos localmente
-        $ticket->update([
-            'estado' => 'anulado',
-            'anulado' => true
-        ]);
-
-        // 2. Comando MikroTik: Cambiar a perfil 'neutro'
         $comando = "/ip hotspot user set [find name=\"{$ticket->username}\"] profile=neutro";
         
         if ($this->sendCommandQuick($comando, "ANUL-" . $ticket->username)) {
+            $ticket->update(['estado' => 'anulado', 'anulado' => true]);
             session()->flash('message', "Ticket {$ticket->username} anulado correctamente.");
         } else {
-            session()->flash('error', "El ticket se anuló localmente, pero el MikroTik no respondió.");
+            session()->flash('error', "No se pudo modificar: el MikroTik no respondió correctamente.");
         }
     }
 
@@ -319,19 +283,13 @@ class ListTicketsAliado extends Component
         $ticket = Ticket::find($id);
         if (!$ticket) return;
 
-        // 1. Actualizamos localmente
-        $ticket->update([
-            'estado' => 'disponible',
-            'anulado' => false
-        ]);
-
-        // 2. Comando MikroTik: Volver al perfil original guardado en la columna 'plan'
         $comando = "/ip hotspot user set [find name=\"{$ticket->username}\"] profile=\"{$ticket->plan}\"";
         
         if ($this->sendCommandQuick($comando, "REST-" . $ticket->username)) {
+            $ticket->update(['estado' => 'disponible', 'anulado' => false]);
             session()->flash('message', "Ticket {$ticket->username} restaurado al perfil {$ticket->plan}.");
         } else {
-            session()->flash('error', "Se restauró localmente, pero no se pudo actualizar el MikroTik.");
+            session()->flash('error', "No se pudo restaurar: el MikroTik no respondió correctamente.");
         }
     }
     
