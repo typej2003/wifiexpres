@@ -80,7 +80,8 @@
                     @forelse($tickets as $t)
                         <tr wire:key="ticket-{{ $t->id }}" class="{{ $t->anulado ? 'opacity-50' : '' }}">
                             <td class="px-4">
-                                <span class="fw-bold d-block text-dark">{{ $t->identity }}</span>
+                                {{-- CAMBIO AQUÍ: Se muestra $t->username en lugar de $t->identity --}}
+                                <span class="fw-bold d-block text-dark">{{ $t->username }}</span>
                                 <small class="text-muted font-monospace">Pass: {{ $t->password }}</small>
                             </td>
                             <td><div class="fw-bold text-dark">{{ $t->plan }}</div></td>
