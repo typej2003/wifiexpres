@@ -247,10 +247,16 @@ class ListTicketsAliado extends Component
 
     public function loadMikrotikProfiles()
     {
+        // Se cargan los planes de la DB filtrando por el router actual y que estén activos
         $this->mikrotik_profiles = Plan::where('router_id', $this->selectedRouter)
-            ->select('mikrotik_profile as name', 'name as display')
+            ->active()
             ->get()
-            ->toArray();
+            ->map(function($plan) {
+                return [
+                    'name' => $plan->mikrotik_profile,
+                    'display' => $plan->name
+                ];
+            })->toArray();
     }
 
     public function printRange()
