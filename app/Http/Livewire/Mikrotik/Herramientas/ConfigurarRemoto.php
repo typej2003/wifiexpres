@@ -126,14 +126,20 @@ class ConfigurarRemoto extends Component
      */
     public function forzarCopiadoLogin()
     {
-        $this->validate(['router_id' => 'required', 'version_id' => 'required']);
+        $this->validate([
+            'router_id' => 'required',
+            'version_id' => 'required'
+        ]);
+
         $version = HotspotVersion::findOrFail($this->version_id);
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $this->version_id;
 
         $this->iniciarProceso("📥 Forzando actualización de portal...", [
             [
-                // ELIMINADO "mode=http", AGREGADO "check-certificate=no"
-                'cmd' => '/tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" check-certificate=no', 
+                // 1. Verificamos/creamos carpeta hotspot
+                // 2. Quitamos mode=http (causa el conflicto)
+                // 3. Agregamos check-certificate=no (evita fallos por fecha/hora)
+                'cmd' => ':if ([:len [/file find name="hotspot"]]=0) do={/file add name="hotspot" type="directory"}; /tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" check-certificate=no', 
                 'desc' => 'Descargando login.html version: ' . $version->name
             ],
         ]);
@@ -165,15 +171,8 @@ class ConfigurarRemoto extends Component
 
         $this->logs[] = "📡 Enviando: " . $paso['desc'];
 
-        // EXPLICACIÓN:
-        // El primer fetch (en $paso['cmd']) debe ser limpio.
-        // El segundo fetch (el de retorno al bridge) DEBE usar http-method=post.
-        $script = ":do { 
-            {$paso['cmd']}; 
-            /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no 
-        } on-error={ 
-            /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"ERR\" keep-result=no 
-        }";
+        // Usamos comillas simples para el data del post y evitamos colisiones
+        $script = ":do { {$paso['cmd']}; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"ERR\" keep-result=no }";
         
         $scriptLimpio = trim(preg_replace('/\s+/', ' ', $script));
 
