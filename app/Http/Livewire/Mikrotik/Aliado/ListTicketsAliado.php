@@ -116,16 +116,32 @@ class ListTicketsAliado extends Component
 
         $cantidadAProcesar = min($this->bulk_chunk_size, $restantes);
         
-        // Lógica de costo dinámica
+        // --- LÓGICA DE COSTO CORREGIDA ---
         $planLower = strtolower($this->bulk_plan);
         $costoFinal = 0;
-        $esGratis = str_contains($planLower, 'neutro') || str_contains($planLower, 'cortesia') || str_contains($planLower, 'trial');
-        if (!$esGratis && preg_match('/(\d+(\.\d+)?)$/', $this->bulk_plan, $m)) $costoFinal = (float)$m[0];
+
+        // 1. Verificamos si es un plan de cortesía o trial
+        $esGratis = str_contains($planLower, 'neutro') || 
+                    str_contains($planLower, 'cortesia') || 
+                    str_contains($planLower, 'trial') ||
+                    str_contains($planLower, 'default');
+
+        if (!$esGratis) {
+            // 2. Solo buscamos costo si el plan contiene un guion "-"
+            if (str_contains($this->bulk_plan, '-')) {
+                // Extraemos el número después del último guion
+                if (preg_match('/-(\d+(\.\d+)?)$/', $this->bulk_plan, $m)) {
+                    $costoFinal = (float)$m[1];
+                }
+            } else {
+                // Si no tiene guion, el costo es 0 (según tu instrucción)
+                $costoFinal = 0;
+            }
+        }
 
         $comandoMasivo = ""; 
         $insertData = [];
 
-        // EL SECUENCIAL COMIENZA DESDE EL ÚLTIMO PROCESADO + 1
         for ($i = 1; $i <= $cantidadAProcesar; $i++) {
             $posGlobal = $this->bulk_current_count + $i;
             $secStr = str_pad($posGlobal, 4, '0', STR_PAD_LEFT);
@@ -151,10 +167,10 @@ class ListTicketsAliado extends Component
 
         if ($this->sendCommandQuick($comandoMasivo)) {
             Ticket::insert($insertData);
-            $this->bulk_current_count += $cantidadAProcesar; // Actualizamos el progreso
+            $this->bulk_current_count += $cantidadAProcesar;
 
             if ($this->bulk_current_count >= $this->bulk_total_requested) {
-                // No cerramos automáticamente para que vea el 100%
+                // Finalizado
             }
         } else {
             session()->flash('error', 'Error en el bloque actual. El router no respondió correctamente.');
