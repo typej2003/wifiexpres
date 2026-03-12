@@ -22,7 +22,13 @@
                                 <tr>
                                     <th class="ps-4">Usuario</th>
                                     <th>Router / Local</th>
-                                    <th class="text-center">Conexiones</th>
+                                    <th class="text-center">
+                                        {{-- Botón de ordenamiento añadido --}}
+                                        <button wire:click="toggleSort" class="btn btn-link text-decoration-none text-muted p-0 small fw-bold shadow-none">
+                                            CONEXIONES
+                                            <i class="bi {{ $sortDirection === 'desc' ? 'bi-arrow-down' : 'bi-arrow-up' }} ms-1"></i>
+                                        </button>
+                                    </th>
                                     <th class="text-center">Tiempo Total</th>
                                     <th>Última Visita</th>
                                     <th class="text-end pe-4">Estatus</th>

@@ -14,10 +14,17 @@ class AliadoRanking extends Component
     
     protected $paginationTheme = 'bootstrap';
     public $search = '';
+    public $sortDirection = 'desc'; // Nueva propiedad para el sentido del orden
 
     public function updatingSearch()
     {
         $this->resetPage();
+    }
+
+    // Método para alternar el orden
+    public function toggleSort()
+    {
+        $this->sortDirection = $this->sortDirection === 'desc' ? 'asc' : 'desc';
     }
 
     public function render()
@@ -37,7 +44,7 @@ class AliadoRanking extends Component
             )
             ->where('ticket_logs.username', 'like', '%' . $this->search . '%')
             ->groupBy('username', 'comercio_nombre', 'identity')
-            ->orderBy('total_conexiones', 'desc')
+            ->orderBy('total_conexiones', $this->sortDirection) // Aplicación del orden dinámico
             ->paginate(15);
 
         return view('livewire.mikrotik.aliado.aliado-ranking', [
