@@ -96,7 +96,7 @@ class ListTicketsAliado extends Component
         // 2. Buscar el Plan en la BD para obtener el session_timeout y el precio
         // Usamos el mikrotik_profile para coincidir con la selección del modal
         $planInfo = \App\Models\Plan::where('mikrotik_profile', $this->bulk_plan)
-                    ->where('router_id', $this->router_id)
+                    ->where('router_id', $this->selectedRouter)
                     ->first();
 
         if (!$planInfo) {
