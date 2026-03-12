@@ -67,22 +67,6 @@
                         </div>
                     </div>
 
-                    @if($isConfiguring || $progreso > 0)
-                        <div class="mb-4">
-                            <div class="d-flex justify-content-between mb-2">
-                                <span class="text-muted small fw-bold">PROGRESO: {{ $progreso }}%</span>
-                                @if($esperandoRespuesta)
-                                    <span class="badge bg-primary animate__animated animate__pulse animate__infinite px-3 py-2">
-                                        <i class="bi bi-cpu-fill me-1"></i> PROCESANDO ({{ $intentos }}s)
-                                    </span>
-                                @endif
-                            </div>
-                            <div class="progress" style="height: 12px; border-radius: 10px; background-color: #eee;">
-                                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width: {{ $progreso }}%; transition: width 0.4s ease;"></div>
-                            </div>
-                        </div>
-                    @endif
-
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
                             <button wire:click="ejecutarConfiguracion" @if(!$router_id || !$version_id || !$soporte_user || !$soporte_pass || $isConfiguring) disabled @endif
@@ -120,6 +104,22 @@
                         </div>
                     </div>
 
+                    @if($isConfiguring || $progreso > 0)
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted small fw-bold">PROGRESO: {{ $progreso }}%</span>
+                                @if($esperandoRespuesta)
+                                    <span class="badge bg-primary animate__animated animate__pulse animate__infinite px-3 py-2">
+                                        <i class="bi bi-cpu-fill me-1"></i> PROCESANDO ({{ $intentos }}s)
+                                    </span>
+                                @endif
+                            </div>
+                            <div class="progress" style="height: 12px; border-radius: 10px; background-color: #eee;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width: {{ $progreso }}%; transition: width 0.4s ease;"></div>
+                            </div>
+                        </div>
+                    @endif
+                    
                     <div class="terminal-box bg-dark rounded-4 p-4 shadow-inner" style="background-color: #0c0c0c !important;">
                         <div id="logs-container" class="console-text" style="height: 350px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85rem; scroll-behavior: smooth;">
                             @foreach($logs as $log)
