@@ -18,7 +18,7 @@ setInterval(() => {
     Object.keys(buzonResultados).forEach(key => {
         if (ahora - buzonResultados[key].timestamp > 120000) delete buzonResultados[key];
     });
-    // Limpiar routers offline
+    // Limpiar routers offline (1 minuto)
     Object.keys(routersEnLinea).forEach(mac => {
         if (ahora - routersEnLinea[mac].lastSeen > 60000) delete routersEnLinea[mac];
     });
@@ -38,7 +38,12 @@ app.get('/check-task', (req, res) => {
     const mac = req.query.mac?.toUpperCase();
     if (!mac) return res.send("WAIT");
 
-    routersEnLinea[mac] = { lastSeen: Date.now(), identity: req.query.identity };
+    // Registro de router con IP y nombre
+    routersEnLinea[mac] = { 
+        lastSeen: Date.now(), 
+        identity: req.query.identity || "Sin nombre",
+        ip: req.ip.replace('::ffff:', '') 
+    };
 
     if (colasPorRouter[mac] && colasPorRouter[mac].length > 0) {
         const item = colasPorRouter[mac].shift();
@@ -75,4 +80,34 @@ app.get('/api/check-task-result', (req, res) => {
     }
 });
 
-app.listen(3000, '0.0.0.0', () => log(`🚀 BRIDGE v3.7 ONLINE`));
+// NUEVO: Endpoint para el Dashboard de Laravel
+app.get('/api/routers-online', (req, res) => {
+    try {
+        const ahora = Date.now();
+        const lista = Object.keys(routersEnLinea).map(macKey => {
+            const r = routersEnLinea[macKey];
+            return {
+                mac: macKey,
+                identity: r.identity,
+                ip: r.ip,
+                lastSeen: Math.round((ahora - r.lastSeen) / 1000) + 's ago',
+                queueSize: (colasPorRouter[macKey] || []).length,
+                transitSize: Object.values(comandosEnTransito).filter(i => i.mac === macKey).length,
+                comandosDetalle: (colasPorRouter[macKey] || []).map(c => c.cmd),
+                transitoDetalle: Object.values(comandosEnTransito)
+                    .filter(i => i.mac === macKey)
+                    .map(i => ({ 
+                        tid: i.tid, 
+                        cmd: i.cmd, 
+                        age: Math.round((ahora - i.ts) / 1000) + 's' 
+                    }))
+            };
+        });
+        res.json(lista);
+    } catch (e) { 
+        log(`Error en routers-online: ${e.message}`);
+        res.status(500).json([]); 
+    }
+});
+
+app.listen(3000, '0.0.0.0', () => log(`🚀 BRIDGE v3.8 ONLINE (Dashboard Enabled)`));
