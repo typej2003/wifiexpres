@@ -68,6 +68,8 @@ Route::prefix('v2')->group(function () {
     Route::post('/test-recursos', [MikrotikSocket::class, 'enviarPeticionRecursos']);
     Route::get('/test-socket', [MikrotikSocket::class, 'testSocket']);
     Route::post('/hotspot/user-add', [MikrotikSocket::class, 'crearUsuarioHotspot']);
+
+    Route::get('/users/check-status', [UserController::class, 'checkStatus']);
 });
 
 /** * RUTAS V3 - MARKETING
