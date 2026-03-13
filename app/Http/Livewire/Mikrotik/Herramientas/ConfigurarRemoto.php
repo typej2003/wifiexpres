@@ -100,7 +100,7 @@ class ConfigurarRemoto extends Component
             ['cmd' => ':if ([:len [/interface bridge find name="bridge-lan"]]=0) do={/interface bridge add name=bridge-lan}', 'desc' => 'Bridge LAN'],
             ['cmd' => ':foreach i in=[/interface ethernet find where name!="ether1"] do={ :local n [/interface ethernet get $i name]; :if ([:len [/interface bridge port find interface=$n]]=0) do={/interface bridge port add bridge=bridge-lan interface=$n} }', 'desc' => 'Habilitando Puertos LAN'],
             ['cmd' => '/interface wireless disable [find name="wifi1"]', 'desc' => 'Desactivando wifi'],
-            ['cmd' => '/ip dns set allow-remote-requests=yes servers=8.8.8.8,1.1.1.1', 'desc' => 'Configurando DNS'],
+            ['cmd' => '/ip dns set allow-remote-requests=yes servers=8.8.8.8,8.8.4.4', 'desc' => 'Configurando DNS Google'],
             ['cmd' => ':if ([:len [/ip firewall nat find comment="Masquerade-Hotspot"]]=0) do={/ip firewall nat add chain=srcnat out-interface=ether1 action=masquerade comment="Masquerade-Hotspot"}', 'desc' => 'Configurando NAT'],
             ['cmd' => ':if ([:len [/ip address find address="192.168.88.1/24"]]=0) do={/ip address add address=192.168.88.1/24 interface=bridge-lan}', 'desc' => 'IP Local'],
             ['cmd' => ':if ([:len [/ip pool find name="dhcp_pool1"]]=0) do={/ip pool add name=dhcp_pool1 ranges=192.168.88.10-192.168.88.254}', 'desc' => 'Pool DHCP'],
@@ -109,21 +109,17 @@ class ConfigurarRemoto extends Component
             ['cmd' => ':if ([:len [/ip hotspot profile find name="hsprof1"]]=0) do={/ip hotspot profile add name=hsprof1 hotspot-address=192.168.88.1 login-by=http-chap,trial}', 'desc' => 'Perfil Hotspot'],
             ['cmd' => ':if ([:len [/ip hotspot user profile find name="neutro"]]=0) do={/ip hotspot user profile add name="neutro" session-timeout=1s shared-users=1 status-autorefresh=1s}', 'desc' => 'Creando Perfil Neutro (1s)'],
             ['cmd' => ':if ([:len [/ip hotspot find name="hotspot1"]]=0) do={/ip hotspot add name=hotspot1 interface=bridge-lan profile=hsprof1 address-pool=dhcp_pool1 disabled=no}', 'desc' => 'Servidor Hotspot'],
-            ['cmd' => '/ip hotspot walled-garden add dst-host=wifiexpres.com; /ip hotspot walled-garden add dst-host=*.wifiexpres.com', 'desc' => 'WG: WiFi Expres'],
-            ['cmd' => '/ip hotspot walled-garden add dst-host=*.biopagobdv.com comment="Pasarela BDV"; /ip hotspot walled-garden add dst-host=*.banvenez.com comment="Pasarela BDV"; /ip hotspot walled-garden add dst-host=biopago.banvenez.com comment="Pasarela BDV"', 'desc' => 'WG: Dominios BDV'],
-            ['cmd' => '/ip hotspot walled-garden add dst-host=fcm.googleapis.com; /ip hotspot walled-garden add dst-host=fcm-xmpp.googleapis.com; /ip hotspot walled-garden add dst-host=mtalk.google.com; /ip hotspot walled-garden add dst-host=*.push.apple.com; /ip hotspot walled-garden add dst-host=appleid.apple.com', 'desc' => 'WG: Notificaciones Push'],
-            ['cmd' => '/ip hotspot walled-garden ip add dst-address=188.95.113.44 comment="Bridge Socket"', 'desc' => 'WG IP: Bridge'],
-            ['cmd' => '/ip hotspot walled-garden ip add dst-address=190.217.7.106; /ip hotspot walled-garden ip add dst-address=190.217.7.229; /ip hotspot walled-garden ip add dst-address=200.11.243.174; /ip hotspot walled-garden ip add dst-address=190.202.148.187', 'desc' => 'WG IP: Pasarela BDV'],
-            ['cmd' => '/ip hotspot walled-garden ip add dst-port=5228-5230 protocol=tcp; /ip hotspot walled-garden ip add dst-port=5223 protocol=tcp', 'desc' => 'WG IP: Puertos Push'],
-            // Busca esta línea en ejecutarConfiguracion() y cámbiala:
-            ['cmd' => '/tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => 'Descargando e Instalando Portal: ' . $version->name],['cmd' => ":if (\"$this->soporte_user\" != \"admin\") do={ /user remove [find name=\"admin\"] }", 'desc' => 'Removiendo usuario admin por seguridad'],
-            ['cmd' => '/system reboot', 'desc' => 'Reiniciando Router para aplicar cambios y cerrar sesiones'],
+            ['cmd' => '/ip hotspot walled-garden { add dst-host=wifiexpres.com; add dst-host=*.wifiexpres.com }', 'desc' => 'WG: WiFi Expres'],
+            ['cmd' => '/ip hotspot walled-garden { add dst-host=*.biopagobdv.com comment="Pasarela BDV"; add dst-host=*.banvenez.com comment="Pasarela BDV"; add dst-host=biopago.banvenez.com comment="Pasarela BDV" }', 'desc' => 'WG: Dominios BDV'],
+            ['cmd' => '/ip hotspot walled-garden { add dst-host=fcm.googleapis.com comment="Notificaciones Push"; add dst-host=fcm-xmpp.googleapis.com comment="Notificaciones Push"; add dst-host=mtalk.google.com comment="Notificaciones Push"; add dst-host=*.push.apple.com comment="Notificaciones Push"; add dst-host=*.push.apple.com.akadns.net comment="Notificaciones Push"; add dst-host=appleid.apple.com comment="Notificaciones Push" }', 'desc' => 'WG: Dominios Push'],
+            ['cmd' => '/ip hotspot walled-garden ip { add dst-address=188.95.113.44 comment="Bridge Socket"; add dst-address=190.217.7.106 comment="Pasarela BDV"; add dst-address=190.217.7.229 comment="Pasarela BDV"; add dst-address=200.11.243.174 comment="Pasarela BDV"; add dst-address=190.202.148.187 comment="Pasarela BDV" }', 'desc' => 'WG IP: Pasarela BDV'],
+            ['cmd' => '/ip hotspot walled-garden ip { add dst-port=5228-5230 protocol=tcp comment="Notificaciones Push"; add dst-port=5223 protocol=tcp comment="Notificaciones Push" }', 'desc' => 'WG IP: Puertos Push'],
+            ['cmd' => '/tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => 'Descargando e Instalando Portal: ' . $version->name],
+            ['cmd' => ":if (\"$this->soporte_user\" != \"admin\") do={ /user remove [find name=\"admin\"] }", 'desc' => 'Removiendo usuario admin por seguridad'],
+            ['cmd' => '/system reboot', 'desc' => 'Reiniciando Router para aplicar cambios'],
         ]);
     }
 
-    /**
-     * Fuerza la descarga exclusiva del archivo login.html
-     */
     public function forzarCopiadoLogin()
     {
         $this->validate([
@@ -136,9 +132,6 @@ class ConfigurarRemoto extends Component
 
         $this->iniciarProceso("📥 Forzando actualización de portal...", [
             [
-                // 1. Verificamos/creamos carpeta hotspot
-                // 2. Quitamos mode=http (causa el conflicto)
-                // 3. Agregamos check-certificate=no (evita fallos por fecha/hora)
                 'cmd' => ':if ([:len [/file find name="hotspot"]]=0) do={/file add name="hotspot" type="directory"}; /tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" check-certificate=no', 
                 'desc' => 'Descargando login.html version: ' . $version->name
             ],
@@ -171,7 +164,6 @@ class ConfigurarRemoto extends Component
 
         $this->logs[] = "📡 Enviando: " . $paso['desc'];
 
-        // Usamos comillas simples para el data del post y evitamos colisiones
         $script = ":do { {$paso['cmd']}; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"ERR\" keep-result=no }";
         
         $scriptLimpio = trim(preg_replace('/\s+/', ' ', $script));
