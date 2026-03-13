@@ -82,7 +82,6 @@ class UserController extends Controller
 
         $this->emitirAlSocket($cmd, $macRouter, $tid);
         
-        // No hay sleep(). Retornamos el TID para que el JS verifique.
         return response()->json(['success' => true, 'tid' => $tid, 'password' => '123456']);
     }
 
@@ -101,6 +100,44 @@ class UserController extends Controller
 
         $this->emitirAlSocket($cmd, $mac, $tid);
         return response()->json(['success' => true, 'tid' => $tid]);
+    }
+
+    /**
+     * Activa el plan seleccionado cambiando el profile del usuario en MikroTik.
+     */
+    public function activate(Request $request) {
+        try {
+            $username = $request->input('username');
+            $profile = $request->input('profile'); 
+            $identity = $request->input('identity');
+            $router = $this->findRouter($identity);
+            
+            if (!$router) return response()->json(['success' => false, 'message' => 'Router no encontrado'], 404);
+            
+            $mac = strtoupper(trim($router->macAddress));
+            $tid = "ACT" . time();
+
+            // Comando MikroTik: Cambia el perfil y resetea el limit-uptime para asegurar la navegación.
+            // Luego reporta el resultado al Bridge.
+            $cmd = ":do { " .
+                   "/ip hotspot user set [find name=\"$username\"] profile=\"$profile\" limit-uptime=0s; " .
+                   "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no" .
+                   "} on-error={ " .
+                   "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"ERROR\" keep-result=no" .
+                   "}";
+            
+            $this->emitirAlSocket($cmd, $mac, $tid);
+
+            return response()->json([
+                'success' => true, 
+                'tid' => $tid,
+                'message' => 'Comando de activación enviado'
+            ]);
+
+        } catch (Exception $e) { 
+            Log::error("Error en activate: " . $e->getMessage());
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500); 
+        }
     }
 
     public function checkStatus(Request $request) {
