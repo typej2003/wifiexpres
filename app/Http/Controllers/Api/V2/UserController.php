@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use App\Models\Router; 
 use App\Models\UserMikrotik;
+use App\Models\HotspotSetting;
 use App\Models\Plan;
 use Exception;
 
@@ -15,23 +16,38 @@ class UserController extends Controller
 {
     protected $bridgeUrl = "http://188.95.113.44:3000";
 
-    protected function findRouter($identity) {
+    /**
+     * Helper para buscar router por MAC o Identity
+     */
+    protected function findRouter($identity)
+    {
         return Router::where('identity', $identity)
                      ->orWhere('macAddress', $identity)
                      ->with('hotspotSetting')
                      ->first();
     }
 
+    /**
+     * 1. INFO VISUAL (BRANDING) - Carga instantánea
+     */
     public function getRouterInfo(Request $request) {
         $identity = $request->query('identity');
         $router = $this->findRouter($identity);
-        if (!$router) return response()->json(['success' => false], 404);
+
+        if (!$router) {
+            return response()->json(['success' => false, 'message' => 'Router no encontrado'], 404);
+        }
 
         $banner = "banner/WIFIEXPRES_banner_01.jpg"; 
+
         if ($router->hotspotSetting && !empty($router->hotspotSetting->carousel_images)) {
             $imagenes = $router->hotspotSetting->carousel_images;
-            $fotoAleatoria = $imagenes[array_rand($imagenes)];
-            $banner = 'https://wifiexpres.com/storage/carruselhotspot/' . $fotoAleatoria;
+            if (is_array($imagenes) && count($imagenes) > 0) {
+                $fotoAleatoria = $imagenes[array_rand($imagenes)];
+                $banner = 'https://wifiexpres.com/storage/carruselhotspot/' . $fotoAleatoria;
+            }
+        } elseif ($router->comercio_banner) {
+            $banner = 'https://wifiexpres.com/storage/bannerrouter/' . $router->comercio_banner;
         }
 
         return response()->json([
@@ -39,81 +55,204 @@ class UserController extends Controller
             'router' => [
                 'name'    => $router->comercio_nombre ?? "WIFI EXPRES",
                 'banner'  => $banner,
+                'store'   => $router->store ?? "Sucursal",
+                'address' => $router->address ?? "",
+                'is_store' => $router->is_store ?? 0,
+                'is_trial' => $router->is_trial ?? 0,
                 'show_carousel' => $router->hotspotSetting->show_carousel ?? false 
             ]
         ])->header('Access-Control-Allow-Origin', '*');
     }
 
-    public function getPlans(Request $request) {
+    /**
+     * 2. LISTADO DE PLANES (Desde Base de Datos)
+     * Optimizamos para no consultar el MikroTik aquí.
+     */
+    /**
+     * 2. LISTADO DE PLANES (Desde Base de Datos)
+     * Optimizamos para no consultar el MikroTik aquí.
+     */
+    public function getPlans(Request $request)
+    {
         $identity = $request->query('identity');
         $router = $this->findRouter($identity);
-        if (!$router) return response()->json(['success' => false], 404);
 
+        if (!$router) {
+            return response()->json(['success' => false, 'message' => 'Router no identificado'], 404);
+        }
+
+        // Consultamos los planes activos asociados a este router en la DB
+        // Filtramos para excluir perfiles que contengan "cortesia" o "gratis"
         $plans = Plan::where('router_id', $router->id)
                      ->where('is_active', true)
                      ->where('mikrotik_profile', 'not like', '%cortesia%')
+                     ->where('mikrotik_profile', 'not like', '%gratis%')
                      ->get(['name', 'price', 'mikrotik_profile', 'session_timeout'])
                      ->map(function($p) {
                         return [
                             'name' => $p->name,
                             'price' => $p->price,
-                            'profile' => $p->mikrotik_profile,
+                            'mikrotik_profile' => $p->mikrotik_profile,
                             'uptime' => $p->session_timeout ?? 'Ilimitado'
                         ];
                      });
 
-        return response()->json(['success' => true, 'plans' => $plans])->header('Access-Control-Allow-Origin', '*');
+        return response()->json([
+            'success' => true, 
+            'plans' => $plans
+        ])->header('Access-Control-Allow-Origin', '*');
     }
 
-    public function trialLead(Request $request) {
-        $name = $request->input('name');
-        $macCliente = strtoupper($request->input('mac_cliente')); 
-        $router = $this->findRouter($request->input('identity'));
+    /**
+     * 3. REGISTRO DE CORTESÍA (TRIAL) - Vía Socket
+     */
+    public function trialLead(Request $request)
+    {
+        try {
+            $name          = $request->input('name');
+            $macCliente    = strtoupper($request->input('mac_cliente')); 
+            $identity      = $request->input('identity');
+            $router        = $this->findRouter($identity);
 
-        if (!$router) return response()->json(['success' => false], 404);
-        
-        $macRouter = strtoupper(trim($router->macAddress));
-        $tid = "LEAD" . time();
-        $profile = "cortesia 20min-0"; 
+            if (!$router) return response()->json(['success' => false, 'message' => 'Router no encontrado'], 404);
+            
+            $macRouter = strtoupper(trim($router->macAddress));
+            $tid = "LEAD" . time();
+            $password = "123456"; 
+            $profile  = "cortesia 20min-0"; 
 
-        $cmd = ":local u \"$macCliente\"; :local p \"123456\"; :local pr \"$profile\"; " .
-               ":if ([:len [/ip hotspot user find name=\$u]]>0) do={ /ip hotspot user set [find name=\$u] profile=\$pr password=\$p } else={ /ip hotspot user add name=\$u password=\$p profile=\$pr }; " .
-               "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macRouter&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no";
+            // Comando optimizado para el script del MikroTik
+            $cmd = ":local id [/ip hotspot user find name=\"$macCliente\"]; " .
+                   ":if ([:len \$id]>0) do {" .
+                   "/ip hotspot user set \$id profile=\"$profile\" password=\"$password\";" .
+                   "} else {" .
+                   "/ip hotspot user add name=\"$macCliente\" password=\"$password\" profile=\"$profile\";" .
+                   "}; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macRouter&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no";
 
-        $this->emitirAlSocket($cmd, $macRouter, $tid);
-        
-        // No hay sleep(). Retornamos el TID para que el JS verifique.
-        return response()->json(['success' => true, 'tid' => $tid, 'password' => '123456']);
+            $this->emitirAlSocket($cmd, $macRouter, $tid);
+
+            if ($this->esperarConfirmacion($macRouter, $tid)) {
+                UserMikrotik::updateOrCreate(
+                    ['name' => $macCliente, 'router_id' => $router->id],
+                    ['password' => $password, 'profile' => $profile, 'full_name' => $name, 'active' => true]
+                );
+                return response()->json(['success' => true, 'password' => $password]);
+            }
+
+            return response()->json(['success' => false, 'message' => 'El Router no respondió.']);
+        } catch (Exception $e) {
+            return response()->json(['success' => false], 500);
+        }
     }
 
+    /**
+     * 4. PRE-REGISTRO (Fase 1: Verificación y Creación Neutra) - Vía Socket
+     */
     public function preAdd(Request $request) {
-        $username = $request->input('username');
-        $password = $request->input('password');
-        $router = $this->findRouter($request->input('identity'));
-        if (!$router) return response()->json(['success' => false], 404);
+        try {
+            $username = $request->input('username');
+            $password = $request->input('password');
+            $identity = $request->input('identity'); 
+            $router = $this->findRouter($identity);
+            
+            if (!$router) return response()->json(['success' => false], 404);
+            $mac = strtoupper(trim($router->macAddress));
 
-        $mac = strtoupper(trim($router->macAddress));
-        $tid = "PRE" . time();
+            // --- COMANDO 1: CHECK (Verificación) ---
+            $tidCheck = "CHK" . time();
+            // Usamos variables locales :local para evitar conflictos de caracteres
+            $cmdCheck = ":local u \"$username\"; :local m \"$mac\"; :local t \"$tidCheck\"; " .
+                        ":do { " .
+                        "  :local id [/ip hotspot user find name=\$u]; " .
+                        "  :local resp \"NO_EXISTE\"; :if ([:len \$id]>0) do={ :set resp \"EXISTE\" }; " .
+                        "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$resp keep-result=no; " .
+                        "} on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL_CHK\" keep-result=no; }";
+            
+            $this->emitirAlSocket($cmdCheck, $mac, $tidCheck);
+            
+            $existe = false;
+            for ($i = 0; $i < 25; $i++) {
+                sleep(1);
+                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tidCheck]);
+                if ($res->successful() && $res->json('status') === 'ready') { 
+                    $data = trim($res->json('data'));
+                    if ($data === "FAIL_CHK") throw new \Exception("Fallo en script de verificación");
+                    $existe = ($data === 'EXISTE'); 
+                    break; 
+                }
+            }
 
-        $cmd = ":local u \"$username\"; :local p \"$password\"; " .
-               ":if ([:len [/ip hotspot user find name=\$u]]>0) do={ /ip hotspot user set [find name=\$u] password=\$p profile=\"neutro\" } else={ /ip hotspot user add name=\$u password=\$p profile=\"neutro\" }; " .
-               "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no";
+            // --- COMANDO 2: CONFIGURACIÓN (Creación/Update) ---
+            $tidFinal = "PRE" . time();
+            $accion = $existe ? "set [find name=\"$username\"]" : "add name=\"$username\"";
+            
+            // Aplicamos la misma estructura robusta de tu método store()
+            $cmdFinal = ":local m \"$mac\"; :local t \"$tidFinal\"; " .
+                        ":do { " .
+                        "  /ip hotspot user $accion password=\"$password\" profile=\"neutro\"; " .
+                        "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; " .
+                        "} on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"ERROR\" keep-result=no; }";
 
-        $this->emitirAlSocket($cmd, $mac, $tid);
-        return response()->json(['success' => true, 'tid' => $tid]);
+            $this->emitirAlSocket($cmdFinal, $mac, $tidFinal);
+            
+            $confirmado = false;
+            for ($j = 0; $j < 25; $j++) {
+                sleep(1);
+                $resFinal = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tidFinal]);
+                if ($resFinal->successful() && $resFinal->json('status') === 'ready') {
+                    $confirmado = (trim($resFinal->json('data')) === 'OK');
+                    break;
+                }
+            }
+
+            return response()->json(['success' => $confirmado]);
+
+        } catch (Exception $e) { 
+            Log::error("Error en preAdd: " . $e->getMessage());
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500); 
+        }
     }
 
-    public function checkStatus(Request $request) {
-        $mac = strtoupper($request->query('mac'));
-        $tid = $request->query('tid');
-        $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
-        return response()->json($res->json());
+    /**
+     * 5. ACTIVACIÓN FINAL (Fase 2: Cambio de Profile tras pago exitoso) - Vía Socket
+     */
+    public function activate(Request $request) {
+        try {
+            $username = $request->input('username');
+            $profile = $request->input('profile'); 
+            $identity = $request->input('identity');
+            $router = $this->findRouter($identity);
+            
+            if (!$router) return response()->json(['success' => false], 404);
+            $mac = strtoupper(trim($router->macAddress));
+
+            $tid = "ACT" . time();
+            $cmd = ":do {/ip hotspot user set [find name=\"$username\"] profile=\"$profile\" limit-uptime=0s;/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no} on-error={/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"ERROR\" keep-result=no}";
+            
+            $this->emitirAlSocket($cmd, $mac, $tid);
+            return response()->json(['success' => $this->esperarConfirmacion($mac, $tid)]);
+        } catch (Exception $e) { return response()->json(['success' => false], 500); }
     }
 
+    /**
+     * COMUNICACIÓN CON EL BRIDGE (SOCKET)
+     */
     protected function emitirAlSocket($comando, $mac, $tid) {
         $comandoLimpio = trim(preg_replace('/\s+/', ' ', $comando));
-        Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
+        return Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
             ->withBody($comandoLimpio, 'text/plain')
-            ->post("{$this->bridgeUrl}/set-command");
+            ->post("{$this->bridgeUrl}/set-command")->successful();
+    }
+
+    protected function esperarConfirmacion($mac, $tid) {
+        for ($i = 0; $i < 45; $i++) {
+            sleep(1);
+            $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
+            if ($res->successful() && $res->json('status') === 'ready') {
+                $data = trim($res->json('data'));
+                return ($data === 'OK' || $data === 'EXISTE');
+            }
+        }
+        return false;
     }
 }
