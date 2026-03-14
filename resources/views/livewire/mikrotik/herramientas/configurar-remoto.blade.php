@@ -62,10 +62,10 @@
                                             </span>
                                             
                                             <input :type="mostrar ? 'text' : 'password'" 
-                                                wire:model="soporte_pass" 
-                                                class="form-control border-0 shadow-sm" 
-                                                placeholder="Nueva Contraseña" 
-                                                @if($isConfiguring) disabled @endif>
+                                                   wire:model="soporte_pass" 
+                                                   class="form-control border-0 shadow-sm" 
+                                                   placeholder="Nueva Contraseña" 
+                                                   @if($isConfiguring) disabled @endif>
                                             
                                             <button class="btn bg-white border-0 shadow-sm text-primary" 
                                                     type="button" 
