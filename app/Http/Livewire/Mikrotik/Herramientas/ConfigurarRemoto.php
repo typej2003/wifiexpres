@@ -27,6 +27,7 @@ class ConfigurarRemoto extends Component
     public $currentStepIndex = 0;
     public $pasos = [];
     public $intentos = 0;
+    public $reintentosRealizados = 0; // Nueva variable para controlar reintentos
 
     protected $bridgeUrl = "http://188.95.113.44:3000";
 
@@ -64,7 +65,7 @@ class ConfigurarRemoto extends Component
         ]);
         
         $this->iniciarProceso("⚠️ Iniciando Limpieza Selectiva...", [
-            ['cmd' => '/ip hotspot user remove [find]', 'desc' => '1. Borrando usuarios Hotspot'],
+            ['cmd' => '/ip hotspot user remove [find where name!="default-trial"]', 'desc' => '1. Borrando usuarios Hotspot'],
             ['cmd' => '/ip hotspot remove [find]', 'desc' => '2. Borrando Servidores Hotspot'],
             ['cmd' => '/ip hotspot profile remove [find where name!="default"]', 'desc' => '3. Borrando Perfiles Hotspot'],
             ['cmd' => '/ip hotspot user profile remove [find where name!="default"]', 'desc' => '4. Borrando Perfiles de Usuario'],
@@ -122,6 +123,7 @@ class ConfigurarRemoto extends Component
         $this->currentStepIndex = 0;
         $this->pasos = $listaPasos;
         $this->logs = [$mensaje];
+        $this->reintentosRealizados = 0;
         $this->enviarSiguienteComando();
     }
 
@@ -138,9 +140,8 @@ class ConfigurarRemoto extends Component
         $this->currentTid = "TID" . time() . rand(10, 99);
         $this->intentos = 0;
 
-        $this->logs[] = "📡 Enviando: " . $paso['desc'];
+        $this->logs[] = "📡 Enviando: " . $paso['desc'] . ($this->reintentosRealizados > 0 ? " (Reintento)" : "");
 
-        // Envuelto en un delay de 1s para asegurar que el router procese la respuesta anterior antes de la siguiente
         $script = '{ 
             :local r "OK"; 
             :do { '.$paso['cmd'].' } on-error={ :set r "ERR" };
@@ -156,7 +157,7 @@ class ConfigurarRemoto extends Component
 
             $this->esperandoRespuesta = true;
         } catch (\Exception $e) {
-            $this->logs[] = "❌ Error de conexión con el Bridge.";
+            $this->logs[] = "❌ Error de conexión.";
             $this->finalizar();
         }
     }
@@ -176,12 +177,20 @@ class ConfigurarRemoto extends Component
             ]);
 
             if ($res->successful() && $res->json('status') === 'ready') {
-                $data = $res->json('data');
-                $this->logs[] = ($data === "OK") ? "✅ Hecho" : "⚠️ Error en Router";
+                $this->logs[] = "✅ Hecho";
+                $this->reintentosRealizados = 0; // Reset de reintentos
                 $this->avanzar();
-            } elseif ($this->intentos >= 45) {
-                $this->logs[] = "⌛ Tiempo agotado, saltando...";
-                $this->avanzar();
+            } elseif ($this->intentos >= 40) { // 40 intentos = ~20-30 seg
+                if ($this->reintentosRealizados < 1) {
+                    $this->logs[] = "⌛ Reintentando comando...";
+                    $this->reintentosRealizados++;
+                    $this->esperandoRespuesta = false;
+                    $this->enviarSiguienteComando();
+                } else {
+                    $this->logs[] = "⏭️ Tiempo agotado, saltando...";
+                    $this->reintentosRealizados = 0;
+                    $this->avanzar();
+                }
             }
         } catch (\Exception $e) { }
     }
@@ -191,6 +200,10 @@ class ConfigurarRemoto extends Component
         $this->esperandoRespuesta = false;
         $this->currentStepIndex++;
         $this->progreso = round(($this->currentStepIndex / count($this->pasos)) * 100);
+        
+        // Pausa de 2 segundos antes del siguiente comando para dejar respirar al RouterOS
+        sleep(2); 
+        
         $this->enviarSiguienteComando();
         $this->dispatchBrowserEvent('logUpdated');
     }
