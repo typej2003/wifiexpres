@@ -63,13 +63,6 @@ class ConfigurarRemoto extends Component
             'soporte_pass' => 'required|min:4'
         ]);
         
-        $mensajeSuspendido = "<html><body style='text-align:center;padding-top:50px;'><h1>Servicio Suspendido</h1></body></html>";
-
-        // ORDEN TÉCNICO CORRECTO PARA ELIMINAR DEPENDENCIAS:
-        // 1. Hotspot (Libera DHCP y Profiles)
-        // 2. DHCP Server (Libera Pools y Networks)
-        // 3. Pools (Libera Memoria)
-        // 4. Ports & Bridges (Libera Interfaces)
         $this->iniciarProceso("⚠️ Iniciando Limpieza Selectiva...", [
             ['cmd' => '/ip hotspot user remove [find]', 'desc' => '1. Borrando usuarios Hotspot'],
             ['cmd' => '/ip hotspot remove [find]', 'desc' => '2. Borrando Servidores Hotspot'],
@@ -83,9 +76,8 @@ class ConfigurarRemoto extends Component
             ['cmd' => '/ip address remove [find where interface!="ether1"]', 'desc' => '10. Limpiando IPs'],
             ['cmd' => '/ip hotspot walled-garden remove [find]', 'desc' => '11. Limpiando Walled Garden'],
             ['cmd' => '/ip hotspot walled-garden ip remove [find]', 'desc' => '12. Limpiando Walled Garden IP'],
-            ['cmd' => '/ip firewall nat remove [find where comment~"Hotspot"]', 'desc' => '13. Limpiando NAT'],
-            ['cmd' => '/user remove [find name!="jose" and name!="admin"]', 'desc' => '14. Limpiando usuarios sistema'],
-            ['cmd' => '/file set "hotspot/login.html" contents="'.$mensajeSuspendido.'"', 'desc' => '15. Portal marcado como Suspendido'],
+            ['cmd' => '/ip firewall nat remove [find where comment~"Hotspot" or comment~"masq"]', 'desc' => '13. Limpiando NAT'],
+            ['cmd' => '/user remove [find name!="jose" and name!="admin" and name!="'.$this->soporte_user.'"]', 'desc' => '14. Limpiando usuarios sistema'],
         ]);
     }
 
@@ -148,9 +140,10 @@ class ConfigurarRemoto extends Component
 
         $this->logs[] = "📡 Enviando: " . $paso['desc'];
 
+        // Envuelto en un delay de 1s para asegurar que el router procese la respuesta anterior antes de la siguiente
         $script = '{ 
             :local r "OK"; 
-            :do { '.$paso['cmd'].' } on-error={ :set r "ERR" }; 
+            :do { '.$paso['cmd'].' } on-error={ :set r "ERR" };
             /tool fetch url="'.$this->bridgeUrl.'/post-result?mac='.$mac.'&tid='.$this->currentTid.'&data=$r" keep-result=no 
         }';
         
