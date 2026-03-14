@@ -47,32 +47,15 @@
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <div class="input-group">
-                                            <span class="input-group-text bg-white border-0 shadow-sm">
-                                                <i class="bi bi-person-fill text-primary"></i>
-                                            </span>
+                                            <span class="input-group-text bg-white border-0 shadow-sm"><i class="bi bi-person-fill text-primary"></i></span>
                                             <input type="text" wire:model="soporte_user" class="form-control border-0 shadow-sm" placeholder="Usuario Soporte" @if($isConfiguring) disabled @endif>
                                         </div>
                                         @error('soporte_user') <span class="text-danger small">{{ $message }}</span> @enderror
                                     </div>
-
-                                    <div class="col-md-6" x-data="{ mostrar: false }">
+                                    <div class="col-md-6">
                                         <div class="input-group">
-                                            <span class="input-group-text bg-white border-0 shadow-sm">
-                                                <i class="bi bi-key-fill text-primary"></i>
-                                            </span>
-                                            
-                                            <input :type="mostrar ? 'text' : 'password'" 
-                                                   wire:model="soporte_pass" 
-                                                   class="form-control border-0 shadow-sm" 
-                                                   placeholder="Nueva Contraseña" 
-                                                   @if($isConfiguring) disabled @endif>
-                                            
-                                            <button class="btn bg-white border-0 shadow-sm text-primary" 
-                                                    type="button" 
-                                                    @click="mostrar = !mostrar"
-                                                    @if($isConfiguring) disabled @endif>
-                                                <i class="bi" :class="mostrar ? 'bi-eye-slash-fill' : 'bi-eye-fill'"></i>
-                                            </button>
+                                            <span class="input-group-text bg-white border-0 shadow-sm"><i class="bi bi-key-fill text-primary"></i></span>
+                                            <input type="password" wire:model="soporte_pass" class="form-control border-0 shadow-sm" placeholder="Nueva Contraseña" @if($isConfiguring) disabled @endif>
                                         </div>
                                         @error('soporte_pass') <span class="text-danger small">{{ $message }}</span> @enderror
                                     </div>
