@@ -67,7 +67,7 @@ class ConfigurarRemoto extends Component
 
         $this->iniciarProceso("⚠️ Iniciando Limpieza Selectiva...", [
             ['cmd' => '/ip hotspot user remove [find]', 'desc' => 'Borrando usuarios Hotspot'],
-            ['cmd' => '/ip hotspot user profile remove [find name="neutro"]', 'desc' => 'Eliminando perfil neutro previo'], 
+            ['cmd' => ':if ([:len [/ip hotspot user profile find name="neutro"]]>0) do={/ip hotspot user profile remove [find name="neutro"]}', 'desc' => 'Eliminando perfil neutro previo'], 
             ['cmd' => '/ip hotspot remove [find]', 'desc' => 'Borrando servidores Hotspot'],
             ['cmd' => '/ip dhcp-server remove [find]', 'desc' => 'Borrando servidores DHCP'],
             ['cmd' => '/ip pool remove [find]', 'desc' => 'Borrando Pools de IP'],
@@ -98,7 +98,7 @@ class ConfigurarRemoto extends Component
         $this->iniciarProceso("🚀 Iniciando Provisión Remota Full...", [
             ['cmd' => ":if ([:len [/user find name=\"$this->soporte_user\"]]=0) do={/user add name=\"$this->soporte_user\" password=\"$this->soporte_pass\" group=full} else={/user set [find name=\"$this->soporte_user\"] password=\"$this->soporte_pass\" group=full}", 'desc' => "Configurando usuario maestro: $this->soporte_user"],
             ['cmd' => ':if ([:len [/interface bridge find name="bridge-lan"]]=0) do={/interface bridge add name=bridge-lan}', 'desc' => 'Bridge LAN'],
-            ['cmd' => ':foreach i in=[/interface ethernet find where name!="ether1"] do={ :local n [/interface ethernet get $i name]; :if ([:len [/interface bridge port find interface=$n]]=0) do={/interface bridge port add bridge=bridge-lan interface=$n} }', 'desc' => 'Habilitando Puertos LAN'],
+            ['cmd' => ':foreach i in=[/interface ethernet find where default-name!="ether1"] do={ :local n [/interface ethernet get $i name]; :if ([:len [/interface bridge port find interface=$n]]=0) do={/interface bridge port add bridge=bridge-lan interface=$n} }', 'desc' => 'Habilitando Puertos LAN (Seguro)'],
             ['cmd' => '/interface wireless disable [find name="wifi1"]', 'desc' => 'Desactivando wifi'],
             ['cmd' => '/ip dns set allow-remote-requests=yes servers=8.8.8.8,8.8.4.4', 'desc' => 'Configurando DNS Google'],
             ['cmd' => ':if ([:len [/ip firewall nat find comment="Masquerade-Hotspot"]]=0) do={/ip firewall nat add chain=srcnat out-interface=ether1 action=masquerade comment="Masquerade-Hotspot"}', 'desc' => 'Configurando NAT'],
@@ -109,14 +109,13 @@ class ConfigurarRemoto extends Component
             ['cmd' => ':if ([:len [/ip hotspot profile find name="hsprof1"]]=0) do={/ip hotspot profile add name=hsprof1 hotspot-address=192.168.88.1 login-by=http-chap,trial}', 'desc' => 'Perfil Hotspot'],
             ['cmd' => ':if ([:len [/ip hotspot user profile find name="neutro"]]=0) do={/ip hotspot user profile add name="neutro" session-timeout=1s shared-users=1 status-autorefresh=1s}', 'desc' => 'Creando Perfil Neutro (1s)'],
             ['cmd' => ':if ([:len [/ip hotspot find name="hotspot1"]]=0) do={/ip hotspot add name=hotspot1 interface=bridge-lan profile=hsprof1 address-pool=dhcp_pool1 disabled=no}', 'desc' => 'Servidor Hotspot'],
-            ['cmd' => '/ip hotspot walled-garden { add dst-host=wifiexpres.com; add dst-host=*.wifiexpres.com }', 'desc' => 'WG: WiFi Expres'],
-            ['cmd' => '/ip hotspot walled-garden { add dst-host=*.biopagobdv.com comment="Pasarela BDV"; add dst-host=*.banvenez.com comment="Pasarela BDV"; add dst-host=biopago.banvenez.com comment="Pasarela BDV" }', 'desc' => 'WG: Dominios BDV'],
-            ['cmd' => '/ip hotspot walled-garden { add dst-host=fcm.googleapis.com comment="Notificaciones Push"; add dst-host=fcm-xmpp.googleapis.com comment="Notificaciones Push"; add dst-host=mtalk.google.com comment="Notificaciones Push"; add dst-host=*.push.apple.com comment="Notificaciones Push"; add dst-host=*.push.apple.com.akadns.net comment="Notificaciones Push"; add dst-host=appleid.apple.com comment="Notificaciones Push" }', 'desc' => 'WG: Dominios Push'],
-            ['cmd' => '/ip hotspot walled-garden ip { add dst-address=188.95.113.44 comment="Bridge Socket"; add dst-address=190.217.7.106 comment="Pasarela BDV"; add dst-address=190.217.7.229 comment="Pasarela BDV"; add dst-address=200.11.243.174 comment="Pasarela BDV"; add dst-address=190.202.148.187 comment="Pasarela BDV" }', 'desc' => 'WG IP: Pasarela BDV'],
-            ['cmd' => '/ip hotspot walled-garden ip { add dst-port=5228-5230 protocol=tcp comment="Notificaciones Push"; add dst-port=5223 protocol=tcp comment="Notificaciones Push" }', 'desc' => 'WG IP: Puertos Push'],
+            ['cmd' => '/ip hotspot walled-garden { remove [find]; add dst-host=wifiexpres.com; add dst-host=*.wifiexpres.com; add dst-host=*.biopagobdv.com; add dst-host=*.banvenez.com; add dst-host=biopago.banvenez.com }', 'desc' => 'WG: Dominios Base'],
+            ['cmd' => '/ip hotspot walled-garden { add dst-host=fcm.googleapis.com; add dst-host=fcm-xmpp.googleapis.com; add dst-host=mtalk.google.com; add dst-host=*.push.apple.com; add dst-host=appleid.apple.com }', 'desc' => 'WG: Dominios Push'],
+            ['cmd' => '/ip hotspot walled-garden ip { remove [find]; add dst-address=188.95.113.44 comment="Bridge Socket"; add dst-address=190.217.7.106; add dst-address=190.217.7.229; add dst-address=200.11.243.174; add dst-address=190.202.148.187 }', 'desc' => 'WG IP: Pasarela BDV'],
+            ['cmd' => '/ip hotspot walled-garden ip { add dst-port=5228-5230 protocol=tcp; add dst-port=5223 protocol=tcp }', 'desc' => 'WG IP: Puertos Push'],
             ['cmd' => '/tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => 'Descargando e Instalando Portal: ' . $version->name],
             ['cmd' => ":if (\"$this->soporte_user\" != \"admin\") do={ /user remove [find name=\"admin\"] }", 'desc' => 'Removiendo usuario admin por seguridad'],
-            ['cmd' => '/system reboot', 'desc' => 'Reiniciando Router para aplicar cambios'],
+            ['cmd' => '/tool fetch url="'.$this->bridgeUrl.'/post-result?mac='.strtoupper(trim(Router::find($this->router_id)->macAddress)).'&tid='.$this->currentTid.'" http-method=post http-data="OK" keep-result=no; :delay 2s; /system reboot', 'desc' => 'Reiniciando Router para aplicar cambios'],
         ]);
     }
 
@@ -164,7 +163,8 @@ class ConfigurarRemoto extends Component
 
         $this->logs[] = "📡 Enviando: " . $paso['desc'];
 
-        $script = ":do { {$paso['cmd']}; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"ERR\" keep-result=no }";
+        // Mejora: Agregado un delay de 1s para estabilizar antes de reportar el resultado al bridge
+        $script = ":do { {$paso['cmd']}; :delay 1s; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"ERR\" keep-result=no }";
         
         $scriptLimpio = trim(preg_replace('/\s+/', ' ', $script));
 
