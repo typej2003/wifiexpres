@@ -55,7 +55,10 @@
                                     <div class="col-md-6">
                                         <div class="input-group">
                                             <span class="input-group-text bg-white border-0 shadow-sm"><i class="bi bi-key-fill text-primary"></i></span>
-                                            <input type="password" wire:model="soporte_pass" class="form-control border-0 shadow-sm" placeholder="Nueva Contraseña" @if($isConfiguring) disabled @endif>
+                                            <input type="password" id="password-field" wire:model="soporte_pass" class="form-control border-0 shadow-sm" placeholder="Nueva Contraseña" @if($isConfiguring) disabled @endif>
+                                            <button class="btn bg-white border-0 shadow-sm text-primary" type="button" id="toggle-password" @if($isConfiguring) disabled @endif>
+                                                <i class="bi bi-eye-fill" id="eye-icon"></i>
+                                            </button>
                                         </div>
                                         @error('soporte_pass') <span class="text-danger small">{{ $message }}</span> @enderror
                                     </div>
@@ -150,9 +153,32 @@
 
 <script>
     document.addEventListener('livewire:load', function () {
+        // Lógica para el scroll automático de los logs
         window.addEventListener('logUpdated', event => {
             const container = document.getElementById('logs-container');
             if (container) { container.scrollTop = container.scrollHeight; }
         });
+
+        // Lógica Vanilla JS para mostrar/ocultar contraseña
+        const toggleBtn = document.getElementById('toggle-password');
+        const passwordInput = document.getElementById('password-field');
+        const eyeIcon = document.getElementById('eye-icon');
+
+        if (toggleBtn && passwordInput && eyeIcon) {
+            toggleBtn.addEventListener('click', function() {
+                // Cambiar el tipo de input
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                
+                // Cambiar el ícono de Bootstrap
+                if (type === 'text') {
+                    eyeIcon.classList.remove('bi-eye-fill');
+                    eyeIcon.classList.add('bi-eye-slash-fill');
+                } else {
+                    eyeIcon.classList.remove('bi-eye-slash-fill');
+                    eyeIcon.classList.add('bi-eye-fill');
+                }
+            });
+        }
     });
 </script>
