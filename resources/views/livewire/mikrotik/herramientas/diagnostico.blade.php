@@ -50,26 +50,28 @@
                 </div>
             </div>
 
-            <div class="row g-3 mb-4 p-3 rounded" style="background-color: #252525; border: 1px dashed #0dcaf0;">
+            <div class="row g-3 mb-4 p-3 rounded" style="background-color: #252525; border: 1px dashed #444;">
                 <div class="col-12 mt-0">
-                    <label class="text-info small fw-bold mb-2">
-                        <i class="bi bi-shield-check me-1"></i> ACTUALIZAR PERFIL (CAMBIO DE PLAN)
-                    </label>
+                    <label class="text-warning small fw-bold mb-2"><i class="bi bi-person-gear me-1"></i> GESTIÓN DE USUARIO HOTSPOT</label>
                 </div>
-                <div class="col-md-5">
-                    <input type="text" wire:model.defer="update_username" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Usuario a modificar">
+                <div class="col-md-3">
+                    <input type="text" wire:model.defer="new_username" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Usuario">
                 </div>
-                <div class="col-md-4">
-                    <select wire:model.defer="update_profile" class="form-select form-select-sm bg-dark text-white border-secondary">
+                <div class="col-md-3">
+                    <input type="text" wire:model.defer="new_password" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Password">
+                </div>
+                <div class="col-md-2">
+                    <select wire:model.defer="new_profile" class="form-select form-select-sm bg-dark text-white border-secondary">
                         <option value="neutro">neutro</option>
                         <option value="default">default</option>
                         <option value="1 Hora-1 (texto-1)">1 Hora-1 (texto-1)</option>
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <button wire:click="changeProfile" wire:loading.attr="disabled" class="btn btn-sm btn-info w-100 fw-bold text-dark">
-                        ACTUALIZAR PERFIL
-                    </button>
+                <div class="col-md-2">
+                    <button wire:click="createUser" class="btn btn-sm btn-warning w-100 fw-bold">CREAR</button>
+                </div>
+                <div class="col-md-2">
+                    <button wire:click="changeProfile" class="btn btn-sm btn-info w-100 fw-bold">CAMBIAR PERFIL</button>
                 </div>
             </div>
 
