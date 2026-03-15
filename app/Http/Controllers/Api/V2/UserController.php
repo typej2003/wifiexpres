@@ -115,21 +115,28 @@ class UserController extends Controller
             $identity = $request->input('identity');
             $router   = $this->findRouter($identity);
             
-            if (!$router) return response()->json(['success' => false, 'message' => 'Router no encontrado'], 404);
+            if (!$router) {
+                return response()->json(['success' => false, 'message' => 'Router no encontrado'], 404);
+            }
             
             $mac = strtoupper(trim($router->macAddress));
             $tid = "ACT" . time();
 
-            // Comando con logs para depuración en Winbox
-            $cmd = ":local m \"$mac\"; :local t \"$tid\"; :local u \"$username\"; :local pr \"$profile\"; " .
-                ":local userId [/ip hotspot user find where name=\$u]; " .
+            // Usamos la estructura que funcionó en el diagnóstico:
+            // 1. Contexto directo /ip hotspot user
+            // 2. Notificación OK antes de cualquier otra acción que pueda cortar la conexión
+            // 3. Log en MikroTik para auditoría
+            $cmd = "/ip hotspot user { " .
+                ":local u \"$username\"; :local pr \"$profile\"; :local m \"$mac\"; :local t \"$tid\"; " .
+                ":local userId [find where name=\$u]; " .
                 ":if ([:len \$userId] > 0) do={ " .
-                "  /ip hotspot user set \$userId profile=\$pr limit-uptime=0s; " .
+                "  set \$userId profile=\$pr limit-uptime=0s; " .
                 "  /log info \"Bridge: Perfil de \$u cambiado a \$pr exitosamente\"; " .
                 "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; " .
                 "} else={ " .
-                "  /log error \"Bridge: No se pudo cambiar perfil. Usuario \$u no existe en MikroTik\"; " .
+                "  /log error \"Bridge: Usuario \$u no encontrado\"; " .
                 "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; " .
+                "}" .
                 "};";
             
             $this->emitirAlSocket($cmd, $mac, $tid);
