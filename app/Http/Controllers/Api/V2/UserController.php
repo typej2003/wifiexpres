@@ -116,39 +116,48 @@ class UserController extends Controller
             $router   = $this->findRouter($identity);
             
             if (!$router) return response()->json(['success' => false, 'message' => 'Router no encontrado'], 404);
+            
             $mac = strtoupper(trim($router->macAddress));
             $tid = "ACT" . time();
 
-            // Importante: profile=\"\$pr\" y remove active \$act para forzar el re-logueo con el perfil nuevo
+            // Cambiamos la lógica: 
+            // 1. Buscamos y actualizamos el usuario.
+            // 2. Notificamos al Bridge PRIMERO.
+            // 3. Esperamos un segundo (delay) y desconectamos la sesión activa.
             $cmd = ":local m \"$mac\"; :local t \"$tid\"; :local u \"$username\"; :local pr \"$profile\"; " .
-                   ":do { " .
-                   "  :local id [/ip hotspot user find name=\$u]; " .
-                   "  :if ([:len \$id]>0) do={ " .
-                   "    /ip hotspot user set \$id profile=\"\$pr\" limit-uptime=0s; " .
-                   "    :local act [/ip hotspot active find user=\$u]; " .
-                   "    :if ([:len \$act]>0) do={ /ip hotspot active remove \$act }; " .
-                   "    /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; " .
-                   "  } else={ " .
-                   "    /log error \"Bridge: Usuario \$u no encontrado\"; " .
-                   "    /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; " .
-                   "  }; " .
-                   "} on-error={ " .
-                   "  /log error \"Bridge: Error activando perfil \$pr para \$u\"; " .
-                   "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; " .
-                   "};";
+                ":do { " .
+                "  :local userId [/ip hotspot user find where name=\$u]; " .
+                "  :if ([:len \$userId] > 0) do={ " .
+                "    /ip hotspot user set \$userId profile=\$pr limit-uptime=0s; " .
+                "    /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; " .
+                "    :delay 1s; " .
+                "    :local actId [/ip hotspot active find where user=\$u]; " .
+                "    :if ([:len \$actId] > 0) do={ /ip hotspot active remove \$actId }; " .
+                "  } else={ " .
+                "    /log error \"Bridge: Usuario \$u no encontrado\"; " .
+                "    /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; " .
+                "  }; " .
+                "} on-error={ " .
+                "  /log error \"Bridge: Error critico activando perfil \$pr para \$u\"; " .
+                "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; " .
+                "};";
             
             $this->emitirAlSocket($cmd, $mac, $tid);
             
             $resultado = $this->esperarConfirmacion($mac, $tid);
 
             if ($resultado) {
-                UserMikrotik::where('name', $username)->where('router_id', $router->id)->update([
-                    'profile' => $profile, 
-                    'active' => true
-                ]);
+                UserMikrotik::where('name', $username)
+                    ->where('router_id', $router->id)
+                    ->update([
+                        'profile' => $profile, 
+                        'active' => true
+                    ]);
                 return response()->json(['success' => true]);
             }
+            
             return response()->json(['success' => false, 'message' => 'El router no confirmó la activación del perfil']);
+            
         } catch (Exception $e) { 
             Log::error("Error en activación: " . $e->getMessage());
             return response()->json(['success' => false], 500); 
