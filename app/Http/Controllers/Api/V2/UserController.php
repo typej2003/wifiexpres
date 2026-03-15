@@ -115,29 +115,13 @@ class UserController extends Controller
             $identity = $request->input('identity');
             $router   = $this->findRouter($identity);
             
-            if (!$router) {
-                return response()->json(['success' => false, 'message' => 'Router no encontrado'], 404);
-            }
+            if (!$router) return response()->json(['success' => false, 'message' => 'Router no encontrado'], 404);
             
             $mac = strtoupper(trim($router->macAddress));
             $tid = "ACT" . time();
 
-            // Usamos la estructura que funcionó en el diagnóstico:
-            // 1. Contexto directo /ip hotspot user
-            // 2. Notificación OK antes de cualquier otra acción que pueda cortar la conexión
-            // 3. Log en MikroTik para auditoría
-            $cmd = "/ip hotspot user { " .
-                ":local u \"$username\"; :local pr \"$profile\"; :local m \"$mac\"; :local t \"$tid\"; " .
-                ":local userId [find where name=\$u]; " .
-                ":if ([:len \$userId] > 0) do={ " .
-                "  set \$userId profile=\$pr limit-uptime=0s; " .
-                "  /log info \"Bridge: Perfil de \$u cambiado a \$pr exitosamente\"; " .
-                "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; " .
-                "} else={ " .
-                "  /log error \"Bridge: Usuario \$u no encontrado\"; " .
-                "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; " .
-                "}" .
-                "};";
+            // Comando en una sola línea (One-Liner)
+            $cmd = "/ip hotspot user {:local u \"$username\"; :local pr \"$profile\"; :local m \"$mac\"; :local t \"$tid\"; :if ([:len [find where name=\$u]] > 0) do={set [find where name=\$u] profile=\$pr limit-uptime=0s; /log info (\"Bridge: OK \" . \$u); /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no;} else={/log error (\"Bridge: FAIL \" . \$u); /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no;}}";
             
             $this->emitirAlSocket($cmd, $mac, $tid);
             
@@ -146,10 +130,7 @@ class UserController extends Controller
             if ($resultado) {
                 UserMikrotik::where('name', $username)
                     ->where('router_id', $router->id)
-                    ->update([
-                        'profile' => $profile, 
-                        'active' => true
-                    ]);
+                    ->update(['profile' => $profile, 'active' => true]);
                 return response()->json(['success' => true]);
             }
             
