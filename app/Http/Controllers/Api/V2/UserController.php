@@ -120,20 +120,21 @@ class UserController extends Controller
             $mac = strtoupper(trim($router->macAddress));
             $tid = "ACT" . time();
 
-            // Cambiamos la lógica: 
-            // 1. Buscamos y actualizamos el usuario.
-            // 2. Notificamos al Bridge PRIMERO.
-            // 3. Esperamos un segundo (delay) y desconectamos la sesión activa.
-            $cmd = ":local u \"$username\"; :local pr \"$profile\"; " .
+            // 1. Buscamos y cambiamos perfil.
+            // 2. Notificamos al Bridge para que 'esperarConfirmacion' sea TRUE.
+            $cmd = ":local m \"$mac\"; :local t \"$tid\"; :local u \"$username\"; :local pr \"$profile\"; " .
                 ":local id [/ip hotspot user find where name=\$u]; " .
                 ":if ([:len \$id] > 0) do={ " .
                 "  /ip hotspot user set \$id profile=\$pr limit-uptime=0s; " .
+                "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; " .
                 "} else={ " .
-                "  /log error \"Bridge: Usuario \$u no encontrado para cambiar perfil\"; " .
+                "  /log error \"Bridge: Usuario \$u no encontrado\"; " .
+                "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; " .
                 "};";
             
             $this->emitirAlSocket($cmd, $mac, $tid);
             
+            // Esto dará FALSE si el comando anterior no tiene el /tool fetch con el "OK"
             $resultado = $this->esperarConfirmacion($mac, $tid);
 
             if ($resultado) {
@@ -146,7 +147,7 @@ class UserController extends Controller
                 return response()->json(['success' => true]);
             }
             
-            return response()->json(['success' => false, 'message' => 'El router no confirmó la activación del perfil']);
+            return response()->json(['success' => false, 'message' => 'El router no confirmó la activación']);
             
         } catch (Exception $e) { 
             Log::error("Error en activación: " . $e->getMessage());
