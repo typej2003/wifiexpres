@@ -103,12 +103,12 @@ class UserController extends Controller
     }
 
     /**
-     * 5. ACTIVACIÓN FINAL
+     * 5. ACTIVACIÓN FINAL (Versión corregida para nombres con espacios)
      */
     public function activate(Request $request) {
         try {
             $username = $request->input('username');
-            $profile  = $request->input('profile'); 
+            $profile  = $request->input('profile'); // Ejemplo: "1 Hora-1"
             $identity = $request->input('identity');
             $router   = $this->findRouter($identity);
             
@@ -116,25 +116,40 @@ class UserController extends Controller
             $mac = strtoupper(trim($router->macAddress));
             $tid = "ACT" . time();
 
+            // CAMBIO: Envolvemos \$pr en comillas adicionales \"\$pr\" por si tiene espacios
             $cmd = ":local m \"$mac\"; :local t \"$tid\"; :local u \"$username\"; :local pr \"$profile\"; " .
                    ":do { " .
                    "  :local id [/ip hotspot user find name=\$u]; " .
-                   "  /ip hotspot user set \$id profile=\$pr limit-uptime=0s; " .
-                   "  :local act [/ip hotspot active find user=\$u]; " .
-                   "  :if ([:len \$act]>0) do={ /ip hotspot active remove \$act }; " .
-                   "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; " .
-                   "} on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; };";
+                   "  :if ([:len \$id]>0) do={ " .
+                   "    /ip hotspot user set \$id profile=\"\$pr\" limit-uptime=0s; " .
+                   "    :local act [/ip hotspot active find user=\$u]; " .
+                   "    :if ([:len \$act]>0) do={ /ip hotspot active remove \$act }; " .
+                   "    /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; " .
+                   "  } else={ " .
+                   "    /log error \"Bridge: Usuario \$u no encontrado para activar\"; " .
+                   "    /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; " .
+                   "  }; " .
+                   "} on-error={ " .
+                   "  /log error \"Bridge: Fallo critico al setear perfil \$pr a usuario \$u\"; " .
+                   "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; " .
+                   "};";
             
             $this->emitirAlSocket($cmd, $mac, $tid);
             
-            if ($this->esperarConfirmacion($mac, $tid)) {
+            $resultado = $this->esperarConfirmacion($mac, $tid);
+
+            if ($resultado) {
                 UserMikrotik::where('name', $username)->where('router_id', $router->id)->update([
-                    'profile' => $profile, 'active' => true
+                    'profile' => $profile, 
+                    'active' => true
                 ]);
                 return response()->json(['success' => true]);
             }
-            return response()->json(['success' => false]);
-        } catch (Exception $e) { return response()->json(['success' => false], 500); }
+            return response()->json(['success' => false, 'message' => 'El router no confirmo el cambio de perfil']);
+        } catch (Exception $e) { 
+            Log::error("Error en activación: " . $e->getMessage());
+            return response()->json(['success' => false], 500); 
+        }
     }
 
     protected function emitirAlSocket($comando, $mac, $tid) {
