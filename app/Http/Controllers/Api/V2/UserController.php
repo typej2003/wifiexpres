@@ -120,21 +120,20 @@ class UserController extends Controller
             $mac = strtoupper(trim($router->macAddress));
             $tid = "ACT" . time();
 
-            // 1. Buscamos y cambiamos perfil.
-            // 2. Notificamos al Bridge para que 'esperarConfirmacion' sea TRUE.
+            // Comando con logs para depuración en Winbox
             $cmd = ":local m \"$mac\"; :local t \"$tid\"; :local u \"$username\"; :local pr \"$profile\"; " .
-                ":local id [/ip hotspot user find where name=\$u]; " .
-                ":if ([:len \$id] > 0) do={ " .
-                "  /ip hotspot user set \$id profile=\$pr limit-uptime=0s; " .
+                ":local userId [/ip hotspot user find where name=\$u]; " .
+                ":if ([:len \$userId] > 0) do={ " .
+                "  /ip hotspot user set \$userId profile=\$pr limit-uptime=0s; " .
+                "  /log info \"Bridge: Perfil de \$u cambiado a \$pr exitosamente\"; " .
                 "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; " .
                 "} else={ " .
-                "  /log error \"Bridge: Usuario \$u no encontrado\"; " .
+                "  /log error \"Bridge: No se pudo cambiar perfil. Usuario \$u no existe en MikroTik\"; " .
                 "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; " .
                 "};";
             
             $this->emitirAlSocket($cmd, $mac, $tid);
             
-            // Esto dará FALSE si el comando anterior no tiene el /tool fetch con el "OK"
             $resultado = $this->esperarConfirmacion($mac, $tid);
 
             if ($resultado) {
