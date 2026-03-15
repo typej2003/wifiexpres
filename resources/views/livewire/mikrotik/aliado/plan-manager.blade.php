@@ -75,7 +75,7 @@
     {{-- MODAL NUEVO/EDITAR --}}
     @if($isModalOpen)
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.6); z-index: 1060; backdrop-filter: blur(5px);">
-        <div class="modal-dialog modal-lg" style="margin-top: 5rem;">
+        <div class="modal-dialog modal-lg" style="margin-top: 8rem;">
             <div class="modal-content border-0 rounded-4 shadow-lg">
                 <div class="modal-header bg-dark text-white p-4">
                     <h5 class="modal-title fw-bold">{{ $plan_id ? 'EDITAR PLAN' : 'NUEVO PLAN' }}</h5>
