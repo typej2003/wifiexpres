@@ -64,7 +64,7 @@
                     <select wire:model.defer="new_profile" class="form-select form-select-sm bg-dark text-white border-secondary">
                         <option value="neutro">neutro</option>
                         <option value="default">default</option>
-                        <option value="1 Hora-1 (texto-1)">1 Hora-1 (texto-1)</option>
+                        <option value="1 Hora-1">1 Hora-1 (texto-1)</option>
                     </select>
                 </div>
                 <div class="col-md-2">
