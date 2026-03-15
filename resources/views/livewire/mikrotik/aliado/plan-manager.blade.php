@@ -75,7 +75,7 @@
     {{-- MODAL NUEVO/EDITAR --}}
     @if($isModalOpen)
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.6); z-index: 1060; backdrop-filter: blur(5px);">
-        <div class="modal-dialog modal-lg" style="margin-top: 18rem;">
+        <div class="modal-dialog modal-lg" style="margin-top: 8rem;">
             <div class="modal-content border-0 rounded-4 shadow-lg">
                 <div class="modal-header bg-dark text-white p-4">
                     <h5 class="modal-title fw-bold">{{ $plan_id ? 'EDITAR PLAN' : 'NUEVO PLAN' }}</h5>
@@ -142,7 +142,7 @@
     {{-- MODAL DE SINCRONIZACIÓN (TABLA COMPLETA CON PARÁMETROS) --}}
     @if($isSyncModalOpen)
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.7); z-index: 1070; backdrop-filter: blur(8px);">
-        <div class="modal-dialog modal-xl modal-dialog-scrollable" style="margin-top: 3rem;">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable" style="margin-top: 8rem;">
             <div class="modal-content border-0 rounded-4 shadow-lg">
                 <div class="modal-header bg-info text-white p-4">
                     <h5 class="modal-title fw-bold"><i class="bi bi-cloud-download me-2"></i>SINCRONIZACIÓN DE PERFILES</h5>
