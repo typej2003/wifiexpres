@@ -473,14 +473,19 @@
                     body: JSON.stringify({ 
                         username: tempUser, email: tempEmail, phone: tempPhone,
                         router_mac: routerMac, identity: routerIdentity,
-                        mac_cliente: routerMac // Agregado porque tu controlador busca 'mac_cliente'
+                        mac_cliente: routerMac 
                     })
                 });
                 const result = await res.json();
                 console.log("Trial-Flow: Respuesta de activación:", result);
 
                 if(result.success) { 
-                    console.log("Trial-Flow: Éxito. Iniciando sesión automática.");
+                    console.log("Trial-Flow: Éxito. Esperando sincronización del Router...");
+                    toggleLoader(true, "Sincronizando acceso... Espere un momento.");
+                    
+                    // Espera de 3 segundos antes de loguear
+                    await new Promise(r => setTimeout(r, 5000));
+                    
                     toggleLoader(false);
                     loginSystem(tempUser, result.password || "123456"); 
                 } else { 
@@ -496,41 +501,66 @@
         }
 
         async function activateService() {
-            console.log(`Activate-Flow: Ejecutando cambio de perfil a ${planSelected}`);
+            let attempts = 0;
+            const maxAttempts = 3;
+            let success = false;
+
+            console.log(`Activate-Flow: Iniciando proceso de activación para ${planSelected}`);
             toggleLoader(true, "Finalizando navegación...");
 
-            try {
-                const res = await fetch(`${API_BASE_V2}/users/activate`, {
-                    method: "POST", 
-                    headers: { "Content-Type": "application/json", "Accept": "application/json" },
-                    body: JSON.stringify({ 
-                        username: tempUser, 
-                        profile: planSelected, 
-                        router_mac: routerMac,
-                        identity: routerIdentity 
-                    })
-                });
+            while (attempts < maxAttempts && !success) {
+                attempts++;
+                console.log(`Activate-Flow: Intento ${attempts} de ${maxAttempts}...`);
                 
-                const result = await res.json();
-                console.log("Activate-Flow: Respuesta de activación final:", result);
-
-                if(result.success) {
-                    console.log("Activate-Flow: ¡Navegación activada en MikroTik!");
-                    toggleLoader(false);
-                    loginSystem(tempUser, tempPass);
-                } else {
-                    toggleLoader(false);
-                    console.error("Activate-Flow: No se recibió confirmación OK del Router.");
-                    showError(result.message || "El router no confirmó la activación.");
+                if (attempts > 1) {
+                    toggleLoader(true, `Reintentando activación (${attempts}/${maxAttempts})...`);
                 }
-            } catch (e) { 
-                console.error("Activate-Flow: Error crítico:", e);
-                toggleLoader(false); 
-                showError("Error crítico en activación."); 
+
+                try {
+                    const res = await fetch(`${API_BASE_V2}/users/activate`, {
+                        method: "POST", 
+                        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                        body: JSON.stringify({ 
+                            username: tempUser, 
+                            profile: planSelected, 
+                            router_mac: routerMac,
+                            identity: routerIdentity 
+                        })
+                    });
+                    
+                    const result = await res.json();
+                    console.log(`Activate-Flow: Respuesta intento ${attempts}:`, result);
+                    
+                    if (result.success) {
+                        success = true;
+                        console.log("Activate-Flow: ¡Éxito! Perfil actualizado.");
+                        toggleLoader(true, "Iniciando sesión segura...");
+
+                        // Espera de seguridad para que el MikroTik procese el cambio
+                        await new Promise(r => setTimeout(r, 4000));
+
+                        toggleLoader(false);
+                        loginSystem(tempUser, tempPass);
+                        return; // Salimos de la función completamente
+                    } else {
+                        console.warn(`Activate-Flow: El intento ${attempts} falló: ${result.message}`);
+                    }
+                } catch (e) { 
+                    console.error(`Activate-Flow: Error de red en intento ${attempts}:`, e);
+                }
+
+                // Si no fue exitoso y quedan intentos, esperamos 2 segundos antes de reintentar
+                if (!success && attempts < maxAttempts) {
+                    await new Promise(r => setTimeout(r, 2000));
+                }
             }
+
+            // Si llegamos aquí, es que agotamos los 3 intentos
+            toggleLoader(false);
+            console.error("Activate-Flow: Se agotaron los reintentos de activación.");
+            showError("No se pudo confirmar la activación después de varios intentos. Por favor, intente 'Ya tengo un ticket' con su usuario.");
         }
 
-        // Función para sondear el estado de la tarea en el Bridge
         async function pollBridgeStatus(mac, tid, retries = 15) {
             for (let i = 0; i < retries; i++) {
                 try {
@@ -539,7 +569,7 @@
                     if (data.status === "OK") return "OK";
                     if (data.status === "ERROR") return "ERROR";
                 } catch (e) { console.warn("Error consultando status..."); }
-                await new Promise(r => setTimeout(r, 1500)); // Esperar 1.5s entre intentos
+                await new Promise(r => setTimeout(r, 1500)); 
             }
             return "TIMEOUT";
         }
