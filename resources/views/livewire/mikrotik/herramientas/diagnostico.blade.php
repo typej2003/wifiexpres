@@ -50,6 +50,29 @@
                 </div>
             </div>
 
+            <div class="row g-3 mb-4 p-3 rounded" style="background-color: #252525; border: 1px dashed #0dcaf0;">
+                <div class="col-12 mt-0">
+                    <label class="text-info small fw-bold mb-2">
+                        <i class="bi bi-shield-check me-1"></i> ACTUALIZAR PERFIL (CAMBIO DE PLAN)
+                    </label>
+                </div>
+                <div class="col-md-5">
+                    <input type="text" wire:model.defer="update_username" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Usuario a modificar">
+                </div>
+                <div class="col-md-4">
+                    <select wire:model.defer="update_profile" class="form-select form-select-sm bg-dark text-white border-secondary">
+                        <option value="neutro">neutro</option>
+                        <option value="default">default</option>
+                        <option value="1 Hora-1 (texto-1)">1 Hora-1 (texto-1)</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button wire:click="changeProfile" wire:loading.attr="disabled" class="btn btn-sm btn-info w-100 fw-bold text-dark">
+                        ACTUALIZAR PERFIL
+                    </button>
+                </div>
+            </div>
+
             <div class="mb-3">
                 <span class="text-white-50 small me-2 font-monospace">INFO PRESETS:</span>
                 <div class="btn-group shadow-sm">

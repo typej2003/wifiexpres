@@ -17,7 +17,41 @@ class Diagnostico extends Component {
     public $new_password = "123";
     public $new_profile = "neutro";
 
+    public $update_username;
+    public $update_profile = "default";
+
     public $bridgeUrl = "http://188.95.113.44:3000";
+
+    public function changeProfile() {
+        $this->validate([
+            'router_id' => 'required', 
+            'update_username' => 'required',
+            'update_profile' => 'required'
+        ]);
+        
+        $router = Router::findOrFail($this->router_id);
+        $mac = strtoupper(trim($router->macAddress));
+        $tid = "CHG" . uniqid();
+
+        // Comando optimizado: Busca el usuario, cambia el perfil y notifica.
+        // Usamos el contexto /ip hotspot user para que el comando sea corto.
+        $rawCommand = "/ip hotspot user { 
+            :local u \"{$this->update_username}\"; 
+            :local p \"{$this->update_profile}\"; 
+            :if ([:len [find where name=\$u]] > 0) do={ 
+                set [find where name=\$u] profile=\$p limit-uptime=0s; 
+                /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"PERFIL_ACTUALIZADO_OK\" keep-result=no;
+            } else={ 
+                /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"ERROR_USUARIO_NO_ENCONTRADO\" keep-result=no;
+            }
+        }";
+
+        $this->command = $rawCommand;
+        $this->executeCommand($tid);
+        
+        // Limpiamos el campo de usuario tras enviar
+        $this->update_username = "";
+    }
 
     protected function getPresetCommand($key, $mac, $tid) {
         $presets = [
