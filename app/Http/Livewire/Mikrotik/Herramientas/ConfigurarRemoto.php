@@ -104,9 +104,22 @@ class ConfigurarRemoto extends Component
             ['cmd' => ':if ([:len [/ip pool find name="dhcp_pool1"]]=0) do={/ip pool add name=dhcp_pool1 ranges=192.168.88.10-192.168.88.254}', 'desc' => 'Pool DHCP'],
             ['cmd' => ':if ([:len [/ip dhcp-server find name="dhcp-remoto"]]=0) do={/ip dhcp-server add address-pool=dhcp_pool1 disabled=no interface=bridge-lan name=dhcp-remoto}', 'desc' => 'DHCP Server'],
             ['cmd' => ':if ([:len [/ip dhcp-server network find address="192.168.88.0/24"]]=0) do={/ip dhcp-server network add address=192.168.88.0/24 gateway=192.168.88.1 dns-server=8.8.8.8}', 'desc' => 'DHCP Network'],
+            // Dentro de la lista de pasos de ejecutarConfiguracion()
+            [
+                'cmd' => '/ip hotspot walled-garden ip { remove [find comment="Acceso Bridge Nodejs"]; add dst-address=188.95.113.44 dst-port=3000 protocol=tcp comment="Acceso Bridge Nodejs" }', 
+                'desc' => 'Permitiendo comunicación con Bridge Nodejs'
+            ],
+            [
+                'cmd' => '/ip hotspot walled-garden { remove [find dst-host="188.95.113.44"]; add dst-host=188.95.113.44 }', 
+                'desc' => 'Walled Garden: Host del Bridge'
+            ],
             ['cmd' => ':if ([:len [/ip hotspot profile find name="hsprof1"]]=0) do={/ip hotspot profile add name=hsprof1 hotspot-address=192.168.88.1 login-by=http-chap,trial}', 'desc' => 'Perfil Hotspot'],
             ['cmd' => ':if ([:len [/ip hotspot user profile find name="neutro"]]=0) do={/ip hotspot user profile add name="neutro" session-timeout=1s shared-users=1}', 'desc' => 'Perfil Neutro'],
             ['cmd' => ':if ([:len [/ip hotspot find name="hotspot1"]]=0) do={/ip hotspot add name=hotspot1 interface=bridge-lan profile=hsprof1 address-pool=dhcp_pool1 disabled=no}', 'desc' => 'Servidor Hotspot'],
+            [
+                'cmd' => ':if ([:len [/ip firewall nat find comment="Masquerade-Bridge"]] = 0) do={ /ip firewall nat add chain=srcnat dst-address=188.95.113.44 action=masquerade comment="Masquerade-Bridge" place-before=0 }',
+                'desc' => 'Priorizando NAT para el Bridge'
+            ],
             ['cmd' => '/ip hotspot walled-garden { remove [find]; add dst-host=wifiexpres.com; add dst-host=*.wifiexpres.com; add dst-host=*.biopagobdv.com; add dst-host=*.banvenez.com; add dst-host=fcm.googleapis.com; add dst-host=mtalk.google.com; add dst-host=*.push.apple.com }', 'desc' => 'WG: Dominios'],
             ['cmd' => '/ip hotspot walled-garden ip { remove [find]; add dst-address=188.95.113.44 comment="Bridge Socket"; add dst-address=190.217.7.106; add dst-address=190.202.148.187 }', 'desc' => 'WG: IPs'],
             ['cmd' => '/tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => 'Portal'],
