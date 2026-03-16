@@ -426,35 +426,49 @@
             tempPass = Math.floor(10000 + Math.random() * 90000).toString();
 
             console.log(`V2-Flow: Iniciando PRE-ADD para ${tempUser}`);
-            toggleLoader(true, "Registrando datos en el Router...");
+            toggleLoader(true, "Sincronizando con el Router...");
 
-            try {
-                const res = await fetch(`${API_BASE_V2}/users/pre-add`, {
-                    method: "POST", 
-                    headers: { "Content-Type": "application/json", "Accept": "application/json" },
-                    body: JSON.stringify({ 
-                        username: tempUser, password: tempPass, email: tempEmail,
-                        router_mac: routerMac, identity: routerIdentity
-                    })
-                });
-                const result = await res.json();
-                console.log("V2-Flow: Respuesta de PRE-ADD:", result);
+            // Intentaremos hasta 2 veces antes de rendirnos
+            let maxRetries = 2;
+            let success = false;
 
-                if(result.success) {
-                    console.log("V2-Flow: El Router confirmó la creación. Abriendo pasarela...");
-                    toggleLoader(false);
-                    showScreen("screen-iframe");
-                    const urlIframe = `pasarela.html?plan=${encodeURIComponent(planSelected)}&amount=${planAmount}&identity=${encodeURIComponent(routerIdentity)}&user=${encodeURIComponent(tempUser)}&email=${encodeURIComponent(tempEmail)}`;
-                    document.getElementById("pasarela-frame").src = urlIframe;
-                } else {
-                    toggleLoader(false);
-                    console.warn("V2-Flow: El Router no respondió a tiempo (Timeout).");
-                    showError(result.message || "El router no respondió. Intente de nuevo.");
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const res = await fetch(`${API_BASE_V2}/users/pre-add`, {
+                        method: "POST", 
+                        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                        body: JSON.stringify({ 
+                            username: tempUser, password: tempPass, email: tempEmail,
+                            router_mac: routerMac, identity: routerIdentity
+                        })
+                    });
+                    const result = await res.json();
+
+                    if(result.success) {
+                        success = true;
+                        console.log("V2-Flow: Confirmado en intento " + (i + 1));
+                        break; 
+                    } else {
+                        console.warn(`V2-Flow: Intento ${i + 1} fallido (Timeout del Router).`);
+                    }
+                } catch (e) {
+                    console.error("V2-Flow: Error de red:", e);
                 }
-            } catch (e) { 
-                console.error("V2-Flow: Error de red:", e);
-                toggleLoader(false); 
-                showError("Error de red al registrar."); 
+                
+                // Esperar 1 segundo antes de reintentar si no fue el último intento
+                if (!success && i < maxRetries - 1) {
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+            }
+
+            toggleLoader(false);
+
+            if (success) {
+                showScreen("screen-iframe");
+                const urlIframe = `pasarela.html?plan=${encodeURIComponent(planSelected)}&amount=${planAmount}&identity=${encodeURIComponent(routerIdentity)}&user=${encodeURIComponent(tempUser)}&email=${encodeURIComponent(tempEmail)}`;
+                document.getElementById("pasarela-frame").src = urlIframe;
+            } else {
+                showError("El router está ocupado o tardó demasiado. Por favor, intente una vez más.");
             }
         }
 

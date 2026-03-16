@@ -81,14 +81,13 @@ class UserController extends Controller
             
             if (!$router) return response()->json(['success' => false, 'message' => 'Router no encontrado'], 404);
             $mac = strtoupper(trim($router->macAddress));
-
             $tidFinal = "PRE" . time();
             
+            // Simplificamos: Usamos find directo sin variables intermedias de ID
             $cmdFinal = ":local m \"$mac\"; :local t \"$tidFinal\"; :local u \"$username\"; :local p \"$password\"; " .
                         ":do { " .
-                        "  :local id [/ip hotspot user find name=\$u]; " .
-                        "  :if ([:len \$id]>0) do={ " .
-                        "    /ip hotspot user set \$id password=\$p profile=\"neutro\"; " .
+                        "  :if ([:len [/ip hotspot user find name=\$u]] > 0) do={ " .
+                        "    /ip hotspot user set [find name=\$u] password=\$p profile=\"neutro\"; " .
                         "  } else={ " .
                         "    /ip hotspot user add name=\$u password=\$p profile=\"neutro\"; " .
                         "  }; " .
@@ -97,7 +96,10 @@ class UserController extends Controller
 
             $this->emitirAlSocket($cmdFinal, $mac, $tidFinal);
             
-            return response()->json(['success' => $this->esperarConfirmacion($mac, $tidFinal)]);
+            // IMPORTANTE: Asegúrate de que el método esperarConfirmacion tenga un timeout de al menos 15-20 segundos
+            $confirmado = $this->esperarConfirmacion($mac, $tidFinal);
+
+            return response()->json(['success' => $confirmado]);
 
         } catch (Exception $e) { 
             Log::error("Error en preAdd: " . $e->getMessage());

@@ -15,6 +15,9 @@
         
         # Si hay un comando real y no es un "WAIT"
         :if ($contenido != "WAIT" && [:len $contenido] > 0) do={
+            # --- LOG DE RECEPCIÓN ---
+            /log info "Bridge: Recibido -> $contenido";
+            
             :do {
                 # Ejecutamos el comando recibido desde el portal/Laravel
                 :local func [:parse $contenido];
