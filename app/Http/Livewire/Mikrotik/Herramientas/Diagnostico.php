@@ -6,119 +6,128 @@ use Livewire\Component;
 use App\Models\Router;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class Diagnostico extends Component {
     public $router_id;
     public $command = "/system resource print";
-    public $terminal_output = "Consola lista. Seleccione un router y ejecute un comando...";
+    public $terminal_output = "Consola lista. Seleccione un router...";
     public $loading = false;
 
-    public $new_username;
-    public $new_password = "123";
-    public $new_profile = "neutro";
+    // Campos para gestión de usuarios
+    public $new_username, $new_password = "123", $new_profile = "neutro";
 
-    public $bridgeUrl = "http://188.95.113.44:3000";
+    protected $bridgeUrl = "http://188.95.113.44:3000";
 
-    public function changeProfile() {
-        $this->validate([
-            'router_id' => 'required', 
-            'new_username' => 'required',
-            'new_profile' => 'required'
-        ]);
-        
-        $router = Router::findOrFail($this->router_id);
-        $mac = strtoupper(trim($router->macAddress));
-        $tid = "CHG" . uniqid();
+    // --- LÓGICA DE COMUNICACIÓN ESTILO "ALIADO" ---
 
-        $rawCommand = "/ip hotspot user { :local u \"{$this->new_username}\"; :local p \"{$this->new_profile}\"; :if ([:len [find where name=\$u]] > 0) do={ set [find where name=\$u] profile=\$p limit-uptime=0s; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"PERFIL_CAMBIADO_OK\" keep-result=no; } else={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"ERROR_USUARIO_NO_ENCONTRADO\" keep-result=no; } }";
+    protected function emitirAlSocket($comando, $mac, $tid) {
+        try {
+            $comandoLimpio = trim(preg_replace('/\s+/', ' ', $comando));
+            $response = Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
+                ->withBody($comandoLimpio, 'text/plain')
+                ->post("{$this->bridgeUrl}/set-command");
 
-        $this->command = $rawCommand;
-        $this->executeCommand($tid);
+            if (!$response->successful()) throw new \Exception("Bridge Offline");
+            return true;
+        } catch (\Exception $e) {
+            Log::error("Error Bridge: " . $e->getMessage());
+            throw new \Exception("Error al conectar con el Bridge.");
+        }
     }
 
+    protected function esperarRespuesta($mac, $tid) {
+        set_time_limit(90);
+        for ($i = 0; $i < 30; $i++) { // 30 intentos (aprox 30 seg)
+            sleep(1);
+            try {
+                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
+                if ($res->successful() && $res->json('status') === 'ready') { 
+                    return $res->json('data');
+                }
+            } catch (\Exception $e) { }
+        }
+        return null;
+    }
+
+    // --- PRESETS OPTIMIZADOS (ESTRUCTURA ROBUSTA) ---
+
     protected function getPresetCommand($key, $mac, $tid) {
-        // Nota: Mantenemos las variables cortas para no exceder el límite de caracteres de tool fetch
-        $presets = [
-            "identity"  => ":local v [/system identity get name]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$v\" keep-result=no",
-            
-            "cpu"       => ":local v [/system resource get cpu-load]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"CPU: \$v%\" keep-result=no",
-            
-            "uptime"    => ":local v [/system resource get uptime]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"Up: \$v\" keep-result=no",
-            
-            "address"   => ":local r \"\"; /ip address { :foreach i in=[find] do={ :set r (\$r . [get \$i address] . \"-\" . [get \$i interface] . \"\\n\") } }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$r\" keep-result=no",
+        $base = ":local m \"$mac\"; :local t \"$tid\"; :local res \"\"; ";
+        $end = " /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$res keep-result=no;";
 
-            "dns"       => ":local s [/ip dns get servers]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"DNS: \$s\" keep-result=no",
-
-            "usuarios"  => ":local v [/ip hotspot user count-only]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"Total: \$v\" keep-result=no",
-
-            // --- CORRECCIÓN DE BOTONES QUE NO HACÍAN NADA (Comandos Ultra-Cortos) ---
-
-            "puertos"   => ":local r \"\"; /interface bridge port { :foreach i in=[find] do={ :set r (\$r . [get \$i interface] . \"\\n\") } }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$r\" keep-result=no",
-            
-            "hotspots"  => ":local r \"\"; /ip hotspot { :foreach i in=[find] do={ :set r (\$r . [get \$i name] . \"-\" . [get \$i interface] . \"\\n\") } }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$r\" keep-result=no",
-            
-            "profiles"  => ":local r \"\"; /ip hotspot user profile { :foreach i in=[find] do={ :set r (\$r . [get \$i name] . \"\\n\") } }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$r\" keep-result=no",
-            
-            "user_list" => ":local r \"\"; /ip hotspot user { :foreach i in=[find] do={ :set r (\$r . [get \$i name] . \"\\n\") } }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$r\" keep-result=no",
+        $scripts = [
+            "identity"  => ":set res [/system identity get name];",
+            "cpu"       => ":set res ([/system resource get cpu-load] . \"%\");",
+            "uptime"    => ":set res [/system resource get uptime];",
+            "address"   => "/ip address { :foreach i in=[find] do={ :set res (\$res . [get \$i address] . \"-\" . [get \$i interface] . \"\\n\") } };",
+            "puertos"   => "/interface bridge port { :foreach i in=[find] do={ :set res (\$res . [get \$i interface] . \"->\" . [get \$i bridge] . \"\\n\") } };",
+            "hotspots"  => "/ip hotspot { :foreach i in=[find] do={ :set res (\$res . [get \$i name] . \" (\" . [get \$i interface] . \")\\n\") } };",
+            "profiles"  => "/ip hotspot user profile { :foreach i in=[find] do={ :set res (\$res . [get \$i name] . \"\\n\") } };",
+            "user_list" => "/ip hotspot user { :foreach i in=[find] do={ :set res (\$res . [get \$i name] . \" (\" . [get \$i profile] . \")\\n\") } };",
+            "dns"       => ":local s [/ip dns get servers]; :set res (\"Static:\" . \$s);",
+            "usuarios"  => ":set res [/ip hotspot user count-only];",
         ];
 
-        return $presets[$key] ?? null;
+        return isset($scripts[$key]) ? ($base . $scripts[$key] . $end) : null;
     }
 
     public function setPreset($key) {
-        if (!$this->router_id) {
-            $this->terminal_output = "Error: Seleccione un router primero.";
-            return;
-        }
+        $this->validate(['router_id' => 'required']);
+        $this->loading = true;
+        
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
-        $tid = "DIAG" . uniqid();
-        $cmd = $this->getPresetCommand($key, $mac, $tid);
-        if ($cmd) {
-            $this->command = $cmd;
-            $this->executeCommand($tid);
+        $tid = "DIAG" . time();
+        
+        $fullCmd = $this->getPresetCommand($key, $mac, $tid);
+        $this->terminal_output = ">>> CONSULTANDO: " . strtoupper($key) . "...\n";
+
+        try {
+            $this->emitirAlSocket($fullCmd, $mac, $tid);
+            $res = $this->esperarRespuesta($mac, $tid);
+            $this->terminal_output .= $res ?: "TIMEOUT: Sin respuesta del router.";
+        } catch (\Exception $e) {
+            $this->terminal_output .= "ERROR: " . $e->getMessage();
         }
+        $this->loading = false;
     }
 
-    public function createUser() {
+    public function executeCommand() {
+        $this->validate(['router_id' => 'required', 'command' => 'required']);
+        $this->loading = true;
+        
+        $router = Router::findOrFail($this->router_id);
+        $mac = strtoupper(trim($router->macAddress));
+        $tid = "MAN" . time();
+        
+        // Encapsulamos el comando manual para que pueda devolver "SUCCESS" al menos
+        $fullCmd = ":local m \"$mac\"; :local t \"$tid\"; :do { {$this->command}; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"EJECUTADO_OK\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"ERROR_EN_COMANDO\" keep-result=no; };";
+
+        try {
+            $this->emitirAlSocket($fullCmd, $mac, $tid);
+            $res = $this->esperarRespuesta($mac, $tid);
+            $this->terminal_output = ">>> RESULTADO MANUAL:\n" . ($res ?: "Comando enviado (sin respuesta de retorno).");
+        } catch (\Exception $e) {
+            $this->terminal_output = "ERROR: " . $e->getMessage();
+        }
+        $this->loading = false;
+    }
+
+    // Lógica para cambiar perfil estilo "Aliado" (con do-error)
+    public function changeProfile() {
         $this->validate(['router_id' => 'required', 'new_username' => 'required']);
-        $router = Router::findOrFail($this->router_id);
-        $mac = strtoupper(trim($router->macAddress));
-        $tid = "ADD" . uniqid();
-        $this->command = "/ip hotspot user add name=\"{$this->new_username}\" password=\"{$this->new_password}\" profile=\"{$this->new_profile}\" comment=\"Test Bridge\";/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"USUARIO_CREADO_OK\" keep-result=no";
-        $this->executeCommand($tid);
-        $this->new_username = "";
-    }
-
-    public function executeCommand($existingTid = null) {
-        $this->validate(["router_id" => "required", "command" => "required"]);
         $this->loading = true;
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
-        $tid = $existingTid ?? "MAN" . uniqid();
-        $this->terminal_output = ">>> EJECUTANDO EN: " . strtoupper($router->identity) . " (TID: $tid)\n";
+        $tid = "PROF" . time();
+
+        $fullCmd = ":local m \"$mac\"; :local t \"$tid\"; :do { /ip hotspot user set [find name=\"{$this->new_username}\"] profile=\"{$this->new_profile}\" limit-uptime=0s; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"PERFIL_ACTUALIZADO\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"USUARIO_NO_EXISTE\" keep-result=no; };";
 
         try {
-            // Limpieza del comando para evitar fallos por espacios o saltos de línea
-            $cleanCommand = trim(preg_replace('/\s+/', ' ', $this->command));
-            $response = Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])->withBody($cleanCommand, 'text/plain')->post("{$this->bridgeUrl}/set-command");
-            if (!$response->successful()) throw new \Exception("Bridge Offline.");
-            $this->terminal_output .= ">>> ESPERANDO RESPUESTA...\n";
-
-            $confirmado = false;
-            for ($i = 0; $i < 15; $i++) {
-                sleep(1);
-                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
-                if ($res->successful() && $res->json('status') === 'ready') {
-                    $this->terminal_output .= "\n--- RESULTADO ---\n" . $res->json('data');
-                    $confirmado = true;
-                    break;
-                }
-            }
-            if (!$confirmado) $this->terminal_output .= "\n>>> TIMEOUT.";
-        } catch (\Exception $e) {
-            $this->terminal_output .= "\n>>> ERROR: " . $e->getMessage();
-        }
+            $this->emitirAlSocket($fullCmd, $mac, $tid);
+            $this->terminal_output = ">>> CAMBIANDO PERFIL...\n" . ($this->esperarRespuesta($mac, $tid) ?: "Sin confirmación.");
+        } catch (\Exception $e) { $this->terminal_output = "ERROR: " . $e->getMessage(); }
         $this->loading = false;
     }
 
