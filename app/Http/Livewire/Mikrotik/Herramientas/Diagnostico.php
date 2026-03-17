@@ -33,7 +33,6 @@ class Diagnostico extends Component {
         $mac = strtoupper(trim($router->macAddress));
         $tid = "CHG" . uniqid();
 
-        // Comando optimizado usando las variables existentes
         $rawCommand = "/ip hotspot user { 
             :local u \"{$this->new_username}\"; 
             :local p \"{$this->new_profile}\"; 
@@ -51,10 +50,17 @@ class Diagnostico extends Component {
 
     protected function getPresetCommand($key, $mac, $tid) {
         $presets = [
-            "identity"   => ":local val [/system identity get name]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$val\" keep-result=no",
-            "cpu"        => ":local val [/system resource get cpu-load]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"CPU Load: \$val%\" keep-result=no",
-            "uptime"     => ":local val [/system resource get uptime]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"Uptime: \$val\" keep-result=no",
-            "usuarios"   => ":local val [/ip hotspot user count-only]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"Total Users: \$val\" keep-result=no"
+            "identity"  => ":local val [/system identity get name]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$val\" keep-result=no",
+            "cpu"       => ":local val [/system resource get cpu-load]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"CPU Load: \$val%\" keep-result=no",
+            "uptime"    => ":local val [/system resource get uptime]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"Uptime: \$val\" keep-result=no",
+            "usuarios"  => ":local val [/ip hotspot user count-only]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"Total Users: \$val\" keep-result=no",
+            
+            // --- NUEVOS DIAGNÓSTICOS ---
+            "puertos"   => ":local res \"\"; /interface bridge port { :foreach i in=[find] do={ :set res (\$res . [get \$i interface] . \" -> \" . [get \$i bridge] . \"\\n\") } }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$res\" keep-result=no",
+            "address"   => ":local res \"\"; /ip address { :foreach i in=[find] do={ :set res (\$res . [get \$i address] . \" on \" . [get \$i interface] . \"\\n\") } }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$res\" keep-result=no",
+            "dns"       => ":local s [/ip dns get servers]; :local d [/ip dns get dynamic-servers]; :local res \"Static: \$s\\nDynamic: \$d\"; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$res\" keep-result=no",
+            "hotspots"  => ":local res \"\"; /ip hotspot { :foreach i in=[find] do={ :set res (\$res . [get \$i name] . \" -> \" . [get \$i interface] . \" profile:\" . [get \$i profile] . \"\\n\") } }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$res\" keep-result=no",
+            "user_list" => ":local res \"\"; /ip hotspot user { :foreach i in=[find] do={ :set res (\$res . [get \$i name] . \" (\" . [get \$i profile] . \")\\n\") } }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$res\" keep-result=no",
         ];
 
         return $presets[$key] ?? null;
@@ -85,7 +91,6 @@ class Diagnostico extends Component {
         $mac = strtoupper(trim($router->macAddress));
         $tid = "ADD" . uniqid();
 
-        // COMANDO EN UNA SOLA LÍNEA SIN SALTOS NI ESPACIOS EXTRA AL FINAL
         $this->command = "/ip hotspot user add name=\"{$this->new_username}\" password=\"{$this->new_password}\" profile=\"{$this->new_profile}\" comment=\"Test Bridge\";/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"USUARIO_CREADO_OK\" keep-result=no";
         
         $this->executeCommand($tid);
@@ -106,7 +111,6 @@ class Diagnostico extends Component {
         $this->terminal_output = ">>> EJECUTANDO EN: " . strtoupper($router->identity) . " (TID: $tid)\n";
 
         try {
-            // LIMPIEZA EXTREMA DEL COMANDO: Elimina saltos de línea y tabulaciones
             $cleanCommand = trim(preg_replace('/\s+/', ' ', $this->command));
 
             $response = Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
