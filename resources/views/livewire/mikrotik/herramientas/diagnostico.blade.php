@@ -5,7 +5,7 @@
                 <div class="rounded-circle bg-danger me-2" style="width: 12px; height: 12px;"></div>
                 <div class="rounded-circle bg-warning me-2" style="width: 12px; height: 12px;"></div>
                 <div class="rounded-circle bg-success me-2" style="width: 12px; height: 12px;"></div>
-                <span class="ms-3 text-light font-monospace small">bridge_connector.sh — diagnósticos_v3</span>
+                <span class="ms-3 text-light font-monospace small text-uppercase">Bridge Connector — Diagnósticos V3</span>
             </div>
         </div>
 
@@ -56,7 +56,7 @@
 
             <div class="mb-3">
                 <span class="text-white-50 small me-2 font-monospace d-block mb-2 text-uppercase">Presets de Diagnóstico:</span>
-                <div class="btn-group shadow-sm flex-wrap">
+                <div class="btn-group shadow-sm flex-wrap" role="group">
                     <button wire:click="setPreset('identity')" class="btn btn-sm btn-outline-info text-light border-secondary">Identity</button>
                     <button wire:click="setPreset('cpu')" class="btn btn-sm btn-outline-info text-light border-secondary">CPU %</button>
                     <button wire:click="setPreset('uptime')" class="btn btn-sm btn-outline-info text-light border-secondary">Uptime</button>
@@ -79,7 +79,7 @@
                 <div wire:loading wire:target="executeCommand, createUser, setPreset, changeProfile" class="position-absolute top-50 start-50 translate-middle">
                     <div class="text-center bg-dark p-3 rounded border border-secondary shadow" style="min-width: 250px;">
                         <div class="spinner-border text-success mb-2" role="status"></div>
-                        <div class="text-success font-monospace small">CONECTANDO CON MIKROTIK...</div>
+                        <div class="text-success font-monospace small">COMUNICANDO CON MIKROTIK...</div>
                     </div>
                 </div>
             </div>
@@ -88,7 +88,7 @@
         <div class="card-footer border-secondary py-2" style="background-color: #2d2d2d;">
             <div class="row align-items-center text-muted small">
                 <div class="col-md-6 font-monospace" style="font-size: 0.7rem;">
-                    <i class="bi bi-terminal me-1"></i> Mode: HTTP-BRIDGE-SOCKET | Status: Ready
+                    <i class="bi bi-terminal me-1"></i> Mode: HTTP-BRIDGE-SOCKET | API: WifiExpres
                 </div>
             </div>
         </div>
