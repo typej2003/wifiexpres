@@ -63,9 +63,10 @@
                     
                     <button wire:click="setPreset('puertos')" class="btn btn-sm btn-outline-success text-light border-secondary">Bridge Ports</button>
                     <button wire:click="setPreset('address')" class="btn btn-sm btn-outline-success text-light border-secondary">Addresses</button>
-                    <button wire:click="setPreset('dns')" class="btn btn-sm btn-outline-success text-light border-secondary">DNS Status</button>
+                    <button wire:click="setPreset('dns')" class="btn btn-sm btn-outline-success text-light border-secondary">DNS</button>
 
-                    <button wire:click="setPreset('hotspots')" class="btn btn-sm btn-outline-warning text-light border-secondary">Hotspots</button>
+                    <button wire:click="setPreset('hotspots')" class="btn btn-sm btn-outline-warning text-light border-secondary">Hotspot Servers</button>
+                    <button wire:click="setPreset('profiles')" class="btn btn-sm btn-outline-warning text-light border-secondary">User Profiles</button>
                     <button wire:click="setPreset('user_list')" class="btn btn-sm btn-outline-warning text-light border-secondary">Users List</button>
                     <button wire:click="setPreset('usuarios')" class="btn btn-sm btn-outline-warning text-light border-secondary">Count</button>
                 </div>
