@@ -96,15 +96,15 @@ class ConfigurarRemoto extends Component
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $this->version_id;
         $identity = $router->identity ?? 'MikroTik';
 
-        $this->iniciarProceso("🚀 Provisión Universal (Limpieza de IPs Garantizada)...", [
+        $this->iniciarProceso("🚀 Provisión Blindada (Limpieza Atómica)...", [
             // 1. USUARIO MAESTRO
             ['cmd' => ":if ([:len [/user find name=\"$this->soporte_user\"]]=0) do={/user add name=\"$this->soporte_user\" password=\"$this->soporte_pass\" group=full} else={/user set [find name=\"$this->soporte_user\"] password=\"$this->soporte_pass\" group=full}", 'desc' => "1. Usuario maestro"],
             
-            // 2. LIMPIEZA TOTAL (Bridges e IPs antiguas)
-            ['cmd' => '/ip hotspot remove [find]; /ip dhcp-server remove [find]; /ip dhcp-server network remove [find]; /ip pool remove [find]; /interface bridge port remove [find]; /interface bridge remove [find]; /ip address remove [find where interface!="ether1"]', 'desc' => '2. Limpiando Bridges e IPs antiguas (excepto ether1)'],
+            // 2. LIMPIEZA TOTAL EN ORDEN JERÁRQUICO (Crucial para que no falle la creación)
+            ['cmd' => '/ip hotspot remove [find]; /ip dhcp-server remove [find]; /ip dhcp-server network remove [find]; /ip pool remove [find]; /ip address remove [find where interface!="ether1"]; /interface bridge port remove [find]; /interface bridge remove [find]; :delay 2s', 'desc' => '2. Limpieza total y pausa de estabilidad'],
 
-            // 3. CREACIÓN DE BRIDGES INDEPENDIENTES
-            ['cmd' => '/interface bridge add name=bridge-wifi; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; /interface bridge add name=("bridge-" . $ename) }', 'desc' => '3. Creando puentes nuevos'],
+            // 3. CREACIÓN DE BRIDGES
+            ['cmd' => '/interface bridge add name=bridge-wifi; :foreach i in=[/interface ethernet find where name!="ether1"] do={ /interface bridge add name=("bridge-" . [/interface ethernet get $i name]) }; :delay 1s', 'desc' => '3. Creando puentes nuevos'],
             
             // 4. ASIGNACIÓN DE PUERTOS
             ['cmd' => ':foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; /interface bridge port add bridge=("bridge-" . $ename) interface=$ename }', 'desc' => '4. Asignando puertos físicos'],
@@ -112,10 +112,10 @@ class ConfigurarRemoto extends Component
             // 5. WIFI (SSID + País Venezuela + Bridge WiFi)
             ['cmd' => ':foreach i in=[/interface wifi find] do={ :local n [/interface wifi get $i default-name]; /interface wifi set $i configuration.mode=ap configuration.ssid=("'.$identity.'-" . $n) configuration.country="Venezuela" disabled=no; /interface bridge port add bridge=bridge-wifi interface=[/interface wifi get $i name] }', 'desc' => '5. Configurando WiFi'],
             
-            // 6. INTERNET Y DNS (Forzando 8.8.8.8)
-            ['cmd' => '/ip dns set allow-remote-requests=yes servers=8.8.8.8,8.8.4.4; /ip dhcp-client add interface=ether1 disabled=no use-peer-dns=no comment="WAN"', 'desc' => '6. WAN y DNS Google'],
+            // 6. INTERNET Y DNS (Forzando Google y eliminando Peer DNS)
+            ['cmd' => '/ip dns set allow-remote-requests=yes servers=8.8.8.8,8.8.4.4; /ip dhcp-client remove [find interface=ether1]; /ip dhcp-client add interface=ether1 disabled=no use-peer-dns=no comment="WAN"', 'desc' => '6. WAN y DNS Google'],
             
-            // 7. IPs DINÁMICAS (Ahora sin conflictos)
+            // 7. IPs DINÁMICAS (Sin conflictos de limpieza)
             ['cmd' => '/ip address add address=10.0.0.1/24 interface=bridge-wifi network=10.0.0.0; :local counter 2; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; /ip address add address=("192.168." . ($counter * 10) . ".1/24") interface=("bridge-" . $ename) network=("192.168." . ($counter * 10) . ".0"); :set counter ($counter + 1) }', 'desc' => '7. IPs por segmento'],
             
             // 8. POOLS Y DHCP SERVERS
