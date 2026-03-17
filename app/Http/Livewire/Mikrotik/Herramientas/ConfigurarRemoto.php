@@ -95,43 +95,46 @@ class ConfigurarRemoto extends Component
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $this->version_id;
         $identity = $router->identity ?? 'MikroTik';
 
-        $this->iniciarProceso("🚀 Provisión Universal Multi-Bridge (Segmentación Total)...", [
+        $this->iniciarProceso("🚀 Provisión Universal (Corrección de Bridges)...", [
             // 1. USUARIO MAESTRO
-            ['cmd' => ":if ([:len [/user find name=\"$this->soporte_user\"]]=0) do={/user add name=\"$this->soporte_user\" password=\"$this->soporte_pass\" group=full} else={/user set [find name=\"$this->soporte_user\"] password=\"$this->soporte_pass\" group=full}", 'desc' => "1. Configurando usuario maestro"],
+            ['cmd' => ":if ([:len [/user find name=\"$this->soporte_user\"]]=0) do={/user add name=\"$this->soporte_user\" password=\"$this->soporte_pass\" group=full} else={/user set [find name=\"$this->soporte_user\"] password=\"$this->soporte_pass\" group=full}", 'desc' => "1. Usuario maestro"],
             
-            // 2. BRIDGES INDEPENDIENTES (WiFi + Ethers Dinámicos)
-            ['cmd' => ':if ([:len [/interface bridge find name="bridge-wifi"]]=0) do={/interface bridge add name=bridge-wifi}; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; :local bname ("bridge-" . $ename); :if ([:len [/interface bridge find name=$bname]]=0) do={/interface bridge add name=$bname} }', 'desc' => '2. Creando Bridges para cada interfaz detectada'],
-            
-            // 3. ASIGNACIÓN DE PUERTOS A SUS BRIDGES
-            ['cmd' => ':foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; :local bname ("bridge-" . $ename); :if ([:len [/interface bridge port find interface=$ename]]=0) do={/interface bridge port add bridge=$bname interface=$ename} }', 'desc' => '3. Mapeando puertos físicos a puentes'],
-            
-            // 4. WIFI (SSID Dinámico + País Venezuela + Bridge WiFi)
-            ['cmd' => ':foreach i in=[/interface wifi find] do={ :local n [/interface wifi get $i default-name]; :local sid ("'.$identity.'-" . $n); /interface wifi set $i configuration.mode=ap configuration.ssid=$sid configuration.country="Venezuela" disabled=no; :if ([:len [/interface bridge port find interface=[/interface wifi get $i name]]]=0) do={/interface bridge port add bridge=bridge-wifi interface=[/interface wifi get $i name]} }', 'desc' => '4. WiFi: País Venezuela e interfaces inalámbricas'],
-            
-            // 5. INTERNET Y DNS
-            ['cmd' => '/ip dhcp-client add interface=ether1 disabled=no comment="WAN"; /ip dns set allow-remote-requests=yes servers=8.8.8.8,8.8.4.4', 'desc' => '5. Entrada de Internet (ether1) y DNS'],
-            
-            // 6. DIRECCIONAMIENTO IP DINÁMICO (Subredes 20.1, 30.1, 40.1...)
-            ['cmd' => ':if ([:len [/ip address find interface="bridge-wifi"]]=0) do={/ip address add address=10.0.0.1/24 interface=bridge-wifi network=10.0.0.0}; :local counter 2; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; :local bname ("bridge-" . $ename); :local ip ("192.168." . ($counter * 10) . ".1"); :local net ("192.168." . ($counter * 10) . ".0"); :if ([:len [/ip address find interface=$bname]]=0) do={/ip address add address=($ip . "/24") interface=$bname network=$net}; :set counter ($counter + 1) }', 'desc' => '6. Segmentación de IPs por puerto'],
-            
-            // 7. POOLS Y SERVIDORES DHCP DINÁMICOS
-            ['cmd' => ':if ([:len [/ip dhcp-server find interface="bridge-wifi"]]=0) do={/ip pool add name=pool-wifi ranges=10.0.0.10-10.0.0.250; /ip dhcp-server add address-pool=pool-wifi disabled=no interface=bridge-wifi name="srv-wifi"; /ip dhcp-server network add address=10.0.0.0/24 dns-server=8.8.8.8 gateway=10.0.0.1}; :local counter 2; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; :local bname ("bridge-" . $ename); :local pname ("pool-" . $ename); :local sname ("srv-" . $ename); :local ipnet ("192.168." . ($counter * 10) . ".0/24"); :local gw ("192.168." . ($counter * 10) . ".1"); :local rng ("192.168." . ($counter * 10) . ".10-192.168." . ($counter * 10) . ".250"); /ip pool add name=$pname ranges=$rng; /ip dhcp-server add address-pool=$pname disabled=no interface=$bname name=$sname; /ip dhcp-server network add address=$ipnet dns-server=8.8.8.8 gateway=$gw; :set counter ($counter + 1) }', 'desc' => '7. Servidores DHCP independientes'],
-            
-            // 8. NAT Y PERFILES (Neutro y Cortesia)
-            ['cmd' => '/ip firewall nat add action=masquerade chain=srcnat out-interface=ether1 comment="NAT-General"; /ip hotspot user profile add name="neutro" session-timeout=1s shared-users=1; /ip hotspot user profile add name="cortesia 20min-0" session-timeout=20m keepalive-timeout=none shared-users=1 status-autorefresh=1m', 'desc' => '8. NAT Masquerade y Perfiles de Usuario'],
+            // 2. LIMPIEZA PREVIA (Crucial para que no falle)
+            ['cmd' => '/interface bridge port remove [find]; /interface bridge remove [find]', 'desc' => '2. Limpiando configuraciones de bridge anteriores'],
 
-            // 9. CONFIGURACIÓN DE MÚLTIPLES HOTSPOTS (PAP Activado)
-            ['cmd' => '/ip hotspot profile add dns-name=wifi.login hotspot-address=10.0.0.1 name=hsprof1 login-by=http-chap,http-pap,trial; /ip hotspot add address-pool=pool-wifi disabled=no interface=bridge-wifi name="hotspot-wifi" profile=hsprof1; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; :local bname ("bridge-" . $ename); :local hname ("hotspot-" . $ename); :local pname ("pool-" . $ename); /ip hotspot add address-pool=$pname disabled=no interface=$bname name=$hname profile=hsprof1 }; /ip hotspot user add name=admin password=admin123', 'desc' => '9. Iniciando Hotspots en cada puente'],
+            // 3. CREACIÓN DE BRIDGES INDEPENDIENTES
+            ['cmd' => '/interface bridge add name=bridge-wifi; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; /interface bridge add name=("bridge-" . $ename) }', 'desc' => '3. Creando puentes nuevos'],
+            
+            // 4. ASIGNACIÓN DE PUERTOS
+            ['cmd' => ':foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; /interface bridge port add bridge=("bridge-" . $ename) interface=$ename }', 'desc' => '4. Asignando puertos físicos'],
+            
+            // 5. WIFI (SSID + País Venezuela + Bridge WiFi)
+            ['cmd' => ':foreach i in=[/interface wifi find] do={ :local n [/interface wifi get $i default-name]; /interface wifi set $i configuration.mode=ap configuration.ssid=("'.$identity.'-" . $n) configuration.country="Venezuela" disabled=no; /interface bridge port add bridge=bridge-wifi interface=[/interface wifi get $i name] }', 'desc' => '5. Configurando WiFi'],
+            
+            // 6. INTERNET Y DNS
+            ['cmd' => '/ip dhcp-client add interface=ether1 disabled=no comment="WAN"; /ip dns set allow-remote-requests=yes servers=8.8.8.8,8.8.4.4', 'desc' => '6. WAN y DNS'],
+            
+            // 7. IPs DINÁMICAS (Subredes por puerto)
+            ['cmd' => '/ip address add address=10.0.0.1/24 interface=bridge-wifi network=10.0.0.0; :local counter 2; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; /ip address add address=("192.168." . ($counter * 10) . ".1/24") interface=("bridge-" . $ename) network=("192.168." . ($counter * 10) . ".0"); :set counter ($counter + 1) }', 'desc' => '7. IPs por segmento'],
+            
+            // 8. POOLS Y DHCP SERVERS
+            ['cmd' => '/ip pool add name=pool-wifi ranges=10.0.0.10-10.0.0.250; /ip dhcp-server add address-pool=pool-wifi disabled=no interface=bridge-wifi name="srv-wifi"; /ip dhcp-server network add address=10.0.0.0/24 dns-server=8.8.8.8 gateway=10.0.0.1; :local counter 2; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; :local ipnet ("192.168." . ($counter * 10) . ".0/24"); :local gw ("192.168." . ($counter * 10) . ".1"); :local rng ("192.168." . ($counter * 10) . ".10-192.168." . ($counter * 10) . ".250"); /ip pool add name=("pool-" . $ename) ranges=$rng; /ip dhcp-server add address-pool=("pool-" . $ename) disabled=no interface=("bridge-" . $ename) name=("srv-" . $ename); /ip dhcp-server network add address=$ipnet dns-server=8.8.8.8 gateway=$gw; :set counter ($counter + 1) }', 'desc' => '8. DHCP Servers'],
+            
+            // 9. NAT Y PERFILES
+            ['cmd' => '/ip firewall nat add action=masquerade chain=srcnat out-interface=ether1 comment="NAT-General"; /ip hotspot user profile add name="neutro" session-timeout=1s shared-users=1; /ip hotspot user profile add name="cortesia 20min-0" session-timeout=20m keepalive-timeout=none shared-users=1 status-autorefresh=1m', 'desc' => '9. NAT y Perfiles'],
 
-            // 10. WALLED GARDEN (Dominios)
-            ['cmd' => '/ip hotspot walled-garden { remove [find]; add dst-host=wifiexpres.com; add dst-host=*.wifiexpres.com; add dst-host=*.biopagobdv.com; add dst-host=*.banvenez.com; add dst-host=biopago.banvenez.com; add dst-host=fcm.googleapis.com; add dst-host=fcm-xmpp.googleapis.com; add dst-host=mtalk.google.com; add dst-host=*.push.apple.com; add dst-host=*.push.apple.com.akadns.net; add dst-host=appleid.apple.com; add dst-host=188.95.113.44 }', 'desc' => '10. Walled Garden: Dominios y Push'],
+            // 10. HOTSPOTS MÚLTIPLES
+            ['cmd' => '/ip hotspot profile add dns-name=wifi.login hotspot-address=10.0.0.1 name=hsprof1 login-by=http-chap,http-pap,trial; /ip hotspot add address-pool=pool-wifi disabled=no interface=bridge-wifi name="hotspot-wifi" profile=hsprof1; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; /ip hotspot add address-pool=("pool-" . $ename) disabled=no interface=("bridge-" . $ename) name=("hotspot-" . $ename) profile=hsprof1 }; /ip hotspot user add name=admin password=admin123', 'desc' => '10. Hotspots'],
 
-            // 11. WALLED GARDEN IP (Pasarelas y Sockets)
-            ['cmd' => '/ip hotspot walled-garden ip { remove [find]; add dst-address=190.217.7.106; add dst-address=190.217.7.229; add dst-address=200.11.243.174; add dst-address=190.202.148.187; add dst-address=188.95.113.44 dst-port=3000 protocol=tcp; add dst-port=5228-5230 protocol=tcp; add dst-port=5223 protocol=tcp }', 'desc' => '11. Walled Garden IP: Pasarelas BDV y Sockets'],
+            // 11. WALLED GARDEN (Dominios)
+            ['cmd' => '/ip hotspot walled-garden { remove [find]; add dst-host=wifiexpres.com; add dst-host=*.wifiexpres.com; add dst-host=*.biopagobdv.com; add dst-host=*.banvenez.com; add dst-host=biopago.banvenez.com; add dst-host=fcm.googleapis.com; add dst-host=fcm-xmpp.googleapis.com; add dst-host=mtalk.google.com; add dst-host=*.push.apple.com; add dst-host=*.push.apple.com.akadns.net; add dst-host=appleid.apple.com; add dst-host=188.95.113.44 }', 'desc' => '11. Walled Garden'],
 
-            // 12. PORTAL HTML Y REBOOT
-            ['cmd' => '/ip hotspot profile set [find name="hsprof1"] html-directory=hotspot; /tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => '12. Descargando Portal Personalizado'],
-            ['cmd' => '/system reboot', 'desc' => 'REINICIANDO EQUIPO'],
+            // 12. WALLED GARDEN IP (Pasarelas y Puertos)
+            ['cmd' => '/ip hotspot walled-garden ip { remove [find]; add dst-address=190.217.7.106; add dst-address=190.217.7.229; add dst-address=200.11.243.174; add dst-address=190.202.148.187; add dst-address=188.95.113.44 dst-port=3000 protocol=tcp; add dst-port=5228-5230 protocol=tcp; add dst-port=5223 protocol=tcp }', 'desc' => '12. Walled Garden IP'],
+
+            // 13. PORTAL Y REBOOT
+            ['cmd' => '/ip hotspot profile set [find name="hsprof1"] html-directory=hotspot; /tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => '13. Descargando Portal'],
+            ['cmd' => '/system reboot', 'desc' => 'FIN: REINICIANDO'],
         ]);
     }
 
