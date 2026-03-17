@@ -96,12 +96,12 @@ class ConfigurarRemoto extends Component
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $this->version_id;
         $identity = $router->identity ?? 'MikroTik';
 
-        $this->iniciarProceso("🚀 Provisión Universal (Full Notificaciones Push)...", [
+        $this->iniciarProceso("🚀 Provisión Universal (Limpieza de IPs Garantizada)...", [
             // 1. USUARIO MAESTRO
             ['cmd' => ":if ([:len [/user find name=\"$this->soporte_user\"]]=0) do={/user add name=\"$this->soporte_user\" password=\"$this->soporte_pass\" group=full} else={/user set [find name=\"$this->soporte_user\"] password=\"$this->soporte_pass\" group=full}", 'desc' => "1. Usuario maestro"],
             
-            // 2. LIMPIEZA PREVIA
-            ['cmd' => '/interface bridge port remove [find]; /interface bridge remove [find]', 'desc' => '2. Limpiando configuraciones de bridge anteriores'],
+            // 2. LIMPIEZA TOTAL (Bridges e IPs antiguas)
+            ['cmd' => '/ip hotspot remove [find]; /ip dhcp-server remove [find]; /ip dhcp-server network remove [find]; /ip pool remove [find]; /interface bridge port remove [find]; /interface bridge remove [find]; /ip address remove [find where interface!="ether1"]', 'desc' => '2. Limpiando Bridges e IPs antiguas (excepto ether1)'],
 
             // 3. CREACIÓN DE BRIDGES INDEPENDIENTES
             ['cmd' => '/interface bridge add name=bridge-wifi; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; /interface bridge add name=("bridge-" . $ename) }', 'desc' => '3. Creando puentes nuevos'],
@@ -109,13 +109,13 @@ class ConfigurarRemoto extends Component
             // 4. ASIGNACIÓN DE PUERTOS
             ['cmd' => ':foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; /interface bridge port add bridge=("bridge-" . $ename) interface=$ename }', 'desc' => '4. Asignando puertos físicos'],
             
-            // 5. WIFI
+            // 5. WIFI (SSID + País Venezuela + Bridge WiFi)
             ['cmd' => ':foreach i in=[/interface wifi find] do={ :local n [/interface wifi get $i default-name]; /interface wifi set $i configuration.mode=ap configuration.ssid=("'.$identity.'-" . $n) configuration.country="Venezuela" disabled=no; /interface bridge port add bridge=bridge-wifi interface=[/interface wifi get $i name] }', 'desc' => '5. Configurando WiFi'],
             
             // 6. INTERNET Y DNS (Forzando 8.8.8.8)
             ['cmd' => '/ip dns set allow-remote-requests=yes servers=8.8.8.8,8.8.4.4; /ip dhcp-client add interface=ether1 disabled=no use-peer-dns=no comment="WAN"', 'desc' => '6. WAN y DNS Google'],
             
-            // 7. IPs DINÁMICAS
+            // 7. IPs DINÁMICAS (Ahora sin conflictos)
             ['cmd' => '/ip address add address=10.0.0.1/24 interface=bridge-wifi network=10.0.0.0; :local counter 2; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; /ip address add address=("192.168." . ($counter * 10) . ".1/24") interface=("bridge-" . $ename) network=("192.168." . ($counter * 10) . ".0"); :set counter ($counter + 1) }', 'desc' => '7. IPs por segmento'],
             
             // 8. POOLS Y DHCP SERVERS
@@ -130,8 +130,8 @@ class ConfigurarRemoto extends Component
             // 11. WALLED GARDEN (Dominios)
             ['cmd' => '/ip hotspot walled-garden { remove [find]; add dst-host=wifiexpres.com; add dst-host=*.wifiexpres.com; add dst-host=*.biopagobdv.com; add dst-host=*.banvenez.com; add dst-host=biopago.banvenez.com; add dst-host=fcm.googleapis.com; add dst-host=fcm-xmpp.googleapis.com; add dst-host=mtalk.google.com; add dst-host=*.push.apple.com; add dst-host=*.push.apple.com.akadns.net; add dst-host=appleid.apple.com; add dst-host=188.95.113.44 }', 'desc' => '11. Walled Garden'],
 
-            // 12. WALLED GARDEN IP (Servidor + Push Notifications + DNS)
-            ['cmd' => '/ip hotspot walled-garden ip { remove [find]; add dst-address=188.95.113.44; add dst-address=190.217.7.106; add dst-address=190.217.7.229; add dst-address=200.11.243.174; add dst-address=190.202.148.187; add action=accept dst-port=5228-5230 protocol=tcp comment="Firebase Push"; add action=accept dst-port=5223 protocol=tcp comment="Apple Push"; add action=accept dst-port=53 protocol=udp; add action=accept dst-port=53 protocol=tcp }', 'desc' => '12. Walled Garden IP: API, Push y DNS Bypass'],
+            // 12. WALLED GARDEN IP (API + Push + DNS)
+            ['cmd' => '/ip hotspot walled-garden ip { remove [find]; add dst-address=188.95.113.44; add dst-address=190.217.7.106; add dst-address=190.217.7.229; add dst-address=200.11.243.174; add dst-address=190.202.148.187; add action=accept dst-port=5228-5230 protocol=tcp comment="Firebase Push"; add action=accept dst-port=5223 protocol=tcp comment="Apple Push"; add action=accept dst-port=53 protocol=udp; add action=accept dst-port=53 protocol=tcp }', 'desc' => '12. Walled Garden IP: API, Push y DNS'],
 
             // 13. PORTAL Y REBOOT
             ['cmd' => '/ip hotspot profile set [find name="hsprof1"] html-directory=hotspot; /tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => '13. Descargando Portal'],
