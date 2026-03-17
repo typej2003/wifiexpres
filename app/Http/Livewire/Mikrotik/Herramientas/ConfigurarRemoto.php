@@ -99,8 +99,8 @@ class ConfigurarRemoto extends Component
             // 1. USUARIO MAESTRO
             ['cmd' => ":if ([:len [/user find name=\"$this->soporte_user\"]]=0) do={/user add name=\"$this->soporte_user\" password=\"$this->soporte_pass\" group=full} else={/user set [find name=\"$this->soporte_user\"] password=\"$this->soporte_pass\" group=full}", 'desc' => "1. Usuario maestro"],
             
-            // 2. LIMPIEZA PREVIA (Hotspot, DHCP y Bridges)
-            ['cmd' => '/ip hotspot remove [find]; /ip dhcp-server remove [find]; /interface bridge port remove [find]; /interface bridge remove [find]', 'desc' => '2. Limpiando configuraciones de bridge anteriores'],
+            // 2. LIMPIEZA PREVIA (Crucial para que no falle)
+            ['cmd' => '/interface bridge port remove [find]; /interface bridge remove [find]', 'desc' => '2. Limpiando configuraciones de bridge anteriores'],
 
             // 3. CREACIÓN DE BRIDGES INDEPENDIENTES
             ['cmd' => '/interface bridge add name=bridge-wifi; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; /interface bridge add name=("bridge-" . $ename) }', 'desc' => '3. Creando puentes nuevos'],
@@ -133,7 +133,8 @@ class ConfigurarRemoto extends Component
             ['cmd' => '/ip hotspot walled-garden ip { remove [find]; add dst-address=190.217.7.106; add dst-address=190.217.7.229; add dst-address=200.11.243.174; add dst-address=190.202.148.187; add dst-address=188.95.113.44 dst-port=3000 protocol=tcp; add dst-port=5228-5230 protocol=tcp; add dst-port=5223 protocol=tcp }', 'desc' => '12. Walled Garden IP'],
 
             // 13. PORTAL Y REBOOT
-            ['cmd' => '/ip hotspot profile set [find name="hsprof1"] html-directory=hotspot; /tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" check-certificate=no; /system reboot', 'desc' => '13. Descargando Portal y Reiniciando'],
+            ['cmd' => '/ip hotspot profile set [find name="hsprof1"] html-directory=hotspot; /tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => '13. Descargando Portal'],
+            ['cmd' => '/system reboot', 'desc' => 'FIN: REINICIANDO'],
         ]);
     }
 
