@@ -37,29 +37,29 @@ class Diagnostico extends Component {
     }
 
     protected function getPresetCommand($key, $mac, $tid) {
+        // Nota: Mantenemos las variables cortas para no exceder el límite de caracteres de tool fetch
         $presets = [
-            "identity"  => ":local val [/system identity get name]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$val\" keep-result=no",
+            "identity"  => ":local v [/system identity get name]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$v\" keep-result=no",
             
-            "cpu"       => ":local val [/system resource get cpu-load]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"CPU Load: \$val%\" keep-result=no",
+            "cpu"       => ":local v [/system resource get cpu-load]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"CPU: \$v%\" keep-result=no",
             
-            "uptime"    => ":local val [/system resource get uptime]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"Uptime: \$val\" keep-result=no",
+            "uptime"    => ":local v [/system resource get uptime]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"Up: \$v\" keep-result=no",
             
-            // --- SERVIDORES HOTSPOT (CORREGIDO) ---
-            "hotspots"  => ":local res \"\"; /ip hotspot { :foreach i in=[find] do={ :set res (\$res . [get \$i name] . \" -> \" . [get \$i interface] . \"\\n\") } }; :if ([:len \$res] = 0) do={ :set res \"No hay Hotspots\" }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$res\" keep-result=no",
+            "address"   => ":local r \"\"; /ip address { :foreach i in=[find] do={ :set r (\$r . [get \$i address] . \"-\" . [get \$i interface] . \"\\n\") } }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$r\" keep-result=no",
+
+            "dns"       => ":local s [/ip dns get servers]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"DNS: \$s\" keep-result=no",
+
+            "usuarios"  => ":local v [/ip hotspot user count-only]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"Total: \$v\" keep-result=no",
+
+            // --- CORRECCIÓN DE BOTONES QUE NO HACÍAN NADA (Comandos Ultra-Cortos) ---
+
+            "puertos"   => ":local r \"\"; /interface bridge port { :foreach i in=[find] do={ :set r (\$r . [get \$i interface] . \"\\n\") } }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$r\" keep-result=no",
             
-            // --- PUERTOS BRIDGE (CORREGIDO) ---
-            "puertos"   => ":local res \"\"; /interface bridge port { :foreach i in=[find] do={ :set res (\$res . [get \$i interface] . \" -> \" . [get \$i bridge] . \"\\n\") } }; :if ([:len \$res] = 0) do={ :set res \"No hay puertos\" }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$res\" keep-result=no",
+            "hotspots"  => ":local r \"\"; /ip hotspot { :foreach i in=[find] do={ :set r (\$r . [get \$i name] . \"-\" . [get \$i interface] . \"\\n\") } }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$r\" keep-result=no",
             
-            // --- PERFILES DE USUARIO (NUEVO) ---
-            "profiles"  => ":local res \"\"; /ip hotspot user profile { :foreach i in=[find] do={ :set res (\$res . [get \$i name] . \" (shared:\" . [get \$i shared-users] . \")\\n\") } }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$res\" keep-result=no",
+            "profiles"  => ":local r \"\"; /ip hotspot user profile { :foreach i in=[find] do={ :set r (\$r . [get \$i name] . \"\\n\") } }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$r\" keep-result=no",
             
-            "address"   => ":local res \"\"; /ip address { :foreach i in=[find] do={ :set res (\$res . [get \$i address] . \" - \" . [get \$i interface] . \"\\n\") } }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$res\" keep-result=no",
-            
-            "dns"       => ":local s [/ip dns get servers]; :local d [/ip dns get dynamic-servers]; :local res \"Estaticos: \$s \\nDinamicos: \$d\"; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$res\" keep-result=no",
-            
-            "user_list" => ":local res \"\"; /ip hotspot user { :foreach i in=[find] do={ :set res (\$res . [get \$i name] . \" (Prof:\" . [get \$i profile] . \")\\n\") } }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$res\" keep-result=no",
-            
-            "usuarios"  => ":local val [/ip hotspot user count-only]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"Total Usuarios: \$val\" keep-result=no",
+            "user_list" => ":local r \"\"; /ip hotspot user { :foreach i in=[find] do={ :set r (\$r . [get \$i name] . \"\\n\") } }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"\$r\" keep-result=no",
         ];
 
         return $presets[$key] ?? null;
