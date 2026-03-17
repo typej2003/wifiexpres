@@ -95,12 +95,12 @@ class ConfigurarRemoto extends Component
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $this->version_id;
         $identity = $router->identity ?? 'MikroTik';
 
-        $this->iniciarProceso("🚀 Provisión Universal (Corrección de Bridges)...", [
-            // 1. USUARIO MAESTRO
-            ['cmd' => ":if ([:len [/user find name=\"$this->soporte_user\"]]=0) do={/user add name=\"$this->soporte_user\" password=\"$this->soporte_pass\" group=full} else={/user set [find name=\"$this->soporte_user\"] password=\"$this->soporte_pass\" group=full}", 'desc' => "1. Usuario maestro"],
+        $this->iniciarProceso("🚀 Limpieza y Provisión Total...", [
+            // 1. USUARIO MAESTRO Y LIMPIEZA INICIAL AGRESIVA
+            ['cmd' => ":if ([:len [/user find name=\"$this->soporte_user\"]]=0) do={/user add name=\"$this->soporte_user\" password=\"$this->soporte_pass\" group=full} else={/user set [find name=\"$this->soporte_user\"] password=\"$this->soporte_pass\" group=full}; /ip hotspot user remove [find where name!=\"default-trial\"]; /ip hotspot remove [find]; /ip hotspot profile remove [find where name!=\"default\"]; /ip hotspot user profile remove [find where name!=\"default\"]", 'desc' => "1. Usuario y limpieza de servicios Hotspot"],
             
-            // 2. LIMPIEZA PREVIA (Crucial para que no falle)
-            ['cmd' => '/interface bridge port remove [find]; /interface bridge remove [find]', 'desc' => '2. Limpiando configuraciones de bridge anteriores'],
+            // 2. LIMPIEZA DE RED (DHCP, Pools y Bridges)
+            ['cmd' => '/ip dhcp-server remove [find]; /ip dhcp-server network remove [find]; /ip pool remove [find]; /interface bridge port remove [find]; /interface bridge remove [find]; /ip address remove [find where interface!="ether1"]', 'desc' => '2. Limpieza total de red e interfaces'],
 
             // 3. CREACIÓN DE BRIDGES INDEPENDIENTES
             ['cmd' => '/interface bridge add name=bridge-wifi; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; /interface bridge add name=("bridge-" . $ename) }', 'desc' => '3. Creando puentes nuevos'],
@@ -112,7 +112,7 @@ class ConfigurarRemoto extends Component
             ['cmd' => ':foreach i in=[/interface wifi find] do={ :local n [/interface wifi get $i default-name]; /interface wifi set $i configuration.mode=ap configuration.ssid=("'.$identity.'-" . $n) configuration.country="Venezuela" disabled=no; /interface bridge port add bridge=bridge-wifi interface=[/interface wifi get $i name] }', 'desc' => '5. Configurando WiFi'],
             
             // 6. INTERNET Y DNS
-            ['cmd' => '/ip dhcp-client add interface=ether1 disabled=no comment="WAN"; /ip dns set allow-remote-requests=yes servers=8.8.8.8,8.8.4.4', 'desc' => '6. WAN y DNS'],
+            ['cmd' => ':if ([:len [/ip dhcp-client find interface=ether1]]=0) do={/ip dhcp-client add interface=ether1 disabled=no comment="WAN"}; /ip dns set allow-remote-requests=yes servers=8.8.8.8,8.8.4.4', 'desc' => '6. WAN y DNS'],
             
             // 7. IPs DINÁMICAS (Subredes por puerto)
             ['cmd' => '/ip address add address=10.0.0.1/24 interface=bridge-wifi network=10.0.0.0; :local counter 2; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; /ip address add address=("192.168." . ($counter * 10) . ".1/24") interface=("bridge-" . $ename) network=("192.168." . ($counter * 10) . ".0"); :set counter ($counter + 1) }', 'desc' => '7. IPs por segmento'],
@@ -133,8 +133,7 @@ class ConfigurarRemoto extends Component
             ['cmd' => '/ip hotspot walled-garden ip { remove [find]; add dst-address=190.217.7.106; add dst-address=190.217.7.229; add dst-address=200.11.243.174; add dst-address=190.202.148.187; add dst-address=188.95.113.44 dst-port=3000 protocol=tcp; add dst-port=5228-5230 protocol=tcp; add dst-port=5223 protocol=tcp }', 'desc' => '12. Walled Garden IP'],
 
             // 13. PORTAL Y REBOOT
-            ['cmd' => '/ip hotspot profile set [find name="hsprof1"] html-directory=hotspot; /tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => '13. Descargando Portal'],
-            ['cmd' => '/system reboot', 'desc' => 'FIN: REINICIANDO'],
+            ['cmd' => '/ip hotspot profile set [find name="hsprof1"] html-directory=hotspot; /tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" check-certificate=no; /system reboot', 'desc' => '13. Descargando Portal y Reiniciando'],
         ]);
     }
 
