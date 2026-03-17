@@ -95,36 +95,36 @@ class ConfigurarRemoto extends Component
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $this->version_id;
         $identity = $router->identity ?? 'MikroTik';
 
-        $this->iniciarProceso("🚀 Limpieza y Provisión Total...", [
-            // 1. USUARIO MAESTRO Y LIMPIEZA INICIAL AGRESIVA
-            ['cmd' => ":if ([:len [/user find name=\"$this->soporte_user\"]]=0) do={/user add name=\"$this->soporte_user\" password=\"$this->soporte_pass\" group=full} else={/user set [find name=\"$this->soporte_user\"] password=\"$this->soporte_pass\" group=full}; /ip hotspot user remove [find where name!=\"default-trial\"]; /ip hotspot remove [find]; /ip hotspot profile remove [find where name!=\"default\"]; /ip hotspot user profile remove [find where name!=\"default\"]", 'desc' => "1. Usuario y limpieza de servicios Hotspot"],
+        $this->iniciarProceso("🚀 Provisión Universal (Asignación de Puertos Corregida)...", [
+            // 1. USUARIO MAESTRO
+            ['cmd' => ":if ([:len [/user find name=\"$this->soporte_user\"]]=0) do={/user add name=\"$this->soporte_user\" password=\"$this->soporte_pass\" group=full} else={/user set [find name=\"$this->soporte_user\"] password=\"$this->soporte_pass\" group=full}", 'desc' => "1. Usuario maestro"],
             
-            // 2. LIMPIEZA DE RED (DHCP, Pools y Bridges)
-            ['cmd' => '/ip dhcp-server remove [find]; /ip dhcp-server network remove [find]; /ip pool remove [find]; /interface bridge port remove [find]; /interface bridge remove [find]; /ip address remove [find where interface!="ether1"]', 'desc' => '2. Limpieza total de red e interfaces'],
+            // 2. LIMPIEZA TOTAL (Garantiza que no haya bloqueos de hardware)
+            ['cmd' => '/ip hotspot remove [find]; /ip dhcp-server remove [find]; /ip address remove [find where interface!="ether1"]; /interface bridge port remove [find]; /interface bridge remove [find]; /ip pool remove [find]', 'desc' => '2. Limpieza total de puentes y servicios'],
 
             // 3. CREACIÓN DE BRIDGES INDEPENDIENTES
-            ['cmd' => '/interface bridge add name=bridge-wifi; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; /interface bridge add name=("bridge-" . $ename) }', 'desc' => '3. Creando puentes nuevos'],
+            ['cmd' => '/interface bridge add name=bridge-wifi; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; /interface bridge add name=("bridge-" . $ename) }', 'desc' => '3. Creando puentes independientes'],
             
-            // 4. ASIGNACIÓN DE PUERTOS
-            ['cmd' => ':foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; /interface bridge port add bridge=("bridge-" . $ename) interface=$ename }', 'desc' => '4. Asignando puertos físicos'],
+            // 4. ASIGNACIÓN DE PUERTOS (CORREGIDO: Mismo nombre de bridge que en el paso 3)
+            ['cmd' => ':foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; :local bname ("bridge-" . $ename); /interface bridge port add bridge=$bname interface=$ename }', 'desc' => '4. Vinculando puertos físicos a sus respectivos bridges'],
             
             // 5. WIFI (SSID + País Venezuela + Bridge WiFi)
             ['cmd' => ':foreach i in=[/interface wifi find] do={ :local n [/interface wifi get $i default-name]; /interface wifi set $i configuration.mode=ap configuration.ssid=("'.$identity.'-" . $n) configuration.country="Venezuela" disabled=no; /interface bridge port add bridge=bridge-wifi interface=[/interface wifi get $i name] }', 'desc' => '5. Configurando WiFi'],
             
             // 6. INTERNET Y DNS
-            ['cmd' => ':if ([:len [/ip dhcp-client find interface=ether1]]=0) do={/ip dhcp-client add interface=ether1 disabled=no comment="WAN"}; /ip dns set allow-remote-requests=yes servers=8.8.8.8,8.8.4.4', 'desc' => '6. WAN y DNS'],
+            ['cmd' => '/ip dhcp-client add interface=ether1 disabled=no comment="WAN"; /ip dns set allow-remote-requests=yes servers=8.8.8.8,8.8.4.4', 'desc' => '6. WAN y DNS'],
             
-            // 7. IPs DINÁMICAS (Subredes por puerto)
-            ['cmd' => '/ip address add address=10.0.0.1/24 interface=bridge-wifi network=10.0.0.0; :local counter 2; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; /ip address add address=("192.168." . ($counter * 10) . ".1/24") interface=("bridge-" . $ename) network=("192.168." . ($counter * 10) . ".0"); :set counter ($counter + 1) }', 'desc' => '7. IPs por segmento'],
+            // 7. IPs DINÁMICAS (Subredes por puente)
+            ['cmd' => '/ip address add address=10.0.0.1/24 interface=bridge-wifi network=10.0.0.0; :local counter 2; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; :local bname ("bridge-" . $ename); /ip address add address=("192.168." . ($counter * 10) . ".1/24") interface=$bname network=("192.168." . ($counter * 10) . ".0"); :set counter ($counter + 1) }', 'desc' => '7. IPs por segmento'],
             
             // 8. POOLS Y DHCP SERVERS
-            ['cmd' => '/ip pool add name=pool-wifi ranges=10.0.0.10-10.0.0.250; /ip dhcp-server add address-pool=pool-wifi disabled=no interface=bridge-wifi name="srv-wifi"; /ip dhcp-server network add address=10.0.0.0/24 dns-server=8.8.8.8 gateway=10.0.0.1; :local counter 2; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; :local ipnet ("192.168." . ($counter * 10) . ".0/24"); :local gw ("192.168." . ($counter * 10) . ".1"); :local rng ("192.168." . ($counter * 10) . ".10-192.168." . ($counter * 10) . ".250"); /ip pool add name=("pool-" . $ename) ranges=$rng; /ip dhcp-server add address-pool=("pool-" . $ename) disabled=no interface=("bridge-" . $ename) name=("srv-" . $ename); /ip dhcp-server network add address=$ipnet dns-server=8.8.8.8 gateway=$gw; :set counter ($counter + 1) }', 'desc' => '8. DHCP Servers'],
+            ['cmd' => '/ip pool add name=pool-wifi ranges=10.0.0.10-10.0.0.250; /ip dhcp-server add address-pool=pool-wifi disabled=no interface=bridge-wifi name="srv-wifi"; /ip dhcp-server network add address=10.0.0.0/24 dns-server=8.8.8.8 gateway=10.0.0.1; :local counter 2; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; :local bname ("bridge-" . $ename); :local ipnet ("192.168." . ($counter * 10) . ".0/24"); :local gw ("192.168." . ($counter * 10) . ".1"); :local rng ("192.168." . ($counter * 10) . ".10-192.168." . ($counter * 10) . ".250"); /ip pool add name=("pool-" . $ename) ranges=$rng; /ip dhcp-server add address-pool=("pool-" . $ename) disabled=no interface=$bname name=("srv-" . $ename); /ip dhcp-server network add address=$ipnet dns-server=8.8.8.8 gateway=$gw; :set counter ($counter + 1) }', 'desc' => '8. DHCP Servers'],
             
             // 9. NAT Y PERFILES
             ['cmd' => '/ip firewall nat add action=masquerade chain=srcnat out-interface=ether1 comment="NAT-General"; /ip hotspot user profile add name="neutro" session-timeout=1s shared-users=1; /ip hotspot user profile add name="cortesia 20min-0" session-timeout=20m keepalive-timeout=none shared-users=1 status-autorefresh=1m', 'desc' => '9. NAT y Perfiles'],
 
             // 10. HOTSPOTS MÚLTIPLES
-            ['cmd' => '/ip hotspot profile add dns-name=wifi.login hotspot-address=10.0.0.1 name=hsprof1 login-by=http-chap,http-pap,trial; /ip hotspot add address-pool=pool-wifi disabled=no interface=bridge-wifi name="hotspot-wifi" profile=hsprof1; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; /ip hotspot add address-pool=("pool-" . $ename) disabled=no interface=("bridge-" . $ename) name=("hotspot-" . $ename) profile=hsprof1 }; /ip hotspot user add name=admin password=admin123', 'desc' => '10. Hotspots'],
+            ['cmd' => '/ip hotspot profile add dns-name=wifi.login hotspot-address=10.0.0.1 name=hsprof1 login-by=http-chap,http-pap,trial; /ip hotspot add address-pool=pool-wifi disabled=no interface=bridge-wifi name="hotspot-wifi" profile=hsprof1; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; :local bname ("bridge-" . $ename); /ip hotspot add address-pool=("pool-" . $ename) disabled=no interface=$bname name=("hotspot-" . $ename) profile=hsprof1 }; /ip hotspot user add name=admin password=admin123', 'desc' => '10. Hotspots'],
 
             // 11. WALLED GARDEN (Dominios)
             ['cmd' => '/ip hotspot walled-garden { remove [find]; add dst-host=wifiexpres.com; add dst-host=*.wifiexpres.com; add dst-host=*.biopagobdv.com; add dst-host=*.banvenez.com; add dst-host=biopago.banvenez.com; add dst-host=fcm.googleapis.com; add dst-host=fcm-xmpp.googleapis.com; add dst-host=mtalk.google.com; add dst-host=*.push.apple.com; add dst-host=*.push.apple.com.akadns.net; add dst-host=appleid.apple.com; add dst-host=188.95.113.44 }', 'desc' => '11. Walled Garden'],
@@ -133,7 +133,7 @@ class ConfigurarRemoto extends Component
             ['cmd' => '/ip hotspot walled-garden ip { remove [find]; add dst-address=190.217.7.106; add dst-address=190.217.7.229; add dst-address=200.11.243.174; add dst-address=190.202.148.187; add dst-address=188.95.113.44 dst-port=3000 protocol=tcp; add dst-port=5228-5230 protocol=tcp; add dst-port=5223 protocol=tcp }', 'desc' => '12. Walled Garden IP'],
 
             // 13. PORTAL Y REBOOT
-            ['cmd' => '/ip hotspot profile set [find name="hsprof1"] html-directory=hotspot; /tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" check-certificate=no; /system reboot', 'desc' => '13. Descargando Portal y Reiniciando'],
+            ['cmd' => '/ip hotspot profile set [find name="hsprof1"] html-directory=hotspot; /tool fetch url="'.$downloadUrl.'" dst-path="hotspot/login.html" check-certificate=no; /system reboot', 'desc' => '13. Portal y Reinicio Final'],
         ]);
     }
 
