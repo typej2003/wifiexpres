@@ -27,6 +27,7 @@ use App\Http\Livewire\Mikrotik\Hotspot\ListEventos;
 use App\Http\Livewire\Mikrotik\Herramientas\Diagnostico;
 use App\Http\Livewire\Mikrotik\Herramientas\VisorLogs;
 use App\Http\Livewire\Mikrotik\Herramientas\ConfigurarRemoto;
+use App\Http\Livewire\Mikrotik\Herramientas\ConfRemotoLite;
 
 use Illuminate\Support\Facades\Response;
 
@@ -152,5 +153,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('/mikrotik/herramientas/logs', VisorLogs::class)->name('mikrotik.logs');
 
     Route::get('/mikrotik/herramientas/configurarremoto', ConfigurarRemoto::class)->name('mikrotik.remoto');
+
+    Route::get('/mikrotik/herramientas/configurarremotolite', ConfRemotoLite::class)->name('mikrotik.remotolite');
 
 });
