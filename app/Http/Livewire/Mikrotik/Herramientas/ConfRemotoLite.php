@@ -144,7 +144,7 @@ class ConfRemotoLite extends Component
     }
 
     public function render() {
-        return view('livewire.mikrotik.herramientas.configurar-remoto-lite', [
+        return view('livewire.mikrotik.herramientas.conf-remoto-lite', [
             'routers' => Router::when($this->selectedAliado, fn($q) => $q->where('user_id', $this->selectedAliado))->get(),
             'aliados' => User::where('role', 'aliado')->get(),
             'versiones' => HotspotVersion::all()
