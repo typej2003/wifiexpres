@@ -13,20 +13,16 @@ class ConfDetallada extends Component
     public $selectedAliado = null;
     public $router_id = null;
     
-    // Estados de descubrimiento y escaneo
+    // Estados principales
     public $interfaces = []; 
     public $isWaitingResponse = false; 
     public $currentTid = null;
     public $intentos = 0;
     public $showRetry = false;
-    public $logs = [];
 
-    // Cola de escaneo secuencial
-    public $scanQueue = [];
-    public $isScanningAll = false;
-
-    // Estados detallados por puerto y tarea
-    public $taskStatus = []; 
+    // Estados de ejecución
+    public $taskStatus = []; // 'loading', 'success', 'error'
+    public $taskResult = []; // Mensaje detallado del router
     public $activeTask = null; 
 
     protected $bridgeUrl = "http://188.95.113.44:3000";
@@ -40,7 +36,7 @@ class ConfDetallada extends Component
 
     public function updatedSelectedAliado()
     {
-        $this->reset(['router_id', 'interfaces', 'taskStatus', 'logs', 'isWaitingResponse', 'showRetry', 'scanQueue', 'isScanningAll']);
+        $this->reset(['router_id', 'interfaces', 'taskStatus', 'taskResult', 'isWaitingResponse', 'showRetry']);
     }
 
     public function updatedRouterId($value)
@@ -51,17 +47,13 @@ class ConfDetallada extends Component
     }
 
     /**
-     * PASO 1: Descubrir interfaces físicas
+     * PASO 1: Descubrir interfaces
      */
     public function iniciarDescubrimiento()
     {
         if (!$this->router_id) return;
 
-        $this->interfaces = [];
-        $this->taskStatus = [];
-        $this->scanQueue = [];
-        $this->intentos = 0;
-        $this->showRetry = false;
+        $this->reset(['interfaces', 'taskStatus', 'taskResult', 'intentos', 'showRetry']);
         $this->isWaitingResponse = true;
         $this->currentTid = "DISC" . time();
         
@@ -87,55 +79,13 @@ class ConfDetallada extends Component
     }
 
     /**
-     * PASO 2: Iniciar el escaneo secuencial de detalles
-     */
-    public function procesarSiguienteEnCola()
-    {
-        if (empty($this->scanQueue)) {
-            $this->isScanningAll = false;
-            return;
-        }
-
-        $iface = array_shift($this->scanQueue);
-        $this->consultarEstadoInterfaz($iface);
-    }
-
-    public function consultarEstadoInterfaz($iface)
-    {
-        $this->taskStatus[$iface]['loading_all'] = true;
-        $router = Router::findOrFail($this->router_id);
-        $mac = strtoupper(trim($router->macAddress));
-        $this->currentTid = "CHECK-" . $iface . "-" . time();
-        $this->activeTask = ['iface' => $iface, 'type' => 'status_check'];
-        $this->intentos = 0;
-
-        $script = '{
-            :local b [/interface bridge port find where interface="'.$iface.'"];
-            :local a [/ip address find where interface~"'.$iface.'"];
-            :local p [/ip pool find where name~"'.$iface.'"];
-            :local d [/ip dhcp-server find where interface~"'.$iface.'"];
-            :local h [/ip hotspot find where interface~"'.$iface.'"];
-            
-            :local res ( "b=" . ([:len $b]>0) . ",a=" . ([:len $a]>0) . ",p=" . ([:len $p]>0) . ",d=" . ([:len $d]>0) . ",h=" . ([:len $h]>0) );
-            /tool fetch url="'.$this->bridgeUrl.'/post-result?mac='.$mac.'&tid='.$this->currentTid.'&data=$res" keep-result=no
-        }';
-
-        try {
-            Http::withHeaders(['x-mac' => $mac, 'x-id' => $this->currentTid])
-                ->withBody(trim(preg_replace('/\s+/', ' ', $script)), 'text/plain')
-                ->post("{$this->bridgeUrl}/set-command");
-        } catch (\Exception $e) {
-            $this->taskStatus[$iface]['loading_all'] = false;
-        }
-    }
-
-    /**
-     * PASO 3: Configuración manual de un aspecto
+     * PASO 2: Configurar aspecto específico y capturar respuesta
      */
     public function ejecutarTarea($iface, $index, $tarea)
     {
         $this->taskStatus[$iface][$tarea] = 'loading';
-        $this->activeTask = ['iface' => $iface, 'tarea' => $tarea, 'type' => 'config'];
+        $this->taskResult[$iface][$tarea] = 'Enviando comando...';
+        $this->activeTask = ['iface' => $iface, 'tarea' => $tarea];
         
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
@@ -151,19 +101,29 @@ class ConfDetallada extends Component
             'hotspot' => "/ip hotspot add address-pool=pool-$iface interface=bridge-$iface name=hotspot-$iface profile=default disabled=no"
         ];
 
-        $script = '{ :local r "OK"; :do { '.$comandos[$tarea].' } on-error={ :set r "ERR" }; /tool fetch url="'.$this->bridgeUrl.'/post-result?mac='.$mac.'&tid='.$this->currentTid.'&data=$r" keep-result=no }';
+        // Script que intenta ejecutar y devuelve el resultado o el error
+        $script = '{ 
+            :local msg "OK: Operacion exitosa"; 
+            :do { 
+                '.$comandos[$tarea].' 
+            } on-error={ :set msg "Error: No se pudo aplicar el comando" }; 
+            /tool fetch url="'.$this->bridgeUrl.'/post-result?mac='.$mac.'&tid='.$this->currentTid.'&data=$msg" keep-result=no 
+        }';
 
         try {
             Http::withHeaders(['x-mac' => $mac, 'x-id' => $this->currentTid])
                 ->withBody(trim(preg_replace('/\s+/', ' ', $script)), 'text/plain')
                 ->post("{$this->bridgeUrl}/set-command");
+            
+            $this->taskResult[$iface][$tarea] = 'Esperando confirmación...';
         } catch (\Exception $e) {
             $this->taskStatus[$iface][$tarea] = 'error';
+            $this->taskResult[$iface][$tarea] = 'Error de conexión con el Bridge';
         }
     }
 
     /**
-     * POLLING
+     * POLLING UNIFICADO
      */
     public function checkStatus()
     {
@@ -183,24 +143,17 @@ class ConfDetallada extends Component
                 if ($this->isWaitingResponse) {
                     $this->interfaces = array_filter(explode(',', $data));
                     $this->isWaitingResponse = false;
-                    
-                    // Al recibir interfaces, llenar cola de escaneo secuencial (menos ether1)
-                    foreach($this->interfaces as $iface) {
-                        if($iface != 'ether1') $this->scanQueue[] = $iface;
-                    }
-                    $this->isScanningAll = true;
-                    $this->procesarSiguienteEnCola();
                 } 
-                elseif ($this->activeTask && $this->activeTask['type'] === 'status_check') {
-                    $this->parseStatus($this->activeTask['iface'], $data);
-                    $this->activeTask = null;
-                    // Escanear el siguiente puerto en la cola
-                    $this->procesarSiguienteEnCola();
-                }
-                elseif ($this->activeTask && $this->activeTask['type'] === 'config') {
+                elseif ($this->activeTask) {
                     $iface = $this->activeTask['iface'];
                     $tarea = $this->activeTask['tarea'];
-                    $this->taskStatus[$iface][$tarea] = ($data === 'OK') ? 'success' : 'error';
+                    
+                    if (strpos($data, 'OK') !== false) {
+                        $this->taskStatus[$iface][$tarea] = 'success';
+                    } else {
+                        $this->taskStatus[$iface][$tarea] = 'error';
+                    }
+                    $this->taskResult[$iface][$tarea] = $data;
                     $this->activeTask = null;
                 }
                 $this->intentos = 0;
@@ -210,29 +163,14 @@ class ConfDetallada extends Component
         } catch (\Exception $e) {}
     }
 
-    private function parseStatus($iface, $data)
-    {
-        $parts = explode(',', $data);
-        $map = ['b'=>'bridge', 'a'=>'address', 'p'=>'pool', 'd'=>'dhcp', 'h'=>'hotspot'];
-        foreach($parts as $p) {
-            if (strpos($p, '=') !== false) {
-                list($key, $val) = explode('=', $p);
-                $this->taskStatus[$iface][$map[$key]] = ($val == "1" || $val == "true") ? 'success' : 'missing';
-            }
-        }
-        $this->taskStatus[$iface]['loading_all'] = false;
-    }
-
     private function handleTimeout()
     {
         if ($this->isWaitingResponse) $this->showRetry = true;
         if ($this->activeTask) {
             $iface = $this->activeTask['iface'];
-            if ($this->activeTask['type'] === 'config') $this->taskStatus[$iface][$this->activeTask['tarea']] = 'error';
-            if ($this->activeTask['type'] === 'status_check') {
-                $this->taskStatus[$iface]['loading_all'] = false;
-                $this->procesarSiguienteEnCola();
-            }
+            $tarea = $this->activeTask['tarea'];
+            $this->taskStatus[$iface][$tarea] = 'error';
+            $this->taskResult[$iface][$tarea] = 'Timeout: Sin respuesta del router';
         }
         $this->isWaitingResponse = false;
         $this->activeTask = null;
