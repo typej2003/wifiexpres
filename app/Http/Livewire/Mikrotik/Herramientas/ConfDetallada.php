@@ -46,9 +46,6 @@ class ConfDetallada extends Component
         }
     }
 
-    /**
-     * PASO 1: Descubrir interfaces físicas
-     */
     public function iniciarDescubrimiento()
     {
         if (!$this->router_id) return;
@@ -78,23 +75,18 @@ class ConfDetallada extends Component
         }
     }
 
-    /**
-     * PASO 2: Ejecutar configuración usando TUS COMANDOS de fuerza bruta
-     */
     public function ejecutarTarea($iface, $index, $tarea)
     {
         $this->taskStatus[$iface][$tarea] = 'loading';
-        $this->taskResult[$iface][$tarea] = 'Enviando comando...';
+        $this->taskResult[$iface][$tarea] = 'Procesando en router...';
         $this->activeTask = ['iface' => $iface, 'tarea' => $tarea];
         
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
         
-        // El index + 2 asegura que ether2 sea 192.168.20.1, ether3 30.1, etc.
         $counter = $index + 1; 
         $segmento = $counter * 10;
 
-        // Mapeo de comandos usando TU LÓGICA de MikroTik Script
         $comandos = [
             'bridge'  => "/interface bridge add name=bridge-$iface; /interface bridge port add bridge=bridge-$iface interface=$iface",
             'address' => "/ip address add address=192.168.$segmento.1/24 interface=bridge-$iface",
@@ -104,15 +96,16 @@ class ConfDetallada extends Component
         ];
 
         $cmd = $comandos[$tarea];
-        $this->currentTid = "TASK-" . strtoupper($tarea) . "-" . time();
+        $this->currentTid = "TASK-" . strtoupper($tarea) . "-" . time() . rand(1,99);
         $this->intentos = 0;
 
-        // Script con captura de error para devolver feedback real
+        // AGREGAMOS UN :delay PARA EVITAR EL TIMEOUT POR REINICIO DE INTERFAZ
         $script = '{ 
-            :local msg "OK: Operacion completada"; 
+            :local msg "OK: Listo"; 
             :do { 
                 '.$cmd.' 
-            } on-error={ :set msg "Error: Verifique si ya existe o dependencias" }; 
+            } on-error={ :set msg "Error: Ya existe o requiere paso previo" }; 
+            :delay 2s;
             /tool fetch url="'.$this->bridgeUrl.'/post-result?mac='.$mac.'&tid='.$this->currentTid.'&data=$msg" keep-result=no 
         }';
 
@@ -122,13 +115,10 @@ class ConfDetallada extends Component
                 ->post("{$this->bridgeUrl}/set-command");
         } catch (\Exception $e) {
             $this->taskStatus[$iface][$tarea] = 'error';
-            $this->taskResult[$iface][$tarea] = 'Error de comunicación';
+            $this->taskResult[$iface][$tarea] = 'Error de conexión';
         }
     }
 
-    /**
-     * POLLING
-     */
     public function checkStatus()
     {
         if (!$this->isWaitingResponse && !$this->activeTask) return;
@@ -157,7 +147,7 @@ class ConfDetallada extends Component
                     $this->activeTask = null;
                 }
                 $this->intentos = 0;
-            } elseif ($this->intentos >= 20) {
+            } elseif ($this->intentos >= 30) { // Subimos a 30 seg por el delay del script
                 $this->handleTimeout();
             }
         } catch (\Exception $e) {}
@@ -168,7 +158,7 @@ class ConfDetallada extends Component
         if ($this->isWaitingResponse) $this->showRetry = true;
         if ($this->activeTask) {
             $this->taskStatus[$this->activeTask['iface']][$this->activeTask['tarea']] = 'error';
-            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'Timeout: Sin respuesta del router';
+            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'Timeout: Sin respuesta (Verifique ejecución manual)';
         }
         $this->isWaitingResponse = false;
         $this->activeTask = null;
