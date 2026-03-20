@@ -162,4 +162,55 @@ class UserController extends Controller
         }
         return false;
     }
+
+    public function freeConnection(Request $request) 
+    {
+        try {
+            $macCliente = strtoupper($request->input('mac_cliente'));
+            $identity   = $request->input('identity');
+            $password   = "12345"; // Contraseña fija según tu instrucción
+            $profile    = "conexiongratis";
+
+            $router = $this->findRouter($identity);
+            if (!$router) return response()->json(['success' => false, 'message' => 'Router no hallado'], 404);
+
+            $macRouter = strtoupper(trim($router->macAddress));
+            $tid = "FREE" . time();
+
+            // 1. Guardar en Base de Datos Local (wifiexpres.com)
+            \App\Models\UserMikrotik::updateOrCreate(
+                ['name' => $macCliente, 'router_id' => $router->id],
+                [
+                    'password'      => $password,
+                    'full_name'     => $request->input('full_name'),
+                    'gender'        => $request->input('gender'),
+                    'birthday'      => $request->input('birthday'),
+                    'email'         => $request->input('email'),
+                    'cellphonecode' => $request->input('cellphonecode'),
+                    'cellphone'     => $request->input('cellphone'),
+                    'profile'       => $profile,
+                    'active'        => true
+                ]
+            );
+
+            // 2. Enviar comando al MikroTik vía Bridge
+            $cmd = ":local u \"$macCliente\"; :local p \"$password\"; :local pr \"$profile\"; " .
+                ":do { " .
+                "  /ip hotspot user add name=\$u password=\$p profile=\$pr; " .
+                "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macRouter&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no; " .
+                "} on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macRouter&tid=$tid\" http-method=post http-data=\"FAIL\" keep-result=no; };";
+
+            $this->emitirAlSocket($cmd, $macRouter, $tid);
+
+            // 3. Esperar confirmación del Bridge
+            if ($this->esperarConfirmacion($macRouter, $tid)) {
+                return response()->json(['success' => true, 'password' => $password]);
+            }
+
+            return response()->json(['success' => false, 'message' => 'El router no respondió a tiempo']);
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
 }
