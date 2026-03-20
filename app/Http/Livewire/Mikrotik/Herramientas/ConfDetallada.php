@@ -22,6 +22,9 @@ class ConfDetallada extends Component
     public $taskResult = []; 
     public $activeTask = null; 
 
+    // Cola para el Scan Auto
+    public $queue = [];
+
     protected $bridgeUrl = "http://188.95.113.44:3000";
 
     public function mount()
@@ -33,7 +36,7 @@ class ConfDetallada extends Component
 
     public function updatedSelectedAliado()
     {
-        $this->reset(['router_id', 'interfaces', 'taskStatus', 'taskResult', 'isWaitingResponse']);
+        $this->reset(['router_id', 'interfaces', 'taskStatus', 'taskResult', 'isWaitingResponse', 'queue']);
     }
 
     public function updatedRouterId($value)
@@ -43,13 +46,10 @@ class ConfDetallada extends Component
         }
     }
 
-    /**
-     * Paso 1: Descubrir interfaces y al terminar, activar el escaneo automático
-     */
     public function iniciarDescubrimiento()
     {
         if (!$this->router_id) return;
-        $this->reset(['interfaces', 'taskStatus', 'taskResult', 'intentos']);
+        $this->reset(['interfaces', 'taskStatus', 'taskResult', 'intentos', 'queue']);
         $this->isWaitingResponse = true;
         $this->currentTid = "DISC" . time();
         
@@ -66,22 +66,33 @@ class ConfDetallada extends Component
         $this->emitirAlBridge($script, $mac, $this->currentTid);
     }
 
-    /**
-     * Función para ejecutar todas las tareas de una interfaz automáticamente
-     */
     public function scanearInterfaz($iface, $index)
     {
+        // Llenamos la cola con las 5 tareas en orden
         $tareas = ['bridge', 'address', 'pool', 'dhcp', 'hotspot'];
-        foreach ($tareas as $tarea) {
-            $this->ejecutarTarea($iface, $index, $tarea);
+        foreach ($tareas as $t) {
+            $this->queue[] = [
+                'iface' => $iface,
+                'index' => $index,
+                'tarea' => $t
+            ];
+        }
+        $this->procesarSiguienteEnCola();
+    }
+
+    public function procesarSiguienteEnCola()
+    {
+        if (count($this->queue) > 0) {
+            $next = array_shift($this->queue);
+            $this->ejecutarTarea($next['iface'], $next['index'], $next['tarea']);
         }
     }
 
     public function ejecutarTarea($iface, $index, $tarea)
     {
         $this->taskStatus[$iface][$tarea] = 'loading';
-        $this->taskResult[$iface][$tarea] = 'Consultando estado...';
-        $this->activeTask = ['iface' => $iface, 'tarea' => $tarea];
+        $this->taskResult[$iface][$tarea] = 'Verificando...';
+        $this->activeTask = ['iface' => $iface, 'tarea' => $tarea, 'index' => $index];
         
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
@@ -112,15 +123,14 @@ class ConfDetallada extends Component
         $script = ":local res \"\"; :local m \"$mac\"; :local t \"{$this->currentTid}\"; " .
                   ":do { {$cmds[$tarea]} } on-error={ :set res \"Error en ejecucion\" }; " .
                   "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$res keep-result=no;";
+        
         $this->emitirAlBridge($script, $mac, $this->currentTid);
     }
 
     protected function emitirAlBridge($script, $mac, $tid)
     {
         $comandoLimpio = trim(preg_replace('/\s+/', ' ', $script));
-        Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
-            ->withBody($comandoLimpio, 'text/plain')
-            ->post("{$this->bridgeUrl}/set-command");
+        Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])->withBody($comandoLimpio, 'text/plain')->post("{$this->bridgeUrl}/set-command");
     }
 
     public function checkStatus()
@@ -143,6 +153,9 @@ class ConfDetallada extends Component
                     $this->taskStatus[$iface][$tarea] = (strpos($data, 'OK') !== false) ? 'success' : 'error';
                     $this->taskResult[$iface][$tarea] = $data;
                     $this->activeTask = null;
+                    
+                    // Al terminar una tarea, procesamos la siguiente en la cola si existe
+                    $this->procesarSiguienteEnCola();
                 }
                 $this->intentos = 0;
             } elseif ($this->intentos >= 35) { $this->handleTimeout(); }
@@ -156,6 +169,7 @@ class ConfDetallada extends Component
             $this->taskStatus[$this->activeTask['iface']][$this->activeTask['tarea']] = 'error';
             $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'Timeout';
             $this->activeTask = null;
+            $this->queue = []; // Cancelamos cola en error
         }
     }
 
