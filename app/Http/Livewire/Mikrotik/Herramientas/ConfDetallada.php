@@ -102,7 +102,6 @@ class ConfDetallada extends Component
 
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $vCode;
 
-        // ELIMINAMOS EL :DO { } EN WALLED GARDEN PARA QUE FUNCIONE COMO TU CÓDIGO ORIGINAL
         $cmds = [
             'bridge'  => ":if ([:len [/interface bridge find name=\"bridge-$iface\"]] > 0) do={ :set res \"OK: Bridge ya existe\" } else={ /interface bridge add name=\"bridge-$iface\"; /interface bridge port add bridge=\"bridge-$iface\" interface=\"$iface\"; :set res \"OK: Bridge creado\" };",
             'address' => ":if ([:len [/ip address find where interface=\"bridge-$iface\"]] > 0) do={ :set res \"OK: IP ya configurada\" } else={ /ip address add address=192.168.$segmento.1/24 interface=\"bridge-$iface\"; :set res \"OK: IP asignada\" };",
@@ -116,25 +115,26 @@ class ConfDetallada extends Component
                 :if ([:len [/ip hotspot find interface=\"bridge-$iface\"]] > 0) do={ :set res \"OK: Hotspot ya existe\"; } else={ /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no; :set res \"OK: Hotspot Creado\"; };
             }",
             
-            'walledgarden' => "/ip hotspot user add name=admin password=admin123; /ip hotspot walled-garden { remove [find]; add dst-host=wifiexpres.com; add dst-host=*.wifiexpres.com; add dst-host=*.biopagobdv.com; add dst-host=*.banvenez.com; add dst-host=biopago.banvenez.com; add dst-host=fcm.googleapis.com; add dst-host=fcm-xmpp.googleapis.com; add dst-host=mtalk.google.com; add dst-host=*.push.apple.com; add dst-host=*.push.apple.com.akadns.net; add dst-host=appleid.apple.com; add dst-host=188.95.113.44 }; :set res \"OK: Walled Garden Hosts\";",
+            // WALLED GARDEN COMPRIMIDO (SIN ESPACIOS INNECESARIOS)
+            'walledgarden' => "/ip hotspot user add name=admin password=admin123;/ip hotspot walled-garden {remove [find];add dst-host=wifiexpres.com;add dst-host=*.wifiexpres.com;add dst-host=*.biopagobdv.com;add dst-host=*.banvenez.com;add dst-host=biopago.banvenez.com;add dst-host=fcm.googleapis.com;add dst-host=fcm-xmpp.googleapis.com;add dst-host=mtalk.google.com;add dst-host=*.push.apple.com;add dst-host=*.push.apple.com.akadns.net;add dst-host=appleid.apple.com;add dst-host=188.95.113.44};:set res \"OK: WG Hosts\";",
             
-            'walledgardenip' => "/ip hotspot walled-garden ip { remove [find]; add dst-address=188.95.113.44; add dst-address=190.217.7.106; add dst-address=190.217.7.229; add dst-address=200.11.243.174; add dst-address=190.202.148.187; add action=accept dst-port=5228-5230 protocol=tcp; add action=accept dst-port=5223 protocol=tcp; add action=accept dst-port=53 protocol=udp; add action=accept dst-port=53 protocol=tcp }; :set res \"OK: Walled Garden IPs\";",
+            'walledgardenip' => "/ip hotspot walled-garden ip {remove [find];add dst-address=188.95.113.44;add dst-address=190.217.7.106;add dst-address=190.217.7.229;add dst-address=200.11.243.174;add dst-address=190.202.148.187;add action=accept dst-port=5228-5230 protocol=tcp;add action=accept dst-port=5223 protocol=tcp;add action=accept dst-port=53 protocol=udp;add action=accept dst-port=53 protocol=tcp};:set res \"OK: WG IPs\";",
 
-            'portal' => "/ip hotspot profile set [find name=\"hsprof1\"] html-directory=hotspot; /tool fetch url=\"$downloadUrl\" dst-path=\"hotspot/login.html\" check-certificate=no; :set res \"OK: Portal Descargado\";",
+            'portal' => "/ip hotspot profile set [find name=\"hsprof1\"] html-directory=hotspot;/tool fetch url=\"$downloadUrl\" dst-path=\"hotspot/login.html\" check-certificate=no;:set res \"OK: Portal OK\";",
             
-            'reboot' => "/system reboot; :set res \"OK: Reiniciando...\""
+            'reboot' => "/system reboot;:set res \"OK: Reboot\";"
         ];
 
         $this->currentTid = "CFG" . rand(10,99) . time();
         
-        // CAMBIO ESTRATÉGICO: Para WG no usamos :do {} para evitar que el router se confunda con las llaves internas
+        // NO USAMOS :do{} para Walled Garden para reducir caracteres al mínimo
         if (strpos($tarea, 'walledgarden') !== false) {
-            $script = ":local res \"\"; :local m \"$mac\"; :local t \"{$this->currentTid}\"; " . 
+            $script = ":local res \"\";:local m \"$mac\";:local t \"{$this->currentTid}\";" . 
                       $cmds[$tarea] . 
-                      " /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$res keep-result=no;";
+                      "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$res keep-result=no;";
         } else {
-            $script = ":local res \"\"; :local m \"$mac\"; :local t \"{$this->currentTid}\"; " .
-                      ":do { {$cmds[$tarea]} } on-error={ :set res \"Error en $tarea\" }; " .
+            $script = ":local res \"\";:local m \"$mac\";:local t \"{$this->currentTid}\";" .
+                      ":do{{$cmds[$tarea]}}on-error={:set res \"Error\"};" .
                       "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$res keep-result=no;";
         }
         
@@ -143,7 +143,11 @@ class ConfDetallada extends Component
 
     protected function emitirAlBridge($script, $mac, $tid)
     {
-        $comandoLimpio = trim(preg_replace('/\s+/', ' ', $script));
+        // Limpieza extrema de espacios
+        $comandoLimpio = preg_replace('/\s+/', ' ', $script);
+        $comandoLimpio = str_replace('; ', ';', $comandoLimpio);
+        $comandoLimpio = trim($comandoLimpio);
+
         Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])->withBody($comandoLimpio, 'text/plain')->post("{$this->bridgeUrl}/set-command");
     }
 
@@ -186,7 +190,7 @@ class ConfDetallada extends Component
         if ($this->isWaitingResponse) $this->isWaitingResponse = false;
         if ($this->activeTask) {
             $this->taskStatus[$this->activeTask['iface']][$this->activeTask['tarea']] = 'error';
-            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'Timeout';
+            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'TIMEOUT_ERROR';
             $this->activeTask = null;
             $this->queue = [];
         }
