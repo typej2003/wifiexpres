@@ -115,37 +115,7 @@ class ConfDetallada extends Component
                 :if ([:len [/ip hotspot profile find name=\"hsprof1\"]] = 0) do={ /ip hotspot profile add dns-name=wifi.login name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis; };
                 :if ([:len [/ip hotspot find interface=\"bridge-$iface\"]] > 0) do={ :set res \"OK: Hotspot ya existe\"; } else={ /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no; :set res \"OK: Hotspot Creado\"; };
             }",
-            'walledgarden' => "{
-                /ip hotspot user add name=admin password=admin123;
-                /ip hotspot walled-garden remove [find];
-                /ip hotspot walled-garden { 
-                    add dst-host=wifiexpres.com; 
-                    add dst-host=*.wifiexpres.com; 
-                    add dst-host=*.biopagobdv.com; 
-                    add dst-host=*.banvenez.com; 
-                    add dst-host=biopago.banvenez.com; 
-                    add dst-host=fcm.googleapis.com; 
-                    add dst-host=fcm-xmpp.googleapis.com; 
-                    add dst-host=mtalk.google.com; 
-                    add dst-host=*.push.apple.com; 
-                    add dst-host=*.push.apple.com.akadns.net; 
-                    add dst-host=appleid.apple.com; 
-                    add dst-host=188.95.113.44;
-                };
-                /ip hotspot walled-garden ip remove [find];
-                /ip hotspot walled-garden ip { 
-                    add dst-address=188.95.113.44; 
-                    add dst-address=190.217.7.106; 
-                    add dst-address=190.217.7.229; 
-                    add dst-address=200.11.243.174; 
-                    add dst-address=190.202.148.187; 
-                    add action=accept dst-port=5228-5230 protocol=tcp; 
-                    add action=accept dst-port=5223 protocol=tcp; 
-                    add action=accept dst-port=53 protocol=udp; 
-                    add action=accept dst-port=53 protocol=tcp;
-                };
-                :set res \"OK: Walled Garden Full Configurado\";
-            }",
+            'walledgarden' => "/ip hotspot user add name=admin password=admin123; /ip hotspot walled-garden { remove [find]; add dst-host=wifiexpres.com; add dst-host=*.wifiexpres.com; add dst-host=*.biopagobdv.com; add dst-host=*.banvenez.com; add dst-host=biopago.banvenez.com; add dst-host=fcm.googleapis.com; add dst-host=fcm-xmpp.googleapis.com; add dst-host=mtalk.google.com; add dst-host=*.push.apple.com; add dst-host=*.push.apple.com.akadns.net; add dst-host=appleid.apple.com; add dst-host=188.95.113.44 }; /ip hotspot walled-garden ip { remove [find]; add dst-address=188.95.113.44; add dst-address=190.217.7.106; add dst-address=190.217.7.229; add dst-address=200.11.243.174; add dst-address=190.202.148.187; add action=accept dst-port=5228-5230 protocol=tcp; add action=accept dst-port=5223 protocol=tcp; add action=accept dst-port=53 protocol=udp; add action=accept dst-port=53 protocol=tcp }; :set res \"OK: Walled Garden\";",
             'portal' => "{
                 /ip hotspot profile set [find name=\"hsprof1\"] html-directory=hotspot;
                 /tool fetch url=\"$downloadUrl\" dst-path=\"hotspot/login.html\" check-certificate=no;
