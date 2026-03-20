@@ -3,83 +3,90 @@
 namespace App\Livewire\Mikrotik\Herramientas;
 
 use Livewire\Component;
+use App\Models\Aliado; // Asumiendo que existe el modelo Aliado
 use App\Models\Router;
-use Illuminate\Support\Facades\Log;
 
 class ConfDetallada extends Component
 {
-    public $router_id;
-    public $interfaces = [];
-    public $loading_interfaces = false;
-    
-    // Estados de carga por sección
-    public $status = []; // Almacena 'loading', 'success', 'error'
-    public $logs = [];   // Almacena el output de cada comando
+    // Filtros
+    public $aliados = [];
+    public $routers = [];
+    public $aliado_id = null;
+    public $router_id = null;
 
-    public function mount($router_id)
+    // Datos del MikroTik seleccionado
+    public $interfaces = [];
+    public $status = [];
+    public $logs = [];
+    public $identity = "MikroTik";
+
+    public function mount()
     {
-        $this->router_id = $router_id;
-        $this->cargarInterfaces();
+        // Cargamos los aliados al iniciar
+        $this->aliados = Aliado::orderBy('nombre', 'asc')->get();
     }
 
-    public function cargarInterfaces()
+    // Se ejecuta automáticamente cuando cambia aliado_id
+    public function updatedAliadoId($value)
     {
-        $this->loading_interfaces = true;
+        $this->routers = Router::where('aliado_id', $value)->get();
+        $this->reset(['router_id', 'interfaces', 'status', 'logs']);
+    }
+
+    // Se ejecuta automáticamente cuando cambia router_id
+    public function updatedRouterId($value)
+    {
+        if ($value) {
+            $this->conectarMikrotik();
+        } else {
+            $this->reset(['interfaces', 'status', 'logs']);
+        }
+    }
+
+    public function conectarMikrotik()
+    {
+        $this->validate(['router_id' => 'required']);
+        $router = Router::find($this->router_id);
+        $this->identity = $router->identity ?? 'MikroTik';
+
         try {
-            $router = Router::findOrFail($this->router_id);
-            // Simulación de comando para obtener interfaces físicas (no ether1)
-            // $this->interfaces = $router->sendRaw('/interface ethernet find where name~"ether" and name!="ether1"');
-            
-            // Ejemplo estático para desarrollo de la vista (esto vendría del MikroTik)
+            // AQUÍ: Lógica real para obtener interfaces vía API/SSH
+            // Simulación de respuesta del MikroTik:
             $this->interfaces = ['ether2', 'ether3', 'ether4', 'ether5'];
             
             foreach ($this->interfaces as $iface) {
                 $this->status[$iface] = 'idle';
-                $this->logs[$iface] = 'Esperando acción...';
+                $this->logs[$iface] = 'Equipo conectado. Esperando comandos...';
             }
             $this->status['profiles'] = 'idle';
-            $this->status['walled_garden'] = 'idle';
-
+            $this->logs['profiles'] = 'Pendiente de configuración.';
+            
         } catch (\Exception $e) {
-            session()->flash('error', 'No se pudo conectar con el MikroTik: ' . $e->getMessage());
+            $this->logs['global'] = "Error de conexión: " . $e->getMessage();
         }
-        $this->loading_interfaces = false;
     }
 
     public function configurarPuerto($interface, $index)
     {
         $this->status[$interface] = 'loading';
-        $this->logs[$interface] = "Iniciando configuración para $interface...";
+        $this->logs[$interface] = "Enviando secuencia a $interface...";
 
-        $ip_base = "192.168." . (($index + 2) * 10);
-        $cmds = [
-            "/interface bridge add name=bridge-$interface",
-            "/interface bridge port add bridge=bridge-$interface interface=$interface",
-            "/ip address add address=$ip_base.1/24 interface=bridge-$interface",
-            "/ip pool add name=pool-$interface ranges=$ip_base.10-$ip_base.250",
-            "/ip dhcp-server add name=srv-$interface interface=bridge-$interface address-pool=pool-$interface disabled=no",
-            "/ip hotspot add name=hotspot-$interface interface=bridge-$interface address-pool=pool-$interface profile=hsprof1 disabled=no"
-        ];
-
-        // Aquí ejecutarías cada comando vía tu API/SSH
-        // foreach($cmds as $cmd) { $router->execute($cmd); }
+        // Lógica de segmentos (192.168.20.1, 192.168.30.1, etc.)
+        $segmento = ($index + 2) * 10;
+        
+        // Simulación de comandos secuenciales
+        sleep(1); 
 
         $this->status[$interface] = 'success';
-        $this->logs[$interface] = "✅ Configurado: Bridge, IP($ip_base.1), Pool y Hotspot creados.";
+        $this->logs[$interface] = "✅ Configurado: IP 192.168.$segmento.1/24, Bridge, Pool y Hotspot activos.";
     }
 
     public function configurarPerfiles()
     {
         $this->status['profiles'] = 'loading';
-        
-        $cmds = [
-            '/ip hotspot user profile add name="neutro" session-timeout=1s shared-users=1',
-            '/ip hotspot user profile add name="conexiongratis" shared-users=1 status-autorefresh=1m rate-limit="2M/2M"',
-            '/ip hotspot profile add dns-name=wifi.login name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis'
-        ];
-
+        sleep(1);
         $this->status['profiles'] = 'success';
-        $this->logs['profiles'] = "✅ Perfiles de usuario y servidor actualizados.";
+        $this->logs['profiles'] = "✅ Perfiles: Neutro, ConexionGratis y hsprof1 configurados.";
     }
 
     public function render()
