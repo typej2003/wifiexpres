@@ -68,7 +68,8 @@ class ConfDetallada extends Component
 
     public function scanearInterfaz($iface, $index)
     {
-        // Llenamos la cola con las 5 tareas en orden
+        // Limpiamos cualquier cola previa por seguridad
+        $this->queue = [];
         $tareas = ['bridge', 'address', 'pool', 'dhcp', 'hotspot'];
         foreach ($tareas as $t) {
             $this->queue[] = [
@@ -130,7 +131,13 @@ class ConfDetallada extends Component
     protected function emitirAlBridge($script, $mac, $tid)
     {
         $comandoLimpio = trim(preg_replace('/\s+/', ' ', $script));
-        Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])->withBody($comandoLimpio, 'text/plain')->post("{$this->bridgeUrl}/set-command");
+        try {
+            Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
+                ->withBody($comandoLimpio, 'text/plain')
+                ->post("{$this->bridgeUrl}/set-command");
+        } catch (\Exception $e) {
+            Log::error("Error Bridge: " . $e->getMessage());
+        }
     }
 
     public function checkStatus()
@@ -144,21 +151,32 @@ class ConfDetallada extends Component
             $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $this->currentTid]);
             if ($res->successful() && $res->json('status') === 'ready') {
                 $data = trim($res->json('data'));
+                
                 if ($this->isWaitingResponse) {
                     $this->interfaces = array_filter(explode(',', $data));
                     $this->isWaitingResponse = false;
                 } elseif ($this->activeTask) {
                     $iface = $this->activeTask['iface'];
                     $tarea = $this->activeTask['tarea'];
-                    $this->taskStatus[$iface][$tarea] = (strpos($data, 'OK') !== false) ? 'success' : 'error';
-                    $this->taskResult[$iface][$tarea] = $data;
-                    $this->activeTask = null;
                     
-                    // Al terminar una tarea, procesamos la siguiente en la cola si existe
-                    $this->procesarSiguienteEnCola();
+                    if (strpos($data, 'OK') !== false) {
+                        $this->taskStatus[$iface][$tarea] = 'success';
+                        $this->taskResult[$iface][$tarea] = $data;
+                        $this->activeTask = null;
+                        // Sigue a la siguiente tarea solo si esta fue exitosa
+                        $this->procesarSiguienteEnCola();
+                    } else {
+                        $this->taskStatus[$iface][$tarea] = 'error';
+                        $this->taskResult[$iface][$tarea] = $data;
+                        $this->activeTask = null;
+                        // DETENER SCAN AUTO: Vaciamos la cola porque hubo un fallo
+                        $this->queue = [];
+                    }
                 }
                 $this->intentos = 0;
-            } elseif ($this->intentos >= 35) { $this->handleTimeout(); }
+            } elseif ($this->intentos >= 35) { 
+                $this->handleTimeout(); 
+            }
         } catch (\Exception $e) {}
     }
 
@@ -167,9 +185,10 @@ class ConfDetallada extends Component
         if ($this->isWaitingResponse) $this->isWaitingResponse = false;
         if ($this->activeTask) {
             $this->taskStatus[$this->activeTask['iface']][$this->activeTask['tarea']] = 'error';
-            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'Timeout';
+            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'Timeout: Sin respuesta';
             $this->activeTask = null;
-            $this->queue = []; // Cancelamos cola en error
+            // DETENER SCAN AUTO en caso de timeout
+            $this->queue = [];
         }
     }
 
