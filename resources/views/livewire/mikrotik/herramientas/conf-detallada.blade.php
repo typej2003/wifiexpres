@@ -23,8 +23,8 @@
                 </div>
                 <div class="col-md-2 text-end">
                     @if(count($interfaces) > 0)
-                        <button wire:click="iniciarDescubrimiento" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold">
-                            <i class="fas fa-sync-alt"></i> RECARGAR
+                        <button wire:click="iniciarDescubrimiento" class="btn btn-outline-primary btn-sm rounded-pill fw-bold shadow-sm">
+                            <i class="fas fa-sync-alt"></i> REFRESCAR
                         </button>
                     @endif
                 </div>
@@ -34,8 +34,8 @@
 
     @if($isWaitingResponse)
         <div class="text-center py-5">
-            <div class="spinner-border text-primary"></div>
-            <p class="mt-2 fw-bold">Conectando con el dispositivo...</p>
+            <div class="spinner-grow text-primary mb-3"></div>
+            <h5 class="fw-bold">Interrogando Hardware...</h5>
         </div>
     @endif
 
@@ -44,13 +44,14 @@
             @foreach($interfaces as $index => $iface)
                 @if($iface != 'ether1')
                 <div class="col-md-6 col-lg-4 mb-4">
-                    <div class="card border-0 shadow rounded-4 h-100 overflow-hidden">
-                        <div class="card-header bg-dark text-white py-3 border-0">
-                            <h6 class="mb-0 fw-bold"><i class="fas fa-network-wired me-2"></i>{{ strtoupper($iface) }}</h6>
+                    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+                        <div class="card-header bg-dark text-white py-3 border-0 d-flex justify-content-between align-items-center">
+                            <span class="fw-bold"><i class="fas fa-ethernet me-2 text-info"></i>{{ strtoupper($iface) }}</span>
+                            <span class="badge bg-secondary rounded-pill" style="font-size: 0.6rem;">ID: {{ $index + 1 }}</span>
                         </div>
                         
                         <div class="card-body p-0">
-                            <div class="list-group list-group-flush">
+                            <ul class="list-group list-group-flush">
                                 @php 
                                     $tareas = [
                                         'bridge'  => 'Configurar Bridge',
@@ -62,14 +63,14 @@
                                 @endphp
 
                                 @foreach($tareas as $key => $label)
-                                    <div class="list-group-item py-3">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <span class="small fw-bold">{{ $label }}</span>
+                                    <li class="list-group-item py-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="small fw-bold text-uppercase" style="font-size: 0.75rem;">{{ $label }}</span>
                                             
                                             <button 
                                                 wire:click="ejecutarTarea('{{ $iface }}', {{ $index }}, '{{ $key }}')"
                                                 wire:loading.attr="disabled"
-                                                class="btn btn-sm rounded-pill px-3 fw-bold {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'btn-success' : (($taskStatus[$iface][$key] ?? '') == 'error' ? 'btn-danger' : 'btn-primary') }}">
+                                                class="btn btn-sm px-3 rounded-pill fw-bold shadow-sm {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'btn-success' : (($taskStatus[$iface][$key] ?? '') == 'error' ? 'btn-danger' : 'btn-primary') }}">
                                                 
                                                 @if(($taskStatus[$iface][$key] ?? '') == 'loading')
                                                     <span class="spinner-border spinner-border-sm"></span>
@@ -80,15 +81,15 @@
                                         </div>
 
                                         @if(isset($taskResult[$iface][$key]))
-                                            <div class="mt-2 p-1 px-2 rounded bg-light border">
-                                                <small class="font-monospace {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'text-success' : 'text-danger' }}" style="font-size: 0.7rem;">
-                                                    <i class="fas fa-reply me-1"></i> {{ $taskResult[$iface][$key] }}
+                                            <div class="mt-1">
+                                                <small class="font-monospace {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'text-success' : (($taskStatus[$iface][$key] ?? '') == 'error' ? 'text-danger' : 'text-muted') }}" style="font-size: 0.65rem;">
+                                                    <i class="fas fa-terminal me-1"></i> {{ $taskResult[$iface][$key] }}
                                                 </small>
                                             </div>
                                         @endif
                                     </li>
                                 @endforeach
-                            </div>
+                            </ul>
                         </div>
                     </div>
                 </div>
