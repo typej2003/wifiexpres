@@ -7,6 +7,7 @@ use App\Models\Router;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class ConfDetallada extends Component
 {
@@ -17,7 +18,6 @@ class ConfDetallada extends Component
     public $isWaitingResponse = false; 
     public $currentTid = null;
     public $intentos = 0;
-    public $showRetry = false;
 
     public $taskStatus = []; 
     public $taskResult = []; 
@@ -34,7 +34,7 @@ class ConfDetallada extends Component
 
     public function updatedSelectedAliado()
     {
-        $this->reset(['router_id', 'interfaces', 'taskStatus', 'taskResult', 'isWaitingResponse', 'showRetry']);
+        $this->reset(['router_id', 'interfaces', 'taskStatus', 'taskResult', 'isWaitingResponse']);
     }
 
     public function updatedRouterId($value)
@@ -44,32 +44,38 @@ class ConfDetallada extends Component
         }
     }
 
+    /**
+     * Descubrir interfaces (Usa la lógica de tu API)
+     */
     public function iniciarDescubrimiento()
     {
         if (!$this->router_id) return;
 
-        $this->reset(['interfaces', 'taskStatus', 'taskResult', 'intentos', 'showRetry']);
+        $this->reset(['interfaces', 'taskStatus', 'taskResult', 'intentos']);
         $this->isWaitingResponse = true;
         $this->currentTid = "DISC" . time();
         
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
 
-        $script = '{
-            :local ifaces "";
-            :foreach i in=[/interface find where type="ether" or type="wlan" or type="wifi"] do={
-                :set ifaces ($ifaces . [/interface get $i name] . ",");
+        $script = "{
+            :local ifaces \"\";
+            :foreach i in=[/interface find where type=\"ether\" or type=\"wlan\" or type=\"wifi\"] do={
+                :set ifaces (\$ifaces . [/interface get \$i name] . \",\");
             };
-            /tool fetch url="'.$this->bridgeUrl.'/post-result?mac='.$mac.'&tid='.$this->currentTid.'&data=$ifaces" keep-result=no
-        }';
+            /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\$ifaces keep-result=no;
+        }";
 
-        $this->enviarScript($mac, $script);
+        $this->emitirAlBridge($script, $mac, $this->currentTid);
     }
 
+    /**
+     * Ejecutar Tarea con lógica de verificación (Similar a trialLead/preAdd)
+     */
     public function ejecutarTarea($iface, $index, $tarea)
     {
         $this->taskStatus[$iface][$tarea] = 'loading';
-        $this->taskResult[$iface][$tarea] = 'Enviando a MikroTik...';
+        $this->taskResult[$iface][$tarea] = 'Esperando al router...';
         $this->activeTask = ['iface' => $iface, 'tarea' => $tarea];
         
         $router = Router::findOrFail($this->router_id);
@@ -77,70 +83,68 @@ class ConfDetallada extends Component
         $counter = $index + 1; 
         $segmento = $counter * 10;
 
-        $comandos = [
-            'bridge'  => "/interface bridge add name=bridge-$iface; /interface bridge port add bridge=bridge-$iface interface=$iface",
-            'address' => "/ip address add address=192.168.$segmento.1/24 interface=bridge-$iface",
-            'pool'    => "/ip pool add name=pool-$iface ranges=192.168.$segmento.10-192.168.$segmento.250",
-            'dhcp'    => "/ip dhcp-server add address-pool=pool-$iface interface=bridge-$iface name=srv-$iface disabled=no; /ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8",
-            'hotspot' => "/ip hotspot add address-pool=pool-$iface interface=bridge-$iface name=hotspot-$iface profile=hsprof1 disabled=no"
+        // Comandos formateados para MikroTik Script
+        $cmds = [
+            'bridge'  => ":if ([:len [/interface bridge find name=\"bridge-$iface\"]] > 0) do={ :set res \"OK: Bridge ya existe\" } else={ /interface bridge add name=\"bridge-$iface\"; /interface bridge port add bridge=\"bridge-$iface\" interface=\"$iface\"; :set res \"OK: Bridge creado\" };",
+            'address' => ":if ([:len [/ip address find where interface=\"bridge-$iface\"]] > 0) do={ :set res \"OK: IP ya configurada\" } else={ /ip address add address=192.168.$segmento.1/24 interface=\"bridge-$iface\"; :set res \"OK: IP asignada\" };",
+            'pool'    => ":if ([:len [/ip pool find name=\"pool-$iface\"]] > 0) do={ :set res \"OK: Pool ya existe\" } else={ /ip pool add name=\"pool-$iface\" ranges=192.168.$segmento.10-192.168.$segmento.250; :set res \"OK: Pool creado\" };",
+            'dhcp'    => ":if ([:len [/ip dhcp-server find interface=\"bridge-$iface\"]] > 0) do={ :set res \"OK: DHCP ya existe\" } else={ /ip dhcp-server add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"srv-$iface\" disabled=no; /ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8; :set res \"OK: DHCP activo\" };",
+            'hotspot' => ":if ([:len [/ip hotspot find interface=\"bridge-$iface\"]] > 0) do={ :set res \"OK: Hotspot ya existe\" } else={ /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no; :set res \"OK: Hotspot creado\" };"
         ];
 
-        $cmd = $comandos[$tarea];
-        $this->currentTid = "T" . rand(100,999) . time();
+        $this->currentTid = "CFG" . time();
         $this->intentos = 0;
 
-        // ESTRATEGIA: Scheduler para asegurar que la red esté lista antes de reportar
-        $script = '{
-            :local m "OK: Listo";
-            :do { '.$cmd.' } on-error={ :set m "Error o Ya existente" };
-            /system scheduler add name="'.$this->currentTid.'" start-time=startup interval=0s on-event="/tool fetch url=\"'.$this->bridgeUrl.'/post-result?mac='.$mac.'&tid='.$this->currentTid.'&data=$m\" keep-result=no; /system scheduler remove [find name=\"'.$this->currentTid.'\"]"
-            /system scheduler set "'.$this->currentTid.'" start-time=([/system clock get time] + 00:00:03)
-        }';
+        // Script One-Liner con reporte de estado
+        $script = ":local res \"\"; :local m \"$mac\"; :local t \"{$this->currentTid}\"; " .
+                  ":do { {$cmds[$tarea]} } on-error={ :set res \"Error en ejecucion\" }; " .
+                  "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$res keep-result=no;";
 
-        $this->enviarScript($mac, $script);
+        $this->emitirAlBridge($script, $mac, $this->currentTid);
     }
 
-    private function enviarScript($mac, $script)
+    protected function emitirAlBridge($script, $mac, $tid)
     {
+        $comandoLimpio = trim(preg_replace('/\s+/', ' ', $script));
         try {
-            Http::withHeaders(['x-mac' => $mac, 'x-id' => $this->currentTid])
-                ->withBody(trim(preg_replace('/\s+/', ' ', $script)), 'text/plain')
+            Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
+                ->withBody($comandoLimpio, 'text/plain')
                 ->post("{$this->bridgeUrl}/set-command");
         } catch (\Exception $e) {
-            if ($this->activeTask) {
-                $this->taskStatus[$this->activeTask['iface']][$this->activeTask['tarea']] = 'error';
-            }
+            Log::error("Error enviando al bridge: " . $e->getMessage());
         }
     }
 
+    /**
+     * Polling para capturar el post-result del Server.js
+     */
     public function checkStatus()
     {
         if (!$this->isWaitingResponse && !$this->activeTask) return;
 
         $this->intentos++;
         $router = Router::find($this->router_id);
-        if (!$router) return;
         $mac = strtoupper(trim($router->macAddress));
 
         try {
             $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $this->currentTid]);
 
             if ($res->successful() && $res->json('status') === 'ready') {
-                $data = $res->json('data');
+                $data = trim($res->json('data'));
 
                 if ($this->isWaitingResponse) {
                     $this->interfaces = array_filter(explode(',', $data));
                     $this->isWaitingResponse = false;
-                } 
-                elseif ($this->activeTask) {
+                } elseif ($this->activeTask) {
                     $iface = $this->activeTask['iface'];
                     $tarea = $this->activeTask['tarea'];
+                    
                     $this->taskStatus[$iface][$tarea] = (strpos($data, 'OK') !== false) ? 'success' : 'error';
                     $this->taskResult[$iface][$tarea] = $data;
                     $this->activeTask = null;
                 }
                 $this->intentos = 0;
-            } elseif ($this->intentos >= 45) { // Damos más tiempo para el Scheduler
+            } elseif ($this->intentos >= 35) {
                 $this->handleTimeout();
             }
         } catch (\Exception $e) {}
@@ -148,10 +152,10 @@ class ConfDetallada extends Component
 
     private function handleTimeout()
     {
-        if ($this->isWaitingResponse) $this->showRetry = true;
+        if ($this->isWaitingResponse) $this->interfaces = [];
         if ($this->activeTask) {
             $this->taskStatus[$this->activeTask['iface']][$this->activeTask['tarea']] = 'error';
-            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'TIMEOUT: Sin respuesta del Bridge';
+            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'Sin respuesta del Router (Timeout)';
         }
         $this->isWaitingResponse = false;
         $this->activeTask = null;
