@@ -212,7 +212,7 @@
 
             <a href="{{ route('mikrotik.confdetallada') }}" class="sidebar-link {{ request()->routeIs('mikrotik.confdetallada') ? 'active' : '' }}">
                 <i class="bi bi-terminal"></i> 
-                <span class="menu-text">Conf Remoto Lite</span>
+                <span class="menu-text">Conf Remoto Detallada</span>
             </a>
 
             <a href="{{ route('admin.diagnostico') }}" class="sidebar-link {{ request()->routeIs('admin.diagnostico') ? 'active' : '' }}">
