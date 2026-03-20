@@ -168,16 +168,16 @@ class UserController extends Controller
         try {
             $macCliente = strtoupper($request->input('mac_cliente'));
             $identity   = $request->input('identity');
-            $password   = "12345"; // Contraseña fija según tu instrucción
+            $password   = "12345"; // Contraseña genérica para el login posterior
             $profile    = "conexiongratis";
 
-            $router = $this->findRouter($identity);
-            if (!$router) return response()->json(['success' => false, 'message' => 'Router no hallado'], 404);
+            // Buscamos el router para asociar el registro
+            $router = \App\Models\Router::where('identity', $identity)->first();
+            if (!$router) {
+                return response()->json(['success' => false, 'message' => 'Router no hallado'], 404);
+            }
 
-            $macRouter = strtoupper(trim($router->macAddress));
-            $tid = "FREE" . time();
-
-            // 1. Guardar en Base de Datos Local (wifiexpres.com)
+            // Guardar los datos del formulario para Marketing
             \App\Models\UserMikrotik::updateOrCreate(
                 ['name' => $macCliente, 'router_id' => $router->id],
                 [
@@ -193,21 +193,12 @@ class UserController extends Controller
                 ]
             );
 
-            // 2. Enviar comando al MikroTik vía Bridge
-            $cmd = ":local u \"$macCliente\"; :local p \"$password\"; :local pr \"$profile\"; " .
-                ":do { " .
-                "  /ip hotspot user add name=\$u password=\$p profile=\$pr; " .
-                "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macRouter&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no; " .
-                "} on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macRouter&tid=$tid\" http-method=post http-data=\"FAIL\" keep-result=no; };";
-
-            $this->emitirAlSocket($cmd, $macRouter, $tid);
-
-            // 3. Esperar confirmación del Bridge
-            if ($this->esperarConfirmacion($macRouter, $tid)) {
-                return response()->json(['success' => true, 'password' => $password]);
-            }
-
-            return response()->json(['success' => false, 'message' => 'El router no respondió a tiempo']);
+            // Retornamos éxito de inmediato para que el login.html proceda
+            return response()->json([
+                'success' => true, 
+                'password' => $password,
+                'message' => 'Registro guardado exitosamente'
+            ]);
 
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
