@@ -181,6 +181,7 @@ class UserController extends Controller
             \App\Models\UserMikrotik::updateOrCreate(
                 ['name' => $macCliente, 'router_id' => $router->id],
                 [
+                    'macaddress'    => $macCliente,
                     'password'      => $password,
                     'full_name'     => $request->input('full_name'),
                     'gender'        => $request->input('gender'),
