@@ -17,6 +17,7 @@ class ConfDetallada extends Component
     public $isWaitingResponse = false; 
     public $currentTid = null;
     public $intentos = 0;
+    
     public $taskStatus = []; 
     public $taskResult = []; 
     public $activeTask = null; 
@@ -42,14 +43,19 @@ class ConfDetallada extends Component
         }
     }
 
+    /**
+     * Paso 1: Descubrir interfaces y al terminar, activar el escaneo automático
+     */
     public function iniciarDescubrimiento()
     {
         if (!$this->router_id) return;
         $this->reset(['interfaces', 'taskStatus', 'taskResult', 'intentos']);
         $this->isWaitingResponse = true;
         $this->currentTid = "DISC" . time();
+        
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
+
         $script = "{
             :local ifaces \"\";
             :foreach i in=[/interface find where type=\"ether\" or type=\"wlan\" or type=\"wifi\"] do={
@@ -60,10 +66,21 @@ class ConfDetallada extends Component
         $this->emitirAlBridge($script, $mac, $this->currentTid);
     }
 
+    /**
+     * Función para ejecutar todas las tareas de una interfaz automáticamente
+     */
+    public function scanearInterfaz($iface, $index)
+    {
+        $tareas = ['bridge', 'address', 'pool', 'dhcp', 'hotspot'];
+        foreach ($tareas as $tarea) {
+            $this->ejecutarTarea($iface, $index, $tarea);
+        }
+    }
+
     public function ejecutarTarea($iface, $index, $tarea)
     {
         $this->taskStatus[$iface][$tarea] = 'loading';
-        $this->taskResult[$iface][$tarea] = 'Configurando perfiles y Hotspot...';
+        $this->taskResult[$iface][$tarea] = 'Consultando estado...';
         $this->activeTask = ['iface' => $iface, 'tarea' => $tarea];
         
         $router = Router::findOrFail($this->router_id);
@@ -85,12 +102,12 @@ class ConfDetallada extends Component
                 };
                 :if ([:len [/ip hotspot find interface=\"bridge-$iface\"]] > 0) do={ :set res \"OK: Hotspot ya existe\"; } else={ 
                     /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no;
-                    :set res \"OK: Hotspot con Cookies y Tiempos OK\";
+                    :set res \"OK: Configuración Completa\";
                 };
             }"
         ];
 
-        $this->currentTid = "CFG" . time();
+        $this->currentTid = "CFG" . rand(10,99) . time();
         $this->intentos = 0;
         $script = ":local res \"\"; :local m \"$mac\"; :local t \"{$this->currentTid}\"; " .
                   ":do { {$cmds[$tarea]} } on-error={ :set res \"Error en ejecucion\" }; " .
@@ -101,11 +118,9 @@ class ConfDetallada extends Component
     protected function emitirAlBridge($script, $mac, $tid)
     {
         $comandoLimpio = trim(preg_replace('/\s+/', ' ', $script));
-        try {
-            Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
-                ->withBody($comandoLimpio, 'text/plain')
-                ->post("{$this->bridgeUrl}/set-command");
-        } catch (\Exception $e) { Log::error("Error enviando al bridge: " . $e->getMessage()); }
+        Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
+            ->withBody($comandoLimpio, 'text/plain')
+            ->post("{$this->bridgeUrl}/set-command");
     }
 
     public function checkStatus()
@@ -113,8 +128,8 @@ class ConfDetallada extends Component
         if (!$this->isWaitingResponse && !$this->activeTask) return;
         $this->intentos++;
         $router = Router::find($this->router_id);
-        if (!$router) return;
         $mac = strtoupper(trim($router->macAddress));
+        
         try {
             $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $this->currentTid]);
             if ($res->successful() && $res->json('status') === 'ready') {
@@ -136,22 +151,19 @@ class ConfDetallada extends Component
 
     private function handleTimeout()
     {
-        if ($this->isWaitingResponse) $this->interfaces = [];
+        if ($this->isWaitingResponse) $this->isWaitingResponse = false;
         if ($this->activeTask) {
             $this->taskStatus[$this->activeTask['iface']][$this->activeTask['tarea']] = 'error';
-            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'Timeout: Sin respuesta';
+            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'Timeout';
+            $this->activeTask = null;
         }
-        $this->isWaitingResponse = false;
-        $this->activeTask = null;
     }
 
     public function render()
     {
         return view('livewire.mikrotik.herramientas.conf-detallada', [
             'aliados' => User::where('role', 'aliado')->get(),
-            'routers' => Router::query()
-                ->when($this->selectedAliado, fn($q) => $q->where('user_id', $this->selectedAliado))
-                ->get(),
+            'routers' => Router::where('user_id', $this->selectedAliado)->get()
         ]);
     }
 }
