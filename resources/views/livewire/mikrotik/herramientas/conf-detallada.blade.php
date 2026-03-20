@@ -34,7 +34,7 @@
 
     @if($isWaitingResponse)
         <div class="text-center py-5">
-            <div class="spinner-border text-primary mb-3" role="status"></div>
+            <div class="spinner-border text-primary mb-3"></div>
             <h5 class="fw-bold">Leyendo Interfaces...</h5>
         </div>
     @endif
