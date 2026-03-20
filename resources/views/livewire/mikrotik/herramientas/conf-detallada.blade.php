@@ -68,7 +68,6 @@
                                                     </div>
                                                 @endif
                                             </div>
-                                            
                                             <button wire:click="ejecutarTarea('{{ $iface }}', {{ $index }}, '{{ $key }}')"
                                                 class="btn btn-sm rounded-pill px-3 shadow-sm 
                                                 {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'btn-success' : (($taskStatus[$iface][$key] ?? '') == 'error' ? 'btn-danger' : 'btn-primary') }}">
@@ -98,7 +97,7 @@
             </div>
             <div class="card-body bg-light">
                 <div class="row align-items-center">
-                    <div class="col-md-5">
+                    <div class="col-md-3">
                         <label class="small fw-bold text-muted">Portal Cautivo</label>
                         <select wire:model="version_id" class="form-select border-0 shadow-sm rounded-3">
                             <option value="">-- Seleccionar --</option>
@@ -107,21 +106,26 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-md-7">
-                        <div class="row g-2">
+                    <div class="col-md-9">
+                        <div class="row g-2 text-center">
                             @php 
-                                $globals = ['walledgarden' => 'Walled Garden', 'portal' => 'Portal', 'reboot' => 'Reiniciar'];
+                                $globals = [
+                                    'walledgarden' => 'W.G. Hosts', 
+                                    'walledgardenip' => 'W.G. IPs', 
+                                    'portal' => 'Portal', 
+                                    'reboot' => 'Reiniciar'
+                                ];
                             @endphp
                             @foreach($globals as $key => $label)
-                                <div class="col-4">
-                                    <div class="bg-white p-2 rounded-3 border text-center">
+                                <div class="col-3">
+                                    <div class="bg-white p-2 rounded-3 border">
                                         <button wire:click="ejecutarTarea('global', 0, '{{ $key }}')"
                                             class="btn btn-sm w-100 rounded-3 mb-1 
                                             {{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'btn-success' : (($taskStatus['global'][$key] ?? '') == 'error' ? 'btn-danger' : 'btn-outline-primary') }}">
                                             {{ $label }}
                                         </button>
                                         @if(isset($taskResult['global'][$key]))
-                                            <div style="font-size: 10px;" class="{{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'text-success' : 'text-danger' }}">
+                                            <div style="font-size: 9px; line-height: 1;" class="{{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'text-success' : 'text-danger' }}">
                                                 {{ $taskResult['global'][$key] }}
                                             </div>
                                         @endif

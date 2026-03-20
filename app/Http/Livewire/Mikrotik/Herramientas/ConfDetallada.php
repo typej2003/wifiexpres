@@ -7,7 +7,6 @@ use App\Models\Router;
 use App\Models\User;
 use App\Models\HotspotVersion;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Auth;
 
 class ConfDetallada extends Component
 {
@@ -69,7 +68,8 @@ class ConfDetallada extends Component
     {
         if (!$this->version_id) return;
         $this->queue = [];
-        $tareas = ['walledgarden', 'portal', 'reboot'];
+        // SEPARADOS para evitar error de longitud
+        $tareas = ['walledgarden', 'walledgardenip', 'portal', 'reboot'];
         foreach ($tareas as $t) {
             $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => $t];
         }
@@ -103,7 +103,6 @@ class ConfDetallada extends Component
 
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $vCode;
 
-        // Comandos optimizados y Walled Garden fragmentado para evitar errores de longitud
         $cmds = [
             'bridge'  => ":if ([:len [/interface bridge find name=\"bridge-$iface\"]] > 0) do={ :set res \"OK: Bridge ya existe\" } else={ /interface bridge add name=\"bridge-$iface\"; /interface bridge port add bridge=\"bridge-$iface\" interface=\"$iface\"; :set res \"OK: Bridge creado\" };",
             'address' => ":if ([:len [/ip address find where interface=\"bridge-$iface\"]] > 0) do={ :set res \"OK: IP ya configurada\" } else={ /ip address add address=192.168.$segmento.1/24 interface=\"bridge-$iface\"; :set res \"OK: IP asignada\" };",
@@ -116,33 +115,10 @@ class ConfDetallada extends Component
                 :if ([:len [/ip hotspot profile find name=\"hsprof1\"]] = 0) do={ /ip hotspot profile add dns-name=wifi.login name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis; };
                 :if ([:len [/ip hotspot find interface=\"bridge-$iface\"]] > 0) do={ :set res \"OK: Hotspot ya existe\"; } else={ /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no; :set res \"OK: Hotspot Creado\"; };
             }",
-            'walledgarden' => "{
-                /ip hotspot user add name=admin password=admin123;
-                /ip hotspot walled-garden remove [find];
-                /ip hotspot walled-garden add dst-host=wifiexpres.com;
-                /ip hotspot walled-garden add dst-host=*.wifiexpres.com;
-                /ip hotspot walled-garden add dst-host=*.biopagobdv.com;
-                /ip hotspot walled-garden add dst-host=*.banvenez.com;
-                /ip hotspot walled-garden add dst-host=biopago.banvenez.com;
-                /ip hotspot walled-garden add dst-host=fcm.googleapis.com;
-                /ip hotspot walled-garden add dst-host=fcm-xmpp.googleapis.com;
-                /ip hotspot walled-garden add dst-host=mtalk.google.com;
-                /ip hotspot walled-garden add dst-host=*.push.apple.com;
-                /ip hotspot walled-garden add dst-host=*.push.apple.com.akadns.net;
-                /ip hotspot walled-garden add dst-host=appleid.apple.com;
-                /ip hotspot walled-garden add dst-host=188.95.113.44;
-                /ip hotspot walled-garden ip remove [find];
-                /ip hotspot walled-garden ip add dst-address=188.95.113.44;
-                /ip hotspot walled-garden ip add dst-address=190.217.7.106;
-                /ip hotspot walled-garden ip add dst-address=190.217.7.229;
-                /ip hotspot walled-garden ip add dst-address=200.11.243.174;
-                /ip hotspot walled-garden ip add dst-address=190.202.148.187;
-                /ip hotspot walled-garden ip add action=accept dst-port=5228-5230 protocol=tcp;
-                /ip hotspot walled-garden ip add action=accept dst-port=5223 protocol=tcp;
-                /ip hotspot walled-garden ip add action=accept dst-port=53 protocol=udp;
-                /ip hotspot walled-garden ip add action=accept dst-port=53 protocol=tcp;
-                :set res \"OK: Walled Garden\";
-            }",
+            // PASO 1: Usuarios y Dominio (Tu código original)
+            'walledgarden' => "/ip hotspot user add name=admin password=admin123; /ip hotspot walled-garden { remove [find]; add dst-host=wifiexpres.com; add dst-host=*.wifiexpres.com; add dst-host=*.biopagobdv.com; add dst-host=*.banvenez.com; add dst-host=biopago.banvenez.com; add dst-host=fcm.googleapis.com; add dst-host=fcm-xmpp.googleapis.com; add dst-host=mtalk.google.com; add dst-host=*.push.apple.com; add dst-host=*.push.apple.com.akadns.net; add dst-host=appleid.apple.com; add dst-host=188.95.113.44 }; :set res \"OK: Walled Garden Hosts\";",
+            // PASO 2: IPs y Puertos (Tu código original)
+            'walledgardenip' => "/ip hotspot walled-garden ip { remove [find]; add dst-address=188.95.113.44; add dst-address=190.217.7.106; add dst-address=190.217.7.229; add dst-address=200.11.243.174; add dst-address=190.202.148.187; add action=accept dst-port=5228-5230 protocol=tcp; add action=accept dst-port=5223 protocol=tcp; add action=accept dst-port=53 protocol=udp; add action=accept dst-port=53 protocol=tcp }; :set res \"OK: Walled Garden IPs\";",
             'portal' => "{
                 /ip hotspot profile set [find name=\"hsprof1\"] html-directory=hotspot;
                 /tool fetch url=\"$downloadUrl\" dst-path=\"hotspot/login.html\" check-certificate=no;
@@ -161,8 +137,7 @@ class ConfDetallada extends Component
 
     protected function emitirAlBridge($script, $mac, $tid)
     {
-        // Limpiamos espacios dobles pero NO saltos de línea cruciales para comandos largos
-        $comandoLimpio = trim(preg_replace('/[ \t]+/', ' ', $script));
+        $comandoLimpio = trim(preg_replace('/\s+/', ' ', $script));
         Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])->withBody($comandoLimpio, 'text/plain')->post("{$this->bridgeUrl}/set-command");
     }
 
