@@ -8,7 +8,6 @@ use App\Models\User;
 use App\Models\HotspotVersion;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 
 class ConfDetallada extends Component
 {
@@ -27,13 +26,6 @@ class ConfDetallada extends Component
 
     protected $bridgeUrl = "http://188.95.113.44:3000";
 
-    public function mount()
-    {
-        if (Auth::user()->role !== 'admin') {
-            abort(403, 'Acceso denegado.');
-        }
-    }
-
     public function updatedSelectedAliado()
     {
         $this->reset(['router_id', 'interfaces', 'taskStatus', 'taskResult', 'isWaitingResponse', 'queue']);
@@ -41,9 +33,7 @@ class ConfDetallada extends Component
 
     public function updatedRouterId($value)
     {
-        if ($value) {
-            $this->iniciarDescubrimiento();
-        }
+        if ($value) $this->iniciarDescubrimiento();
     }
 
     public function iniciarDescubrimiento()
@@ -52,7 +42,6 @@ class ConfDetallada extends Component
         $this->reset(['interfaces', 'taskStatus', 'taskResult', 'intentos', 'queue']);
         $this->isWaitingResponse = true;
         $this->currentTid = "DISC" . time();
-        
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
 
@@ -98,16 +87,21 @@ class ConfDetallada extends Component
     public function ejecutarTarea($iface, $index, $tarea)
     {
         $this->taskStatus[$iface][$tarea] = 'loading';
-        $this->taskResult[$iface][$tarea] = 'Enviando...';
+        $this->taskResult[$iface][$tarea] = 'Procesando...';
         $this->activeTask = ['iface' => $iface, 'tarea' => $tarea, 'index' => $index];
         
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
         $counter = $index + 1; 
         $segmento = $counter * 10;
+        
+        // Obtenemos el código real de la versión seleccionada
+        $vCode = 1;
+        if($this->version_id) {
+            $versionObj = HotspotVersion::find($this->version_id);
+            $vCode = $versionObj ? $versionObj->code : 1;
+        }
 
-        $version = HotspotVersion::find($this->version_id);
-        $vCode = $version ? $version->id : 1;
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $vCode;
 
         $cmds = [
@@ -122,7 +116,6 @@ class ConfDetallada extends Component
                 :if ([:len [/ip hotspot profile find name=\"hsprof1\"]] = 0) do={ /ip hotspot profile add dns-name=wifi.login name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis; };
                 :if ([:len [/ip hotspot find interface=\"bridge-$iface\"]] > 0) do={ :set res \"OK: Hotspot ya existe\"; } else={ /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no; :set res \"OK: Hotspot Creado\"; };
             }",
-            // WALLED GARDEN COMPLETO Y REGLA PUSH (NAT)
             'walledgarden' => "{
                 /ip hotspot walled-garden remove [find where comment=\"Auto\"];
                 /ip hotspot walled-garden ip remove [find where comment=\"Auto\"];
@@ -134,7 +127,7 @@ class ConfDetallada extends Component
                 /ip hotspot walled-garden add dst-host=*.facebook.net comment=\"Auto\";
                 /ip hotspot walled-garden add dst-host=*.akamaihd.net comment=\"Auto\";
                 /ip hotspot walled-garden ip add dst-address=188.95.113.44 comment=\"Auto\";
-                :set res \"OK: Walled Garden y Reglas IP listos\";
+                :set res \"OK: Walled Garden configurado\";
             }",
             'portal' => "{
                 /ip hotspot profile set [find name=\"hsprof1\"] html-directory=hotspot;
@@ -145,7 +138,6 @@ class ConfDetallada extends Component
         ];
 
         $this->currentTid = "CFG" . rand(10,99) . time();
-        $this->intentos = 0;
         $script = ":local res \"\"; :local m \"$mac\"; :local t \"{$this->currentTid}\"; " .
                   ":do { {$cmds[$tarea]} } on-error={ :set res \"Error en $tarea\" }; " .
                   "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$res keep-result=no;";
