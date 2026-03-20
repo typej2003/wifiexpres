@@ -5,7 +5,7 @@ namespace App\Http\Livewire\Mikrotik\Herramientas;
 use Livewire\Component;
 use App\Models\Router;
 use App\Models\User;
-use App\Models\HotspotVersion; // Importamos el modelo
+use App\Models\HotspotVersion;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -14,7 +14,7 @@ class ConfDetallada extends Component
 {
     public $selectedAliado = null;
     public $router_id = null;
-    public $version_id = null; // ID seleccionado del portal
+    public $version_id = null; 
     public $interfaces = []; 
     public $isWaitingResponse = false; 
     public $currentTid = null;
@@ -78,10 +78,7 @@ class ConfDetallada extends Component
 
     public function scanGlobal()
     {
-        if (!$this->version_id) {
-            $this->dispatchBrowserEvent('alert', ['type' => 'error', 'message' => 'Seleccione una versión de portal']);
-            return;
-        }
+        if (!$this->version_id) return;
         $this->queue = [];
         $tareas = ['walledgarden', 'portal', 'reboot'];
         foreach ($tareas as $t) {
@@ -101,7 +98,7 @@ class ConfDetallada extends Component
     public function ejecutarTarea($iface, $index, $tarea)
     {
         $this->taskStatus[$iface][$tarea] = 'loading';
-        $this->taskResult[$iface][$tarea] = 'Procesando...';
+        $this->taskResult[$iface][$tarea] = 'Enviando...';
         $this->activeTask = ['iface' => $iface, 'tarea' => $tarea, 'index' => $index];
         
         $router = Router::findOrFail($this->router_id);
@@ -109,7 +106,6 @@ class ConfDetallada extends Component
         $counter = $index + 1; 
         $segmento = $counter * 10;
 
-        // Buscamos el código de la versión seleccionada para el downloadUrl
         $version = HotspotVersion::find($this->version_id);
         $vCode = $version ? $version->id : 1;
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $vCode;
@@ -126,10 +122,19 @@ class ConfDetallada extends Component
                 :if ([:len [/ip hotspot profile find name=\"hsprof1\"]] = 0) do={ /ip hotspot profile add dns-name=wifi.login name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis; };
                 :if ([:len [/ip hotspot find interface=\"bridge-$iface\"]] > 0) do={ :set res \"OK: Hotspot ya existe\"; } else={ /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no; :set res \"OK: Hotspot Creado\"; };
             }",
+            // WALLED GARDEN COMPLETO Y REGLA PUSH (NAT)
             'walledgarden' => "{
+                /ip hotspot walled-garden remove [find where comment=\"Auto\"];
+                /ip hotspot walled-garden ip remove [find where comment=\"Auto\"];
                 /ip hotspot walled-garden add dst-host=wifiexpres.com comment=\"Auto\";
+                /ip hotspot walled-garden add dst-host=*.wifiexpres.com comment=\"Auto\";
+                /ip hotspot walled-garden add dst-host=*.google.com comment=\"Auto\";
+                /ip hotspot walled-garden add dst-host=*.gstatic.com comment=\"Auto\";
+                /ip hotspot walled-garden add dst-host=*.facebook.com comment=\"Auto\";
+                /ip hotspot walled-garden add dst-host=*.facebook.net comment=\"Auto\";
+                /ip hotspot walled-garden add dst-host=*.akamaihd.net comment=\"Auto\";
                 /ip hotspot walled-garden ip add dst-address=188.95.113.44 comment=\"Auto\";
-                :set res \"OK: Walled Garden Configurado\";
+                :set res \"OK: Walled Garden y Reglas IP listos\";
             }",
             'portal' => "{
                 /ip hotspot profile set [find name=\"hsprof1\"] html-directory=hotspot;
@@ -204,7 +209,7 @@ class ConfDetallada extends Component
         return view('livewire.mikrotik.herramientas.conf-detallada', [
             'aliados' => User::where('role', 'aliado')->get(),
             'routers' => Router::where('user_id', $this->selectedAliado)->get(),
-            'hotspot_versions' => HotspotVersion::all() // Enviamos las versiones
+            'hotspot_versions' => HotspotVersion::all()
         ]);
     }
 }
