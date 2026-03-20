@@ -103,6 +103,7 @@ class ConfDetallada extends Component
 
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $vCode;
 
+        // Comandos optimizados y Walled Garden fragmentado para evitar errores de longitud
         $cmds = [
             'bridge'  => ":if ([:len [/interface bridge find name=\"bridge-$iface\"]] > 0) do={ :set res \"OK: Bridge ya existe\" } else={ /interface bridge add name=\"bridge-$iface\"; /interface bridge port add bridge=\"bridge-$iface\" interface=\"$iface\"; :set res \"OK: Bridge creado\" };",
             'address' => ":if ([:len [/ip address find where interface=\"bridge-$iface\"]] > 0) do={ :set res \"OK: IP ya configurada\" } else={ /ip address add address=192.168.$segmento.1/24 interface=\"bridge-$iface\"; :set res \"OK: IP asignada\" };",
@@ -145,7 +146,7 @@ class ConfDetallada extends Component
             'portal' => "{
                 /ip hotspot profile set [find name=\"hsprof1\"] html-directory=hotspot;
                 /tool fetch url=\"$downloadUrl\" dst-path=\"hotspot/login.html\" check-certificate=no;
-                :set res \"OK: Portal ($vCode) Descargado\";
+                :set res \"OK: Portal Descargado\";
             }",
             'reboot' => "/system reboot; :set res \"OK: Reiniciando...\""
         ];
@@ -160,7 +161,8 @@ class ConfDetallada extends Component
 
     protected function emitirAlBridge($script, $mac, $tid)
     {
-        $comandoLimpio = trim(preg_replace('/\s+/', ' ', $script));
+        // Limpiamos espacios dobles pero NO saltos de línea cruciales para comandos largos
+        $comandoLimpio = trim(preg_replace('/[ \t]+/', ' ', $script));
         Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])->withBody($comandoLimpio, 'text/plain')->post("{$this->bridgeUrl}/set-command");
     }
 
