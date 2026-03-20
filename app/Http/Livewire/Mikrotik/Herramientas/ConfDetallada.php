@@ -10,17 +10,16 @@ use Illuminate\Support\Facades\Auth;
 
 class ConfDetallada extends Component
 {
-    // Filtros
     public $selectedAliado = null;
     public $router_id = null;
     
-    // Estados de la interfaz
-    public $interfaces = [];
-    public $status = []; // 'idle', 'loading', 'success', 'error'
+    // Datos dinámicos del descubrimiento
+    public $interfaces = []; 
+    public $isSearching = false;
+    public $status = [];
     public $logs = [];
     public $identity = "MikroTik";
     
-    // Configuración de comunicación (según tu código base)
     protected $bridgeUrl = "http://188.95.113.44:3000";
 
     public function mount()
@@ -30,53 +29,95 @@ class ConfDetallada extends Component
         }
     }
 
-    // Resetear al cambiar aliado
     public function updatedSelectedAliado()
     {
-        $this->router_id = null;
-        $this->interfaces = [];
-        $this->status = [];
-        $this->logs = [];
+        $this->reset(['router_id', 'interfaces', 'status', 'logs', 'isSearching']);
     }
 
-    // Al seleccionar router, obtenemos las interfaces (Simulado por ahora via Script)
     public function updatedRouterId($value)
     {
         if ($value) {
-            $router = Router::find($value);
-            $this->identity = $router->identity ?? 'MikroTik';
-            
-            // Simulación de detección: En un escenario real enviarías un comando 
-            // para listar interfaces y recibir la respuesta.
-            // Por ahora, inicializamos las estándar según tu lógica de "counter 2"
-            $this->interfaces = ['ether2', 'ether3', 'ether4', 'ether5'];
-            
-            foreach ($this->interfaces as $iface) {
-                $this->status[$iface] = 'idle';
-                $this->logs[$iface] = 'Esperando comandos...';
-            }
-            $this->status['profiles'] = 'idle';
-            $this->logs['profiles'] = 'Pendiente.';
+            $this->descubrirInterfaces();
         }
     }
 
     /**
-     * Configuración independiente por puerto
-     * Incluye: Bridge, Port, Address, Pool, DHCP, Hotspot
+     * PASO 1: Enviar comando para listar interfaces reales
      */
-    public function configurarPuerto($interface, $index)
+    public function descubrirInterfaces()
     {
-        $this->status[$interface] = 'loading';
-        $this->logs[$interface] = "Enviando secuencia completa a $interface...";
+        $this->isSearching = true;
+        $this->interfaces = [];
+        $this->logs['global'] = "🔍 Interrogando al MikroTik por sus interfaces...";
 
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
-        
-        // Lógica de segmentos: ether2 = 192.168.20.x, ether3 = 192.168.30.x...
-        $counter = $index + 2; 
-        $segmento = $counter * 10;
+        $tid = "DISC" . time();
 
-        // Comandos secuenciales para esta sección específica
+        // Script para obtener interfaces Ethernet y WiFi y enviarlas de vuelta
+        $script = '{
+            :local ifaces "";
+            :foreach i in=[/interface find where type="ether" or type="wlan" or type="wifi"] do={
+                :set ifaces ($ifaces . [/interface get $i name] . ",");
+            };
+            /tool fetch url="'.$this->bridgeUrl.'/post-result?mac='.$mac.'&tid='.$tid.'&data=$ifaces" keep-result=no
+        }';
+
+        $body = trim(preg_replace('/\s+/', ' ', $script));
+
+        try {
+            Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
+                ->withBody($body, 'text/plain')
+                ->post("{$this->bridgeUrl}/set-command");
+
+            // Iniciamos un loop de chequeo (polling) para esperar la respuesta
+            $this->esperarRespuestaInterfaces($mac, $tid);
+        } catch (\Exception $e) {
+            $this->logs['global'] = "❌ Error al conectar con el Bridge.";
+            $this->isSearching = false;
+        }
+    }
+
+    /**
+     * PASO 2: Esperar el resultado del Bridge
+     */
+    private function esperarRespuestaInterfaces($mac, $tid)
+    {
+        $intentos = 0;
+        while ($intentos < 15) { // Esperar max 15 segundos
+            sleep(1);
+            try {
+                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
+                
+                if ($res->successful() && $res->json('status') === 'ready') {
+                    $data = $res->json('data'); // Ejemplo: "ether1,ether2,wlan1,"
+                    $this->interfaces = array_filter(explode(',', $data));
+                    
+                    foreach ($this->interfaces as $iface) {
+                        $this->status[$iface] = 'idle';
+                        $this->logs[$iface] = 'Detectada.';
+                    }
+                    
+                    $this->isSearching = false;
+                    $this->logs['global'] = "✅ " . count($this->interfaces) . " interfaces encontradas.";
+                    return;
+                }
+            } catch (\Exception $e) {}
+            $intentos++;
+        }
+
+        $this->isSearching = false;
+        $this->logs['global'] = "⚠️ El MikroTik no respondió a tiempo.";
+    }
+
+    public function configurarPuerto($interface, $index)
+    {
+        $this->status[$interface] = 'loading';
+        $router = Router::findOrFail($this->router_id);
+        $mac = strtoupper(trim($router->macAddress));
+        
+        $segmento = ($index + 2) * 10;
+
         $cmds = [
             "/interface bridge add name=bridge-$interface",
             "/interface bridge port add bridge=bridge-$interface interface=$interface",
@@ -87,33 +128,11 @@ class ConfDetallada extends Component
             "/ip hotspot add address-pool=pool-$interface interface=bridge-$interface name=hotspot-$interface profile=hsprof1 disabled=no"
         ];
 
-        $fullCmd = implode("; ", $cmds);
-        
-        if ($this->enviarAlBridge($mac, $fullCmd)) {
+        if ($this->enviarAlBridge($mac, implode("; ", $cmds))) {
             $this->status[$interface] = 'success';
-            $this->logs[$interface] = "✅ Configurado: Red 192.168.$segmento.0/24 activa.";
+            $this->logs[$interface] = "✅ Configurado (192.168.$segmento.1)";
         } else {
             $this->status[$interface] = 'error';
-            $this->logs[$interface] = "❌ Error al enviar comandos.";
-        }
-    }
-
-    public function configurarGlobal()
-    {
-        $this->status['profiles'] = 'loading';
-        $router = Router::findOrFail($this->router_id);
-        $mac = strtoupper(trim($router->macAddress));
-
-        $cmds = [
-            '/ip hotspot user profile add name="neutro" session-timeout=1s shared-users=1',
-            '/ip hotspot user profile add name="conexiongratis" shared-users=1 rate-limit="2M/2M"',
-            '/ip hotspot profile add dns-name=wifi.login name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis',
-            '/ip hotspot walled-garden add dst-host=wifiexpres.com'
-        ];
-
-        if ($this->enviarAlBridge($mac, implode("; ", $cmds))) {
-            $this->status['profiles'] = 'success';
-            $this->logs['profiles'] = "✅ Perfiles y Walled Garden configurados.";
         }
     }
 
@@ -121,18 +140,12 @@ class ConfDetallada extends Component
     {
         try {
             $tid = "TID" . time();
-            $script = '{ :do { '.$comando.' } on-error={ :log info "Error en secuencia" } }';
-            $body = trim(preg_replace('/\s+/', ' ', $script));
-
+            $script = '{ :do { '.$comando.' } on-error={ :log info "Error" } }';
             $response = Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
-                ->withBody($body, 'text/plain')
-                ->timeout(10)
+                ->withBody(trim(preg_replace('/\s+/', ' ', $script)), 'text/plain')
                 ->post("{$this->bridgeUrl}/set-command");
-
             return $response->successful();
-        } catch (\Exception $e) {
-            return false;
-        }
+        } catch (\Exception $e) { return false; }
     }
 
     public function render()
