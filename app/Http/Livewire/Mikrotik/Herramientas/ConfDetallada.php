@@ -13,10 +13,12 @@ class ConfDetallada extends Component
     public $selectedAliado = null;
     public $router_id = null;
     
-    // Datos dinámicos del descubrimiento
+    // Estados de descubrimiento
     public $interfaces = []; 
-    public $isSearching = false;
-    public $showRetry = false; // Nueva bandera para mostrar botón de reintento
+    public $isSearching = false;       // Cuando se envía el comando
+    public $isWaitingResponse = false; // Mientras se espera el resultado del Bridge
+    public $showRetry = false; 
+    
     public $status = [];
     public $logs = [];
     public $identity = "MikroTik";
@@ -32,7 +34,7 @@ class ConfDetallada extends Component
 
     public function updatedSelectedAliado()
     {
-        $this->reset(['router_id', 'interfaces', 'status', 'logs', 'isSearching', 'showRetry']);
+        $this->reset(['router_id', 'interfaces', 'status', 'logs', 'isSearching', 'isWaitingResponse', 'showRetry']);
     }
 
     public function updatedRouterId($value)
@@ -42,23 +44,20 @@ class ConfDetallada extends Component
         }
     }
 
-    /**
-     * PASO 1: Enviar comando para listar interfaces reales
-     */
     public function descubrirInterfaces()
     {
         if (!$this->router_id) return;
 
         $this->isSearching = true;
+        $this->isWaitingResponse = false;
         $this->showRetry = false;
         $this->interfaces = [];
-        $this->logs['global'] = "🔍 Interrogando al MikroTik por sus interfaces...";
+        $this->logs['global'] = "🚀 Enviando comando de descubrimiento...";
 
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
         $tid = "DISC" . time();
 
-        // Script para obtener interfaces Ethernet y WiFi y enviarlas de vuelta
         $script = '{
             :local ifaces "";
             :foreach i in=[/interface find where type="ether" or type="wlan" or type="wifi" or type="vlan"] do={
@@ -74,98 +73,54 @@ class ConfDetallada extends Component
                 ->withBody($body, 'text/plain')
                 ->post("{$this->bridgeUrl}/set-command");
 
-            // Iniciamos el chequeo de la respuesta
+            $this->isSearching = false;
+            $this->isWaitingResponse = true; // ACTIVAMOS EL LOADING DE ESPERA
+            $this->logs['global'] = "📡 Comando entregado al Bridge. Esperando respuesta del MikroTik...";
+            
             $this->esperarRespuestaInterfaces($mac, $tid);
         } catch (\Exception $e) {
-            $this->logs['global'] = "❌ Error de conexión con el Bridge.";
+            $this->logs['global'] = "❌ Error al contactar el Bridge.";
             $this->isSearching = false;
             $this->showRetry = true;
         }
     }
 
-    /**
-     * PASO 2: Esperar el resultado del Bridge (Polling)
-     */
     private function esperarRespuestaInterfaces($mac, $tid)
     {
         $intentos = 0;
-        // Esperamos un máximo de 15 segundos
         while ($intentos < 15) {
+            // Livewire no renderiza durante el sleep a menos que uses polling de Livewire,
+            // pero para esta lógica síncrona, el usuario verá el estado cargando hasta el final.
             sleep(1);
             try {
-                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", [
-                    'mac' => $mac, 
-                    'tid' => $tid
-                ]);
+                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
                 
                 if ($res->successful() && $res->json('status') === 'ready') {
                     $data = $res->json('data'); 
                     
                     if (empty($data) || $data == "ERR") {
-                        $this->logs['global'] = "⚠️ El MikroTik no devolvió interfaces válidas.";
+                        $this->logs['global'] = "⚠️ Respuesta vacía o error en el script del router.";
                         $this->showRetry = true;
-                        $this->isSearching = false;
+                        $this->isWaitingResponse = false;
                         return;
                     }
 
                     $this->interfaces = array_filter(explode(',', $data));
-                    
                     foreach ($this->interfaces as $iface) {
                         $this->status[$iface] = 'idle';
-                        $this->logs[$iface] = 'Detectada correctamente.';
                     }
                     
-                    $this->isSearching = false;
-                    $this->logs['global'] = "✅ Descubrimiento finalizado.";
+                    $this->isWaitingResponse = false;
+                    $this->logs['global'] = "✅ Interfaces detectadas.";
                     return;
                 }
             } catch (\Exception $e) {}
             $intentos++;
         }
 
-        $this->isSearching = false;
+        $this->isWaitingResponse = false;
         $this->showRetry = true;
-        $this->logs['global'] = "🛑 Tiempo agotado. El MikroTik no respondió al descubrimiento.";
-    }
-
-    public function configurarPuerto($interface, $index)
-    {
-        $this->status[$interface] = 'loading';
-        $router = Router::findOrFail($this->router_id);
-        $mac = strtoupper(trim($router->macAddress));
-        
-        // El segmento IP basado en la posición del puerto (ether2=20, ether3=30...)
-        $segmento = ($index + 2) * 10;
-
-        $cmds = [
-            "/interface bridge add name=bridge-$interface",
-            "/interface bridge port add bridge=bridge-$interface interface=$interface",
-            "/ip pool add name=pool-$interface ranges=192.168.$segmento.10-192.168.$segmento.250",
-            "/ip address add address=192.168.$segmento.1/24 interface=bridge-$interface",
-            "/ip dhcp-server add address-pool=pool-$interface interface=bridge-$interface name=srv-$interface disabled=no",
-            "/ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8",
-            "/ip hotspot add address-pool=pool-$interface interface=bridge-$interface name=hotspot-$interface profile=hsprof1 disabled=no"
-        ];
-
-        if ($this->enviarAlBridge($mac, implode("; ", $cmds))) {
-            $this->status[$interface] = 'success';
-            $this->logs[$interface] = "✅ Configurado: 192.168.$segmento.1";
-        } else {
-            $this->status[$interface] = 'error';
-            $this->logs[$interface] = "❌ Error al enviar comandos.";
-        }
-    }
-
-    private function enviarAlBridge($mac, $comando)
-    {
-        try {
-            $tid = "TID" . time();
-            $script = '{ :do { '.$comando.' } on-error={ :log info "Error" } }';
-            $response = Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
-                ->withBody(trim(preg_replace('/\s+/', ' ', $script)), 'text/plain')
-                ->post("{$this->bridgeUrl}/set-command");
-            return $response->successful();
-        } catch (\Exception $e) { return false; }
+        $this->logs['global'] = "🛑 Tiempo agotado (Timeout). El router no respondió.";
     }
 
     public function render()
