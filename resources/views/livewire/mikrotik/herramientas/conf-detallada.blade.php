@@ -90,16 +90,16 @@
 
         <div class="card border-0 shadow-sm rounded-4 bg-white mb-5 overflow-hidden">
             <div class="card-header bg-primary text-white py-3 d-flex justify-content-between align-items-center">
-                <h6 class="mb-0 fw-bold">CONFIGURACIÓN GLOBAL</h6>
+                <h6 class="mb-0 fw-bold text-uppercase">Cierre de Configuración</h6>
                 <button wire:click="scanGlobal" class="btn btn-warning btn-sm rounded-pill fw-bold" {{ $activeTask || !$version_id ? 'disabled' : '' }}>
-                    FINALIZAR TODO
+                    PROCESAR TODO
                 </button>
             </div>
             <div class="card-body bg-light">
                 <div class="row align-items-center">
                     <div class="col-md-3">
                         <label class="small fw-bold text-muted">Portal Cautivo</label>
-                        <select wire:model="version_id" class="form-select border-0 shadow-sm rounded-3">
+                        <select wire:model="version_id" class="form-select border-0 shadow-sm rounded-3 fw-bold">
                             <option value="">-- Seleccionar --</option>
                             @foreach($hotspot_versions as $version)
                                 <option value="{{ $version->id }}">{{ $version->name }}</option>
@@ -110,22 +110,23 @@
                         <div class="row g-2 text-center">
                             @php 
                                 $globals = [
-                                    'walledgarden' => 'W.G. Hosts', 
-                                    'walledgardenip' => 'W.G. IPs', 
-                                    'portal' => 'Portal', 
-                                    'reboot' => 'Reiniciar'
+                                    'walledgarden_a' => 'WG Part A', 
+                                    'walledgarden_b' => 'WG Part B', 
+                                    'walledgardenip' => 'WG IPs', 
+                                    'portal'         => 'Portal', 
+                                    'reboot'         => 'Reboot'
                                 ];
                             @endphp
                             @foreach($globals as $key => $label)
-                                <div class="col-3">
-                                    <div class="bg-white p-2 rounded-3 border">
+                                <div class="col">
+                                    <div class="bg-white p-2 rounded-3 border shadow-sm h-100">
                                         <button wire:click="ejecutarTarea('global', 0, '{{ $key }}')"
-                                            class="btn btn-sm w-100 rounded-3 mb-1 
+                                            class="btn btn-sm w-100 rounded-3 mb-1 fw-bold
                                             {{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'btn-success' : (($taskStatus['global'][$key] ?? '') == 'error' ? 'btn-danger' : 'btn-outline-primary') }}">
                                             {{ $label }}
                                         </button>
                                         @if(isset($taskResult['global'][$key]))
-                                            <div style="font-size: 9px; line-height: 1;" class="{{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'text-success' : 'text-danger' }}">
+                                            <div style="font-size: 9px; line-height: 1.1;" class="{{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'text-success' : 'text-danger' }}">
                                                 {{ $taskResult['global'][$key] }}
                                             </div>
                                         @endif
