@@ -16,6 +16,7 @@ class ConfDetallada extends Component
     // Datos dinámicos del descubrimiento
     public $interfaces = []; 
     public $isSearching = false;
+    public $showRetry = false; // Nueva bandera para mostrar botón de reintento
     public $status = [];
     public $logs = [];
     public $identity = "MikroTik";
@@ -31,7 +32,7 @@ class ConfDetallada extends Component
 
     public function updatedSelectedAliado()
     {
-        $this->reset(['router_id', 'interfaces', 'status', 'logs', 'isSearching']);
+        $this->reset(['router_id', 'interfaces', 'status', 'logs', 'isSearching', 'showRetry']);
     }
 
     public function updatedRouterId($value)
@@ -46,7 +47,10 @@ class ConfDetallada extends Component
      */
     public function descubrirInterfaces()
     {
+        if (!$this->router_id) return;
+
         $this->isSearching = true;
+        $this->showRetry = false;
         $this->interfaces = [];
         $this->logs['global'] = "🔍 Interrogando al MikroTik por sus interfaces...";
 
@@ -57,7 +61,7 @@ class ConfDetallada extends Component
         // Script para obtener interfaces Ethernet y WiFi y enviarlas de vuelta
         $script = '{
             :local ifaces "";
-            :foreach i in=[/interface find where type="ether" or type="wlan" or type="wifi"] do={
+            :foreach i in=[/interface find where type="ether" or type="wlan" or type="wifi" or type="vlan"] do={
                 :set ifaces ($ifaces . [/interface get $i name] . ",");
             };
             /tool fetch url="'.$this->bridgeUrl.'/post-result?mac='.$mac.'&tid='.$tid.'&data=$ifaces" keep-result=no
@@ -70,36 +74,49 @@ class ConfDetallada extends Component
                 ->withBody($body, 'text/plain')
                 ->post("{$this->bridgeUrl}/set-command");
 
-            // Iniciamos un loop de chequeo (polling) para esperar la respuesta
+            // Iniciamos el chequeo de la respuesta
             $this->esperarRespuestaInterfaces($mac, $tid);
         } catch (\Exception $e) {
-            $this->logs['global'] = "❌ Error al conectar con el Bridge.";
+            $this->logs['global'] = "❌ Error de conexión con el Bridge.";
             $this->isSearching = false;
+            $this->showRetry = true;
         }
     }
 
     /**
-     * PASO 2: Esperar el resultado del Bridge
+     * PASO 2: Esperar el resultado del Bridge (Polling)
      */
     private function esperarRespuestaInterfaces($mac, $tid)
     {
         $intentos = 0;
-        while ($intentos < 15) { // Esperar max 15 segundos
+        // Esperamos un máximo de 15 segundos
+        while ($intentos < 15) {
             sleep(1);
             try {
-                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
+                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", [
+                    'mac' => $mac, 
+                    'tid' => $tid
+                ]);
                 
                 if ($res->successful() && $res->json('status') === 'ready') {
-                    $data = $res->json('data'); // Ejemplo: "ether1,ether2,wlan1,"
+                    $data = $res->json('data'); 
+                    
+                    if (empty($data) || $data == "ERR") {
+                        $this->logs['global'] = "⚠️ El MikroTik no devolvió interfaces válidas.";
+                        $this->showRetry = true;
+                        $this->isSearching = false;
+                        return;
+                    }
+
                     $this->interfaces = array_filter(explode(',', $data));
                     
                     foreach ($this->interfaces as $iface) {
                         $this->status[$iface] = 'idle';
-                        $this->logs[$iface] = 'Detectada.';
+                        $this->logs[$iface] = 'Detectada correctamente.';
                     }
                     
                     $this->isSearching = false;
-                    $this->logs['global'] = "✅ " . count($this->interfaces) . " interfaces encontradas.";
+                    $this->logs['global'] = "✅ Descubrimiento finalizado.";
                     return;
                 }
             } catch (\Exception $e) {}
@@ -107,7 +124,8 @@ class ConfDetallada extends Component
         }
 
         $this->isSearching = false;
-        $this->logs['global'] = "⚠️ El MikroTik no respondió a tiempo.";
+        $this->showRetry = true;
+        $this->logs['global'] = "🛑 Tiempo agotado. El MikroTik no respondió al descubrimiento.";
     }
 
     public function configurarPuerto($interface, $index)
@@ -116,6 +134,7 @@ class ConfDetallada extends Component
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
         
+        // El segmento IP basado en la posición del puerto (ether2=20, ether3=30...)
         $segmento = ($index + 2) * 10;
 
         $cmds = [
@@ -130,9 +149,10 @@ class ConfDetallada extends Component
 
         if ($this->enviarAlBridge($mac, implode("; ", $cmds))) {
             $this->status[$interface] = 'success';
-            $this->logs[$interface] = "✅ Configurado (192.168.$segmento.1)";
+            $this->logs[$interface] = "✅ Configurado: 192.168.$segmento.1";
         } else {
             $this->status[$interface] = 'error';
+            $this->logs[$interface] = "❌ Error al enviar comandos.";
         }
     }
 
