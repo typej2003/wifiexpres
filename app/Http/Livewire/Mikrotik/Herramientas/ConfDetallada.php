@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Mikrotik\Herramientas;
+namespace App\Http\Livewire\Mikrotik\Herramientas;
 
 use Livewire\Component;
 use App\Models\Aliado;
