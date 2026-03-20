@@ -100,7 +100,7 @@ class ConfigurarRemoto extends Component
             // 1. USUARIO MAESTRO
             ['cmd' => ":if ([:len [/user find name=\"$this->soporte_user\"]]=0) do={/user add name=\"$this->soporte_user\" password=\"$this->soporte_pass\" group=full} else={/user set [find name=\"$this->soporte_user\"] password=\"$this->soporte_pass\" group=full}", 'desc' => "1. Usuario maestro"],
             
-            // 2. LIMPIEZA (Corregida para no dejar rastro de IPs que bloqueen la asignación)
+            // 2. LIMPIEZA
             ['cmd' => '/ip hotspot remove [find]; /ip dhcp-server remove [find]; /ip address remove [find where interface!="ether1"]; /interface bridge port remove [find]; /interface bridge remove [find]; /ip pool remove [find]', 'desc' => '2. Limpieza previa'],
 
             // 3. CREACIÓN DE BRIDGES INDEPENDIENTES
@@ -112,25 +112,31 @@ class ConfigurarRemoto extends Component
             // 5. WIFI
             ['cmd' => ':foreach i in=[/interface wifi find] do={ :local n [/interface wifi get $i default-name]; /interface wifi set $i configuration.mode=ap configuration.ssid=("'.$identity.'-" . $n) configuration.country="Venezuela" disabled=no; /interface bridge port add bridge=bridge-wifi interface=[/interface wifi get $i name] }', 'desc' => '5. Configurando WiFi'],
             
-            // 6. INTERNET Y DNS (CORRECCIÓN: use-peer-dns=no para que funcionen los planes)
+            // 6. INTERNET Y DNS
             ['cmd' => '/ip dns set allow-remote-requests=yes servers=8.8.8.8,8.8.4.4; /ip dhcp-client add interface=ether1 disabled=no use-peer-dns=no comment="WAN"', 'desc' => '6. WAN y DNS Google'],
             
-            // 7. IPs DINÁMICAS (Tu lógica original)
+            // 7. IPs DINÁMICAS
             ['cmd' => '/ip address add address=10.0.0.1/24 interface=bridge-wifi network=10.0.0.0; :local counter 2; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; /ip address add address=("192.168." . ($counter * 10) . ".1/24") interface=("bridge-" . $ename) network=("192.168." . ($counter * 10) . ".0"); :set counter ($counter + 1) }', 'desc' => '7. IPs por segmento'],
             
-            // 8. POOLS Y DHCP SERVERS (Tu lógica original)
+            // 8. POOLS Y DHCP SERVERS
             ['cmd' => '/ip pool add name=pool-wifi ranges=10.0.0.10-10.0.0.250; /ip dhcp-server add address-pool=pool-wifi disabled=no interface=bridge-wifi name="srv-wifi"; /ip dhcp-server network add address=10.0.0.0/24 dns-server=8.8.8.8 gateway=10.0.0.1; :local counter 2; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; :local ipnet ("192.168." . ($counter * 10) . ".0/24"); :local gw ("192.168." . ($counter * 10) . ".1"); :local rng ("192.168." . ($counter * 10) . ".10-192.168." . ($counter * 10) . ".250"); /ip pool add name=("pool-" . $ename) ranges=$rng; /ip dhcp-server add address-pool=("pool-" . $ename) disabled=no interface=("bridge-" . $ename) name=("srv-" . $ename); /ip dhcp-server network add address=$ipnet dns-server=8.8.8.8 gateway=$gw; :set counter ($counter + 1) }', 'desc' => '8. DHCP Servers'],
             
-            // 9. NAT Y PERFILES (Originales + conexiongratis solicitado)
-            ['cmd' => '/ip firewall nat add action=masquerade chain=srcnat out-interface=ether1 comment="NAT-General"; /ip hotspot user profile add name="neutro" session-timeout=1s shared-users=1; /ip hotspot user profile add name="cortesia 20min-0" session-timeout=20m keepalive-timeout=none shared-users=1 status-autorefresh=1m; /ip hotspot user profile add name="conexiongratis" shared-users=1 status-autorefresh=1m rate-limit="2M/2M" comment="Perfil Tiempo Libre"', 'desc' => '9. NAT y Perfiles'],
+            // 9. NAT Y PERFILES (Respetando original + conexiongratis)
+            ['cmd' => '/ip firewall nat add action=masquerade chain=srcnat out-interface=ether1 comment="NAT-General"', 'desc' => '9a. NAT'],
+            ['cmd' => '/ip hotspot user profile add name="neutro" session-timeout=1s shared-users=1', 'desc' => '9b. Perfil Neutro'],
+            ['cmd' => '/ip hotspot user profile add name="cortesia 20min-0" session-timeout=20m keepalive-timeout=none shared-users=1 status-autorefresh=1m', 'desc' => '9c. Perfil Cortesía'],
+            ['cmd' => '/ip hotspot user profile add name="conexiongratis" shared-users=1 status-autorefresh=1m rate-limit="2M/2M" comment="Portal Gratis"', 'desc' => '9d. Perfil Gratis'],
 
-            // 10. HOTSPOTS MÚLTIPLES (Original con agregado trial-user-profile)
-            ['cmd' => '/ip hotspot profile add dns-name=wifi.login hotspot-address=10.0.0.1 name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis; /ip hotspot add address-pool=pool-wifi disabled=no interface=bridge-wifi name="hotspot-wifi" profile=hsprof1; :foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; /ip hotspot add address-pool=("pool-" . $ename) disabled=no interface=("bridge-" . $ename) name=("hotspot-" . $ename) profile=hsprof1 }; /ip hotspot user add name=admin password=admin123', 'desc' => '10. Hotspots'],
+            // 10. HOTSPOTS MÚLTIPLES (Con Trial User Profile incluido)
+            ['cmd' => '/ip hotspot profile add dns-name=wifi.login hotspot-address=10.0.0.1 name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis', 'desc' => '10a. Profile Hotspot'],
+            ['cmd' => '/ip hotspot add address-pool=pool-wifi disabled=no interface=bridge-wifi name="hotspot-wifi" profile=hsprof1', 'desc' => '10b. Hotspot WiFi'],
+            ['cmd' => ':foreach i in=[/interface ethernet find where name!="ether1"] do={ :local ename [/interface ethernet get $i name]; /ip hotspot add address-pool=("pool-" . $ename) disabled=no interface=("bridge-" . $ename) name=("hotspot-" . $ename) profile=hsprof1 }', 'desc' => '10c. Hotspots en Bridges'],
+            ['cmd' => '/ip hotspot user add name=admin password=admin123', 'desc' => '10d. Usuario Admin Soporte'],
 
             // 11. WALLED GARDEN (Dominios API)
             ['cmd' => '/ip hotspot walled-garden { remove [find]; add dst-host=wifiexpres.com; add dst-host=*.wifiexpres.com; add dst-host=*.biopagobdv.com; add dst-host=*.banvenez.com; add dst-host=biopago.banvenez.com; add dst-host=fcm.googleapis.com; add dst-host=fcm-xmpp.googleapis.com; add dst-host=mtalk.google.com; add dst-host=*.push.apple.com; add dst-host=*.push.apple.com.akadns.net; add dst-host=appleid.apple.com; add dst-host=188.95.113.44 }', 'desc' => '11. Walled Garden'],
 
-            // 12. WALLED GARDEN IP (Pasarelas + Push + DNS Bypass para Planes)
+            // 12. WALLED GARDEN IP (Pasarelas + Push + DNS Bypass)
             ['cmd' => '/ip hotspot walled-garden ip { remove [find]; add dst-address=188.95.113.44; add dst-address=190.217.7.106; add dst-address=190.217.7.229; add dst-address=200.11.243.174; add dst-address=190.202.148.187; add action=accept dst-port=5228-5230 protocol=tcp; add action=accept dst-port=5223 protocol=tcp; add action=accept dst-port=53 protocol=udp; add action=accept dst-port=53 protocol=tcp }', 'desc' => '12. Walled Garden IP'],
 
             // 13. PORTAL Y REBOOT
