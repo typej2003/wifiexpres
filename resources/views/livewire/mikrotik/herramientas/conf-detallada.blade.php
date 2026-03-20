@@ -1,22 +1,23 @@
-<div class="p-4">
+<div class="p-4" @if($isWaitingResponse || $activeTask) wire:poll.1s="checkStatus" @endif>
+    
     <div class="card shadow-sm border-0 mb-4 bg-light rounded-4">
         <div class="card-body">
-            <div class="row align-items-end">
+            <div class="row">
                 <div class="col-md-6">
-                    <label class="small fw-bold text-muted text-uppercase mb-1">Aliado</label>
+                    <label class="small fw-bold text-muted">ALIADO</label>
                     <select wire:model="selectedAliado" class="form-select border-0 shadow-sm rounded-3">
-                        <option value="">-- Seleccionar Aliado --</option>
+                        <option value="">-- Seleccionar --</option>
                         @foreach($aliados as $aliado)
                             <option value="{{ $aliado->id }}">{{ $aliado->name }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="col-md-6">
-                    <label class="small fw-bold text-muted text-uppercase mb-1">Router</label>
-                    <select wire:model="router_id" class="form-select border-0 shadow-sm rounded-3" {{ !$selectedAliado ? 'disabled' : '' }}>
-                        <option value="">-- Seleccionar Router --</option>
+                    <label class="small fw-bold text-muted">ROUTER</label>
+                    <select wire:model="router_id" class="form-select border-0 shadow-sm rounded-3">
+                        <option value="">-- Seleccionar --</option>
                         @foreach($routers as $router)
-                            <option value="{{ $router->id }}">{{ $router->identity }} ({{ $router->macAddress }})</option>
+                            <option value="{{ $router->id }}">{{ $router->identity }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -25,30 +26,17 @@
     </div>
 
     @if($isWaitingResponse)
-        <div wire:poll.1s="checkDiscoveryStatus" class="card border-0 shadow-sm rounded-4 py-5 mb-4">
-            <div class="card-body text-center">
-                <div class="mb-4">
-                    <div class="spinner-border text-primary" role="status" style="width: 4rem; height: 4rem;"></div>
-                </div>
-                <h4 class="fw-bold">Esperando al MikroTik...</h4>
-                <p class="text-muted small">Intento {{ $intentos }} de 20</p>
-                <div class="progress mt-3 mx-auto" style="height: 10px; max-width: 400px;">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
-                         role="progressbar" style="width: {{ ($intentos / 20) * 100 }}%"></div>
-                </div>
-                <p class="mt-3 text-secondary italic font-monospace small">> {{ $logs['global'] ?? '' }}</p>
-            </div>
+        <div class="card border-0 shadow-sm rounded-4 py-5 mb-4 text-center">
+            <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
+            <h5 class="fw-bold">Escaneando Hardware...</h5>
+            <p class="text-muted small">Intento {{ $intentos }} / 20</p>
         </div>
     @endif
 
     @if($showRetry && !$isWaitingResponse)
-        <div class="alert alert-warning rounded-4 border-0 shadow-sm p-4 text-center">
-            <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
-            <h5 class="fw-bold">Sin respuesta del dispositivo</h5>
-            <p class="small mb-3">{{ $logs['global'] }}</p>
-            <button wire:click="iniciarDescubrimiento" class="btn btn-warning fw-bold px-4 rounded-pill">
-                REINTENTAR AHORA
-            </button>
+        <div class="alert alert-warning rounded-4 text-center">
+            <p>El router no respondió. Verifique conexión.</p>
+            <button wire:click="iniciarDescubrimiento" class="btn btn-warning btn-sm fw-bold">REINTENTAR</button>
         </div>
     @endif
 
@@ -58,11 +46,41 @@
                 @if($iface != 'ether1')
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-                        <div class="card-header bg-dark text-white py-3 border-0">
-                            <span class="fw-bold"><i class="fas fa-ethernet me-2 text-info"></i>{{ strtoupper($iface) }}</span>
+                        <div class="card-header bg-dark text-white py-3 border-0 d-flex justify-content-between">
+                            <span class="fw-bold"><i class="fas fa-network-wired me-2 text-info"></i>{{ strtoupper($iface) }}</span>
+                            <span class="badge bg-secondary">IP .{{ ($index + 2) * 10 }}.1</span>
                         </div>
-                        <div class="card-body">
-                            <button class="btn btn-outline-primary w-100 fw-bold">CONFIGURAR PUERTO</button>
+                        <div class="card-body p-0">
+                            <ul class="list-group list-group-flush">
+                                @php $tareas = [
+                                    'bridge' => 'Configurar Bridge',
+                                    'address' => 'Asignar IP Address',
+                                    'pool' => 'Crear Pool IPs',
+                                    'dhcp' => 'Servidor DHCP',
+                                    'hotspot' => 'Servidor Hotspot'
+                                ]; @endphp
+
+                                @foreach($tareas as $key => $label)
+                                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                        <span class="small fw-bold {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'text-success' : '' }}">
+                                            @if(($taskStatus[$iface][$key] ?? '') == 'success') <i class="fas fa-check-circle me-1"></i> @endif
+                                            {{ $label }}
+                                        </span>
+                                        
+                                        <button 
+                                            wire:click="ejecutarTarea('{{ $iface }}', {{ $index }}, '{{ $key }}')"
+                                            wire:loading.attr="disabled"
+                                            class="btn btn-sm {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'btn-success disabled' : (($taskStatus[$iface][$key] ?? '') == 'error' ? 'btn-danger' : 'btn-outline-primary') }}">
+                                            
+                                            @if(($taskStatus[$iface][$key] ?? '') == 'loading')
+                                                <span class="spinner-border spinner-border-sm"></span>
+                                            @else
+                                                <i class="fas fa-play small"></i>
+                                            @endif
+                                        </button>
+                                    </li>
+                                @endforeach
+                            </ul>
                         </div>
                     </div>
                 </div>
