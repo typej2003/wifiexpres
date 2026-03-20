@@ -5,6 +5,7 @@ namespace App\Http\Livewire\Mikrotik\Herramientas;
 use Livewire\Component;
 use App\Models\Router;
 use App\Models\User;
+use App\Models\HotspotVersion; // Importamos el modelo
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -13,11 +14,11 @@ class ConfDetallada extends Component
 {
     public $selectedAliado = null;
     public $router_id = null;
+    public $version_id = null; // ID seleccionado del portal
     public $interfaces = []; 
     public $isWaitingResponse = false; 
     public $currentTid = null;
     public $intentos = 0;
-    public $version_id = 1; 
     
     public $taskStatus = []; 
     public $taskResult = []; 
@@ -68,10 +69,23 @@ class ConfDetallada extends Component
     public function scanearInterfaz($iface, $index)
     {
         $this->queue = [];
-        // El SCAN AUTO de la interfaz ahora solo hace lo necesario para levantar el servicio en ese puerto
         $tareas = ['bridge', 'address', 'pool', 'dhcp', 'hotspot'];
         foreach ($tareas as $t) {
             $this->queue[] = ['iface' => $iface, 'index' => $index, 'tarea' => $t];
+        }
+        $this->procesarSiguienteEnCola();
+    }
+
+    public function scanGlobal()
+    {
+        if (!$this->version_id) {
+            $this->dispatchBrowserEvent('alert', ['type' => 'error', 'message' => 'Seleccione una versión de portal']);
+            return;
+        }
+        $this->queue = [];
+        $tareas = ['walledgarden', 'portal', 'reboot'];
+        foreach ($tareas as $t) {
+            $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => $t];
         }
         $this->procesarSiguienteEnCola();
     }
@@ -94,7 +108,11 @@ class ConfDetallada extends Component
         $mac = strtoupper(trim($router->macAddress));
         $counter = $index + 1; 
         $segmento = $counter * 10;
-        $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $this->version_id;
+
+        // Buscamos el código de la versión seleccionada para el downloadUrl
+        $version = HotspotVersion::find($this->version_id);
+        $vCode = $version ? $version->id : 1;
+        $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $vCode;
 
         $cmds = [
             'bridge'  => ":if ([:len [/interface bridge find name=\"bridge-$iface\"]] > 0) do={ :set res \"OK: Bridge ya existe\" } else={ /interface bridge add name=\"bridge-$iface\"; /interface bridge port add bridge=\"bridge-$iface\" interface=\"$iface\"; :set res \"OK: Bridge creado\" };",
@@ -108,7 +126,6 @@ class ConfDetallada extends Component
                 :if ([:len [/ip hotspot profile find name=\"hsprof1\"]] = 0) do={ /ip hotspot profile add dns-name=wifi.login name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis; };
                 :if ([:len [/ip hotspot find interface=\"bridge-$iface\"]] > 0) do={ :set res \"OK: Hotspot ya existe\"; } else={ /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no; :set res \"OK: Hotspot Creado\"; };
             }",
-            // Tareas Globales (Usan 'global' como llave de interfaz ficticia)
             'walledgarden' => "{
                 /ip hotspot walled-garden add dst-host=wifiexpres.com comment=\"Auto\";
                 /ip hotspot walled-garden ip add dst-address=188.95.113.44 comment=\"Auto\";
@@ -117,7 +134,7 @@ class ConfDetallada extends Component
             'portal' => "{
                 /ip hotspot profile set [find name=\"hsprof1\"] html-directory=hotspot;
                 /tool fetch url=\"$downloadUrl\" dst-path=\"hotspot/login.html\" check-certificate=no;
-                :set res \"OK: Portal Descargado\";
+                :set res \"OK: Portal ($vCode) Descargado\";
             }",
             'reboot' => "/system reboot; :set res \"OK: Reiniciando...\""
         ];
@@ -125,7 +142,7 @@ class ConfDetallada extends Component
         $this->currentTid = "CFG" . rand(10,99) . time();
         $this->intentos = 0;
         $script = ":local res \"\"; :local m \"$mac\"; :local t \"{$this->currentTid}\"; " .
-                  ":do { {$cmds[$tarea]} } on-error={ :set res \"Error en paso $tarea\" }; " .
+                  ":do { {$cmds[$tarea]} } on-error={ :set res \"Error en $tarea\" }; " .
                   "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$res keep-result=no;";
         
         $this->emitirAlBridge($script, $mac, $this->currentTid);
@@ -148,10 +165,7 @@ class ConfDetallada extends Component
             $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $this->currentTid]);
             if ($res->successful() && $res->json('status') === 'ready') {
                 $data = trim($res->json('data'));
-                if ($this->isWaitingResponse) {
-                    $this->interfaces = array_filter(explode(',', $data));
-                    $this->isWaitingResponse = false;
-                } elseif ($this->activeTask) {
+                if ($this->activeTask) {
                     $iface = $this->activeTask['iface'];
                     $tarea = $this->activeTask['tarea'];
                     if (strpos($data, 'OK') !== false) {
@@ -165,6 +179,9 @@ class ConfDetallada extends Component
                         $this->activeTask = null;
                         $this->queue = [];
                     }
+                } else {
+                    $this->interfaces = array_filter(explode(',', $data));
+                    $this->isWaitingResponse = false;
                 }
                 $this->intentos = 0;
             } elseif ($this->intentos >= 35) { $this->handleTimeout(); }
@@ -186,7 +203,8 @@ class ConfDetallada extends Component
     {
         return view('livewire.mikrotik.herramientas.conf-detallada', [
             'aliados' => User::where('role', 'aliado')->get(),
-            'routers' => Router::where('user_id', $this->selectedAliado)->get()
+            'routers' => Router::where('user_id', $this->selectedAliado)->get(),
+            'hotspot_versions' => HotspotVersion::all() // Enviamos las versiones
         ]);
     }
 }
