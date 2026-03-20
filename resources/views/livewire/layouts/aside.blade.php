@@ -210,7 +210,7 @@
                 <span class="menu-text">Conf Remoto</span>
             </a>
 
-            <a href="{{ route('mikrotik.remotolite') }}" class="sidebar-link {{ request()->routeIs('mikrotik.remoto') ? 'active' : '' }}">
+            <a href="{{ route('mikrotik.confdetallada') }}" class="sidebar-link {{ request()->routeIs('mikrotik.confdetallada') ? 'active' : '' }}">
                 <i class="bi bi-terminal"></i> 
                 <span class="menu-text">Conf Remoto Lite</span>
             </a>
