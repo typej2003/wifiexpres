@@ -23,8 +23,8 @@
                 </div>
                 <div class="col-md-2 text-end">
                     @if(count($interfaces) > 0)
-                        <button wire:click="iniciarDescubrimiento" class="btn btn-outline-primary btn-sm rounded-pill fw-bold">
-                            <i class="fas fa-sync-alt"></i> RECARGAR
+                        <button wire:click="iniciarDescubrimiento" class="btn btn-outline-primary btn-sm rounded-pill fw-bold shadow-sm">
+                            <i class="fas fa-sync-alt"></i> REFRESCAR
                         </button>
                     @endif
                 </div>
@@ -34,8 +34,8 @@
 
     @if($isWaitingResponse)
         <div class="text-center py-5">
-            <div class="spinner-border text-primary mb-3"></div>
-            <h5 class="fw-bold">Leyendo Interfaces...</h5>
+            <div class="spinner-grow text-primary mb-3"></div>
+            <h5 class="fw-bold">Interrogando Hardware...</h5>
         </div>
     @endif
 
@@ -45,8 +45,9 @@
                 @if($iface != 'ether1')
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-                        <div class="card-header bg-dark text-white py-3 border-0">
+                        <div class="card-header bg-dark text-white py-3 border-0 d-flex justify-content-between align-items-center">
                             <span class="fw-bold"><i class="fas fa-ethernet me-2 text-info"></i>{{ strtoupper($iface) }}</span>
+                            <span class="badge bg-secondary rounded-pill" style="font-size: 0.6rem;">ID: {{ $index + 1 }}</span>
                         </div>
                         
                         <div class="card-body p-0">
@@ -69,7 +70,7 @@
                                             <button 
                                                 wire:click="ejecutarTarea('{{ $iface }}', {{ $index }}, '{{ $key }}')"
                                                 wire:loading.attr="disabled"
-                                                class="btn btn-sm px-3 rounded-pill {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'btn-success' : (($taskStatus[$iface][$key] ?? '') == 'error' ? 'btn-danger' : 'btn-primary') }}">
+                                                class="btn btn-sm px-3 rounded-pill fw-bold shadow-sm {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'btn-success' : (($taskStatus[$iface][$key] ?? '') == 'error' ? 'btn-danger' : 'btn-primary') }}">
                                                 
                                                 @if(($taskStatus[$iface][$key] ?? '') == 'loading')
                                                     <span class="spinner-border spinner-border-sm"></span>

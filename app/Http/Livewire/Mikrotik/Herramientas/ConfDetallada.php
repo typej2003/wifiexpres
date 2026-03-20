@@ -13,14 +13,12 @@ class ConfDetallada extends Component
     public $selectedAliado = null;
     public $router_id = null;
     
-    // Estados de descubrimiento
     public $interfaces = []; 
     public $isWaitingResponse = false; 
     public $currentTid = null;
     public $intentos = 0;
     public $showRetry = false;
 
-    // Estados de ejecución y resultados
     public $taskStatus = []; 
     public $taskResult = []; 
     public $activeTask = null; 
@@ -65,25 +63,17 @@ class ConfDetallada extends Component
             /tool fetch url="'.$this->bridgeUrl.'/post-result?mac='.$mac.'&tid='.$this->currentTid.'&data=$ifaces" keep-result=no
         }';
 
-        try {
-            Http::withHeaders(['x-mac' => $mac, 'x-id' => $this->currentTid])
-                ->withBody(trim(preg_replace('/\s+/', ' ', $script)), 'text/plain')
-                ->post("{$this->bridgeUrl}/set-command");
-        } catch (\Exception $e) {
-            $this->isWaitingResponse = false;
-            $this->showRetry = true;
-        }
+        $this->enviarScript($mac, $script);
     }
 
     public function ejecutarTarea($iface, $index, $tarea)
     {
         $this->taskStatus[$iface][$tarea] = 'loading';
-        $this->taskResult[$iface][$tarea] = 'Procesando en router...';
+        $this->taskResult[$iface][$tarea] = 'Enviando a MikroTik...';
         $this->activeTask = ['iface' => $iface, 'tarea' => $tarea];
         
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
-        
         $counter = $index + 1; 
         $segmento = $counter * 10;
 
@@ -96,26 +86,30 @@ class ConfDetallada extends Component
         ];
 
         $cmd = $comandos[$tarea];
-        $this->currentTid = "TASK-" . strtoupper($tarea) . "-" . time() . rand(1,99);
+        $this->currentTid = "T" . rand(100,999) . time();
         $this->intentos = 0;
 
-        // AGREGAMOS UN :delay PARA EVITAR EL TIMEOUT POR REINICIO DE INTERFAZ
-        $script = '{ 
-            :local msg "OK: Listo"; 
-            :do { 
-                '.$cmd.' 
-            } on-error={ :set msg "Error: Ya existe o requiere paso previo" }; 
-            :delay 2s;
-            /tool fetch url="'.$this->bridgeUrl.'/post-result?mac='.$mac.'&tid='.$this->currentTid.'&data=$msg" keep-result=no 
+        // ESTRATEGIA: Scheduler para asegurar que la red esté lista antes de reportar
+        $script = '{
+            :local m "OK: Listo";
+            :do { '.$cmd.' } on-error={ :set m "Error o Ya existente" };
+            /system scheduler add name="'.$this->currentTid.'" start-time=startup interval=0s on-event="/tool fetch url=\"'.$this->bridgeUrl.'/post-result?mac='.$mac.'&tid='.$this->currentTid.'&data=$m\" keep-result=no; /system scheduler remove [find name=\"'.$this->currentTid.'\"]"
+            /system scheduler set "'.$this->currentTid.'" start-time=([/system clock get time] + 00:00:03)
         }';
 
+        $this->enviarScript($mac, $script);
+    }
+
+    private function enviarScript($mac, $script)
+    {
         try {
             Http::withHeaders(['x-mac' => $mac, 'x-id' => $this->currentTid])
                 ->withBody(trim(preg_replace('/\s+/', ' ', $script)), 'text/plain')
                 ->post("{$this->bridgeUrl}/set-command");
         } catch (\Exception $e) {
-            $this->taskStatus[$iface][$tarea] = 'error';
-            $this->taskResult[$iface][$tarea] = 'Error de conexión';
+            if ($this->activeTask) {
+                $this->taskStatus[$this->activeTask['iface']][$this->activeTask['tarea']] = 'error';
+            }
         }
     }
 
@@ -141,13 +135,12 @@ class ConfDetallada extends Component
                 elseif ($this->activeTask) {
                     $iface = $this->activeTask['iface'];
                     $tarea = $this->activeTask['tarea'];
-                    
                     $this->taskStatus[$iface][$tarea] = (strpos($data, 'OK') !== false) ? 'success' : 'error';
                     $this->taskResult[$iface][$tarea] = $data;
                     $this->activeTask = null;
                 }
                 $this->intentos = 0;
-            } elseif ($this->intentos >= 30) { // Subimos a 30 seg por el delay del script
+            } elseif ($this->intentos >= 45) { // Damos más tiempo para el Scheduler
                 $this->handleTimeout();
             }
         } catch (\Exception $e) {}
@@ -158,7 +151,7 @@ class ConfDetallada extends Component
         if ($this->isWaitingResponse) $this->showRetry = true;
         if ($this->activeTask) {
             $this->taskStatus[$this->activeTask['iface']][$this->activeTask['tarea']] = 'error';
-            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'Timeout: Sin respuesta (Verifique ejecución manual)';
+            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'TIMEOUT: Sin respuesta del Bridge';
         }
         $this->isWaitingResponse = false;
         $this->activeTask = null;
