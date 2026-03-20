@@ -102,31 +102,23 @@ class ConfDetallada extends Component
 
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $vCode;
 
-        // COMANDOS DIRECTOS (Igual que en Provisión Universal para máxima compatibilidad)
+        // Comandos crudos pero con estructura de reporte de error
         $cmds = [
             'bridge'  => "/interface bridge add name=\"bridge-$iface\"; /interface bridge port add bridge=\"bridge-$iface\" interface=\"$iface\"",
-            
             'address' => "/ip address add address=192.168.$segmento.1/24 interface=\"bridge-$iface\"",
-            
             'pool'    => "/ip pool add name=\"pool-$iface\" ranges=192.168.$segmento.10-192.168.$segmento.250",
-            
             'dhcp'    => "/ip dhcp-server add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"srv-$iface\" disabled=no; /ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8",
-            
             'hotspot' => "/ip hotspot user profile add name=\"neutro\" shared-users=1 session-timeout=1s; /ip hotspot user profile add name=\"cortesia 20min-0\" shared-users=1 session-timeout=20m; /ip hotspot user profile add name=\"conexiongratis\" shared-users=1 rate-limit=\"2M/2M\"; /ip hotspot profile add dns-name=wifi.login name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis; /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no",
-            
             'walledgarden' => '/ip hotspot user add name=admin password=admin123; /ip hotspot walled-garden { remove [find]; add dst-host=wifiexpres.com; add dst-host=*.wifiexpres.com; add dst-host=*.biopagobdv.com; add dst-host=*.banvenez.com; add dst-host=biopago.banvenez.com; add dst-host=fcm.googleapis.com; add dst-host=fcm-xmpp.googleapis.com; add dst-host=mtalk.google.com; add dst-host=*.push.apple.com; add dst-host=*.push.apple.com.akadns.net; add dst-host=appleid.apple.com; add dst-host=188.95.113.44 }',
-            
             'walledgardenip' => '/ip hotspot walled-garden ip { remove [find]; add dst-address=188.95.113.44; add dst-address=190.217.7.106; add dst-address=190.217.7.229; add dst-address=200.11.243.174; add dst-address=190.202.148.187; add action=accept dst-port=5228-5230 protocol=tcp; add action=accept dst-port=5223 protocol=tcp; add action=accept dst-port=53 protocol=udp; add action=accept dst-port=53 protocol=tcp }',
-
             'portal' => "/ip hotspot profile set [find name=\"hsprof1\"] html-directory=hotspot; /tool fetch url=\"$downloadUrl\" dst-path=\"hotspot/login.html\" check-certificate=no",
-            
             'reboot' => "/system reboot"
         ];
 
         $this->currentTid = "CFG" . rand(10,99) . time();
         
-        // El script se envía directo sin la complejidad de los bloques ":do" que causan el error de tamaño
-        $script = $cmds[$tarea] . "; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no;";
+        // ESTRUCTURA DE CONTROL: Si falla, envía "ERROR", si funciona, envía "OK"
+        $script = ":local r \"OK\"; :do { {$cmds[$tarea]} } on-error={ :set r \"ERROR\" }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\$r keep-result=no;";
         
         $this->emitirAlBridge($script, $mac, $this->currentTid);
     }
@@ -151,17 +143,25 @@ class ConfDetallada extends Component
                 if ($this->activeTask) {
                     $iface = $this->activeTask['iface'];
                     $tarea = $this->activeTask['tarea'];
-                    // Si el router respondió (aunque sea con error de sistema) lo damos por procesado para seguir la cola
-                    $this->taskStatus[$iface][$tarea] = 'success';
-                    $this->taskResult[$iface][$tarea] = $data;
+                    
+                    if ($data === "OK") {
+                        $this->taskStatus[$iface][$tarea] = 'success';
+                        $this->taskResult[$iface][$tarea] = "Configuración aplicada";
+                        $this->procesarSiguienteEnCola();
+                    } else {
+                        $this->taskStatus[$iface][$tarea] = 'error';
+                        $this->taskResult[$iface][$tarea] = "Error en MikroTik (Posible duplicado)";
+                        $this->queue = []; // Detener cola si algo falla
+                    }
                     $this->activeTask = null;
-                    $this->procesarSiguienteEnCola();
                 } else {
                     $this->interfaces = array_filter(explode(',', $data));
                     $this->isWaitingResponse = false;
                 }
                 $this->intentos = 0;
-            } elseif ($this->intentos >= 35) { $this->handleTimeout(); }
+            } elseif ($this->intentos >= 45) { // Subimos a 45 segundos para el Walled Garden
+                $this->handleTimeout();
+            }
         } catch (\Exception $e) {}
     }
 
@@ -170,7 +170,7 @@ class ConfDetallada extends Component
         if ($this->isWaitingResponse) $this->isWaitingResponse = false;
         if ($this->activeTask) {
             $this->taskStatus[$this->activeTask['iface']][$this->activeTask['tarea']] = 'error';
-            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'TIMEOUT';
+            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'TIMEOUT (Sin respuesta)';
             $this->activeTask = null;
             $this->queue = [];
         }
