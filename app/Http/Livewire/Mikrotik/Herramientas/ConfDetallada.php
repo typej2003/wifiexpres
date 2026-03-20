@@ -13,13 +13,17 @@ class ConfDetallada extends Component
     public $selectedAliado = null;
     public $router_id = null;
     
-    // Estados de descubrimiento
+    // Estados de descubrimiento y escaneo
     public $interfaces = []; 
     public $isWaitingResponse = false; 
     public $currentTid = null;
     public $intentos = 0;
     public $showRetry = false;
     public $logs = [];
+
+    // Cola de escaneo secuencial
+    public $scanQueue = [];
+    public $isScanningAll = false;
 
     // Estados detallados por puerto y tarea
     public $taskStatus = []; 
@@ -36,7 +40,7 @@ class ConfDetallada extends Component
 
     public function updatedSelectedAliado()
     {
-        $this->reset(['router_id', 'interfaces', 'taskStatus', 'logs', 'isWaitingResponse', 'showRetry']);
+        $this->reset(['router_id', 'interfaces', 'taskStatus', 'logs', 'isWaitingResponse', 'showRetry', 'scanQueue', 'isScanningAll']);
     }
 
     public function updatedRouterId($value)
@@ -47,7 +51,7 @@ class ConfDetallada extends Component
     }
 
     /**
-     * PASO 1: Descubrir qué interfaces físicas existen
+     * PASO 1: Descubrir interfaces físicas
      */
     public function iniciarDescubrimiento()
     {
@@ -55,6 +59,7 @@ class ConfDetallada extends Component
 
         $this->interfaces = [];
         $this->taskStatus = [];
+        $this->scanQueue = [];
         $this->intentos = 0;
         $this->showRetry = false;
         $this->isWaitingResponse = true;
@@ -75,8 +80,6 @@ class ConfDetallada extends Component
             Http::withHeaders(['x-mac' => $mac, 'x-id' => $this->currentTid])
                 ->withBody(trim(preg_replace('/\s+/', ' ', $script)), 'text/plain')
                 ->post("{$this->bridgeUrl}/set-command");
-            
-            $this->logs['global'] = "Interrogando hardware del MikroTik...";
         } catch (\Exception $e) {
             $this->isWaitingResponse = false;
             $this->showRetry = true;
@@ -84,8 +87,19 @@ class ConfDetallada extends Component
     }
 
     /**
-     * PASO 2: Consultar secuencialmente el estado de configuración de un puerto
+     * PASO 2: Iniciar el escaneo secuencial de detalles
      */
+    public function procesarSiguienteEnCola()
+    {
+        if (empty($this->scanQueue)) {
+            $this->isScanningAll = false;
+            return;
+        }
+
+        $iface = array_shift($this->scanQueue);
+        $this->consultarEstadoInterfaz($iface);
+    }
+
     public function consultarEstadoInterfaz($iface)
     {
         $this->taskStatus[$iface]['loading_all'] = true;
@@ -116,7 +130,7 @@ class ConfDetallada extends Component
     }
 
     /**
-     * PASO 3: Ejecutar configuración de un aspecto específico
+     * PASO 3: Configuración manual de un aspecto
      */
     public function ejecutarTarea($iface, $index, $tarea)
     {
@@ -149,7 +163,7 @@ class ConfDetallada extends Component
     }
 
     /**
-     * POLLING UNIFICADO
+     * POLLING
      */
     public function checkStatus()
     {
@@ -169,10 +183,19 @@ class ConfDetallada extends Component
                 if ($this->isWaitingResponse) {
                     $this->interfaces = array_filter(explode(',', $data));
                     $this->isWaitingResponse = false;
+                    
+                    // Al recibir interfaces, llenar cola de escaneo secuencial (menos ether1)
+                    foreach($this->interfaces as $iface) {
+                        if($iface != 'ether1') $this->scanQueue[] = $iface;
+                    }
+                    $this->isScanningAll = true;
+                    $this->procesarSiguienteEnCola();
                 } 
                 elseif ($this->activeTask && $this->activeTask['type'] === 'status_check') {
                     $this->parseStatus($this->activeTask['iface'], $data);
                     $this->activeTask = null;
+                    // Escanear el siguiente puerto en la cola
+                    $this->procesarSiguienteEnCola();
                 }
                 elseif ($this->activeTask && $this->activeTask['type'] === 'config') {
                     $iface = $this->activeTask['iface'];
@@ -203,8 +226,13 @@ class ConfDetallada extends Component
     private function handleTimeout()
     {
         if ($this->isWaitingResponse) $this->showRetry = true;
-        if ($this->activeTask && $this->activeTask['type'] === 'config') {
-            $this->taskStatus[$this->activeTask['iface']][$this->activeTask['tarea']] = 'error';
+        if ($this->activeTask) {
+            $iface = $this->activeTask['iface'];
+            if ($this->activeTask['type'] === 'config') $this->taskStatus[$iface][$this->activeTask['tarea']] = 'error';
+            if ($this->activeTask['type'] === 'status_check') {
+                $this->taskStatus[$iface]['loading_all'] = false;
+                $this->procesarSiguienteEnCola();
+            }
         }
         $this->isWaitingResponse = false;
         $this->activeTask = null;

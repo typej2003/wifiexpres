@@ -1,4 +1,4 @@
-<div class="p-4" @if($isWaitingResponse || $activeTask) wire:poll.1s="checkStatus" @endif>
+<div class="p-4" @if($isWaitingResponse || $activeTask || $isScanningAll) wire:poll.1s="checkStatus" @endif>
     
     <div class="card shadow-sm border-0 mb-4 bg-light rounded-4">
         <div class="card-body">
@@ -24,7 +24,7 @@
                 <div class="col-md-2 text-end">
                     @if(count($interfaces) > 0 && !$isWaitingResponse)
                         <button wire:click="iniciarDescubrimiento" class="btn btn-outline-primary btn-sm rounded-pill fw-bold">
-                            <i class="fas fa-sync-alt"></i> Redescubrir
+                            <i class="fas fa-sync-alt {{ $isScanningAll ? 'fa-spin' : '' }}"></i> Actualizar Todo
                         </button>
                     @endif
                 </div>
@@ -36,8 +36,7 @@
         <div class="card border-0 shadow-sm rounded-4 py-5 mb-4 text-center">
             <div class="card-body">
                 <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
-                <h4 class="fw-bold">Escaneando Dispositivo</h4>
-                <p class="text-muted small">Intento {{ $intentos }} de 20</p>
+                <h4 class="fw-bold">Escaneando Dispositivo...</h4>
                 <div class="progress mt-3 mx-auto" style="height: 6px; max-width: 300px;">
                     <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
                 </div>
@@ -45,27 +44,24 @@
         </div>
     @endif
 
-    @if($showRetry && !$isWaitingResponse)
-        <div class="alert alert-warning rounded-4 border-0 shadow-sm p-4 text-center">
-            <i class="fas fa-exclamation-triangle fa-2x mb-2 text-warning"></i>
-            <h5 class="fw-bold">Sin respuesta del MikroTik</h5>
-            <p class="small">Asegúrese de que el equipo esté encendido y conectado al Bridge.</p>
-            <button wire:click="iniciarDescubrimiento" class="btn btn-warning fw-bold px-4 rounded-pill mt-2">REINTENTAR</button>
-        </div>
-    @endif
-
     @if(count($interfaces) > 0 && !$isWaitingResponse)
         <div class="row">
             @foreach($interfaces as $index => $iface)
-                @if($iface != 'ether1') {{-- Omitimos puerto WAN por defecto --}}
+                @if($iface != 'ether1')
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100 border-top border-4 {{ ($taskStatus[$iface]['hotspot'] ?? '') == 'success' ? 'border-success' : 'border-primary' }}">
                         
                         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                             <span class="fw-bold text-dark"><i class="fas fa-ethernet me-2 text-primary"></i>{{ strtoupper($iface) }}</span>
-                            <button wire:click="consultarEstadoInterfaz('{{ $iface }}')" class="btn btn-sm btn-light rounded-circle shadow-sm" title="Escanear estado actual">
-                                <i class="fas fa-sync-alt text-primary {{ ($taskStatus[$iface]['loading_all'] ?? false) ? 'fa-spin' : '' }}"></i>
-                            </button>
+                            @if($taskStatus[$iface]['loading_all'] ?? false)
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill" style="font-size: 0.65rem;">
+                                    <i class="fas fa-search fa-spin me-1"></i> ESCANEANDO...
+                                </span>
+                            @else
+                                <button wire:click="consultarEstadoInterfaz('{{ $iface }}')" class="btn btn-sm btn-light rounded-circle shadow-sm">
+                                    <i class="fas fa-sync-alt text-primary small"></i>
+                                </button>
+                            @endif
                         </div>
 
                         <div class="card-body p-0">
@@ -93,6 +89,8 @@
                                                         <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill" style="font-size: 0.6rem;">CONFIGURADO</span>
                                                     @elseif(($taskStatus[$iface][$key] ?? '') == 'missing')
                                                         <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill" style="font-size: 0.6rem;">PENDIENTE</span>
+                                                    @elseif($taskStatus[$iface]['loading_all'] ?? false)
+                                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill" style="font-size: 0.6rem;">LEYENDO...</span>
                                                     @else
                                                         <span class="badge bg-light text-muted border rounded-pill" style="font-size: 0.6rem;">DESCONOCIDO</span>
                                                     @endif
@@ -103,23 +101,20 @@
                                         <button 
                                             wire:click="ejecutarTarea('{{ $iface }}', {{ $index }}, '{{ $key }}')"
                                             wire:loading.attr="disabled"
-                                            class="btn btn-sm rounded-pill shadow-sm px-3 {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'btn-success disabled' : 'btn-primary' }}"
+                                            @if($taskStatus[$iface]['loading_all'] ?? false) disabled @endif
+                                            class="btn btn-sm rounded-pill shadow-sm px-3 {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'btn-success disabled' : (($taskStatus[$iface]['loading_all'] ?? false) ? 'btn-light disabled' : 'btn-primary') }}"
                                             style="min-width: 85px;">
                                             
                                             @if(($taskStatus[$iface][$key] ?? '') == 'loading')
                                                 <span class="spinner-border spinner-border-sm"></span>
+                                            @elseif($taskStatus[$iface]['loading_all'] ?? false)
+                                                <i class="fas fa-hourglass-half small"></i>
                                             @else
                                                 <i class="fas fa-cog me-1"></i> Config
                                             @endif
                                         </button>
                                     </div>
                                 @endforeach
-                            </div>
-                        </div>
-                        
-                        <div class="card-footer bg-light border-0 py-2">
-                            <div class="text-center small text-muted font-monospace" style="font-size: 0.7rem;">
-                                SUGERENCIA: 192.168.{{ ($index + 2) * 10 }}.0/24
                             </div>
                         </div>
                     </div>
@@ -133,5 +128,6 @@
 <style>
     .bg-success-subtle { background-color: #d1e7dd; }
     .bg-danger-subtle { background-color: #f8d7da; }
+    .bg-warning-subtle { background-color: #fff3cd; }
     .list-group-item:hover { background-color: #f8f9fa; transition: 0.2s; }
 </style>
