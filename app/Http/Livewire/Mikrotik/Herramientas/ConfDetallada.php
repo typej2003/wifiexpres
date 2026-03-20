@@ -3,18 +3,16 @@
 namespace App\Livewire\Mikrotik\Herramientas;
 
 use Livewire\Component;
-use App\Models\Aliado; // Asumiendo que existe el modelo Aliado
+use App\Models\Aliado;
 use App\Models\Router;
 
 class ConfDetallada extends Component
 {
-    // Filtros
-    public $aliados = [];
-    public $routers = [];
+    // Filtros de selección
     public $aliado_id = null;
     public $router_id = null;
-
-    // Datos del MikroTik seleccionado
+    
+    // Datos cargados
     public $interfaces = [];
     public $status = [];
     public $logs = [];
@@ -22,63 +20,52 @@ class ConfDetallada extends Component
 
     public function mount()
     {
-        // Cargamos los aliados al iniciar
-        $this->aliados = Aliado::orderBy('nombre', 'asc')->get();
+        // No cargamos nada inicialmente para que el usuario elija
     }
 
-    // Se ejecuta automáticamente cuando cambia aliado_id
+    // Al cambiar Aliado, reseteamos Router e interfaces
     public function updatedAliadoId($value)
     {
-        $this->routers = Router::where('aliado_id', $value)->get();
-        $this->reset(['router_id', 'interfaces', 'status', 'logs']);
+        $this->router_id = null;
+        $this->interfaces = [];
     }
 
-    // Se ejecuta automáticamente cuando cambia router_id
+    // Al cambiar Router, intentamos conectar y obtener interfaces
     public function updatedRouterId($value)
     {
         if ($value) {
             $this->conectarMikrotik();
-        } else {
-            $this->reset(['interfaces', 'status', 'logs']);
         }
     }
 
     public function conectarMikrotik()
     {
-        $this->validate(['router_id' => 'required']);
         $router = Router::find($this->router_id);
-        $this->identity = $router->identity ?? 'MikroTik';
-
-        try {
-            // AQUÍ: Lógica real para obtener interfaces vía API/SSH
-            // Simulación de respuesta del MikroTik:
+        if ($router) {
+            $this->identity = $router->identity;
+            // Aquí iría la lógica real de obtención de interfaces (ej. ether2, ether3...)
+            // Por ahora simulamos para armar la vista
             $this->interfaces = ['ether2', 'ether3', 'ether4', 'ether5'];
             
             foreach ($this->interfaces as $iface) {
                 $this->status[$iface] = 'idle';
-                $this->logs[$iface] = 'Equipo conectado. Esperando comandos...';
+                $this->logs[$iface] = 'Equipo conectado. Listo para configurar.';
             }
             $this->status['profiles'] = 'idle';
-            $this->logs['profiles'] = 'Pendiente de configuración.';
-            
-        } catch (\Exception $e) {
-            $this->logs['global'] = "Error de conexión: " . $e->getMessage();
+            $this->logs['profiles'] = 'Esperando configuración global...';
         }
     }
 
     public function configurarPuerto($interface, $index)
     {
         $this->status[$interface] = 'loading';
-        $this->logs[$interface] = "Enviando secuencia a $interface...";
+        $this->logs[$interface] = "Enviando comandos a $interface...";
 
-        // Lógica de segmentos (192.168.20.1, 192.168.30.1, etc.)
-        $segmento = ($index + 2) * 10;
-        
-        // Simulación de comandos secuenciales
+        // Simulación de proceso
         sleep(1); 
 
         $this->status[$interface] = 'success';
-        $this->logs[$interface] = "✅ Configurado: IP 192.168.$segmento.1/24, Bridge, Pool y Hotspot activos.";
+        $this->logs[$interface] = "✅ Configuración aplicada con éxito en $interface.";
     }
 
     public function configurarPerfiles()
@@ -86,11 +73,18 @@ class ConfDetallada extends Component
         $this->status['profiles'] = 'loading';
         sleep(1);
         $this->status['profiles'] = 'success';
-        $this->logs['profiles'] = "✅ Perfiles: Neutro, ConexionGratis y hsprof1 configurados.";
+        $this->logs['profiles'] = "✅ Perfiles de Hotspot y Walled Garden actualizados.";
     }
 
     public function render()
     {
-        return view('livewire.mikrotik.herramientas.conf-detallada');
+        // Cargamos aliados aquí para que siempre estén disponibles
+        $aliados = Aliado::orderBy('nombre', 'asc')->get();
+        $routers = $this->aliado_id ? Router::where('aliado_id', $this->aliado_id)->get() : [];
+
+        return view('livewire.mikrotik.herramientas.conf-detallada', [
+            'lista_aliados' => $aliados,
+            'lista_routers' => $routers
+        ]);
     }
 }
