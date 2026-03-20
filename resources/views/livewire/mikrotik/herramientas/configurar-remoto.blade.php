@@ -67,6 +67,22 @@
                         </div>
                     </div>
 
+                    <div class="row mb-5">
+                        <div class="col-12">
+                            <div class="bg-light p-3 rounded-4 border">
+                                <label class="form-label fw-bold small text-primary text-uppercase">
+                                    <i class="bi bi-file-earmark-code me-1"></i> Versión del Portal Hotspot
+                                </label>
+                                <select wire:model="version_id" class="form-select border-0 shadow-sm" @if($isConfiguring) disabled @endif>
+                                    <option value="">Seleccione versión del login...</option>
+                                    @foreach($versiones as $ver)
+                                        <option value="{{ $ver->id }}">{{ $ver->name }} - {{ $ver->description }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
                             <button wire:click="ejecutarConfiguracion" @if(!$router_id || !$version_id || !$soporte_user || !$soporte_pass || $isConfiguring) disabled @endif
@@ -85,22 +101,6 @@
                                 class="btn btn-danger btn-lg rounded-pill fw-bold w-100 py-3 shadow-sm">
                                 <i class="bi bi-stop-circle-fill"></i>
                             </button>
-                        </div>
-                    </div>
-
-                    <div class="row mb-5">
-                        <div class="col-12">
-                            <div class="bg-light p-3 rounded-4 border">
-                                <label class="form-label fw-bold small text-primary text-uppercase">
-                                    <i class="bi bi-file-earmark-code me-1"></i> Versión del Portal Hotspot
-                                </label>
-                                <select wire:model="version_id" class="form-select border-0 shadow-sm" @if($isConfiguring) disabled @endif>
-                                    <option value="">Seleccione versión del login...</option>
-                                    @foreach($versiones as $ver)
-                                        <option value="{{ $ver->id }}">{{ $ver->name }} - {{ $ver->description }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
                         </div>
                     </div>
 
