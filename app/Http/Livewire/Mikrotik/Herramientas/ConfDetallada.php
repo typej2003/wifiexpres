@@ -17,12 +17,11 @@ class ConfDetallada extends Component
     public $isWaitingResponse = false; 
     public $currentTid = null;
     public $intentos = 0;
+    public $version_id = 1; // Por defecto la versión 1 del portal
     
     public $taskStatus = []; 
     public $taskResult = []; 
     public $activeTask = null; 
-
-    // Cola para el Scan Auto
     public $queue = [];
 
     protected $bridgeUrl = "http://188.95.113.44:3000";
@@ -68,15 +67,11 @@ class ConfDetallada extends Component
 
     public function scanearInterfaz($iface, $index)
     {
-        // Reiniciamos cola para esta interfaz
         $this->queue = [];
-        $tareas = ['bridge', 'address', 'pool', 'dhcp', 'hotspot'];
+        // Ahora el SCAN AUTO incluye Walled Garden y Portal
+        $tareas = ['bridge', 'address', 'pool', 'dhcp', 'hotspot', 'walledgarden', 'portal'];
         foreach ($tareas as $t) {
-            $this->queue[] = [
-                'iface' => $iface,
-                'index' => $index,
-                'tarea' => $t
-            ];
+            $this->queue[] = ['iface' => $iface, 'index' => $index, 'tarea' => $t];
         }
         $this->procesarSiguienteEnCola();
     }
@@ -92,52 +87,44 @@ class ConfDetallada extends Component
     public function ejecutarTarea($iface, $index, $tarea)
     {
         $this->taskStatus[$iface][$tarea] = 'loading';
-        $this->taskResult[$iface][$tarea] = 'Enviando comando...';
+        $this->taskResult[$iface][$tarea] = 'Procesando...';
         $this->activeTask = ['iface' => $iface, 'tarea' => $tarea, 'index' => $index];
         
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
-        
-        // El parámetro clave: Segmento basado en el ID de la interfaz (ID:1 = .10.x, ID:2 = .20.x, etc.)
         $counter = $index + 1; 
         $segmento = $counter * 10;
+        $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $this->version_id;
 
         $cmds = [
             'bridge'  => ":if ([:len [/interface bridge find name=\"bridge-$iface\"]] > 0) do={ :set res \"OK: Bridge ya existe\" } else={ /interface bridge add name=\"bridge-$iface\"; /interface bridge port add bridge=\"bridge-$iface\" interface=\"$iface\"; :set res \"OK: Bridge creado\" };",
-            
             'address' => ":if ([:len [/ip address find where interface=\"bridge-$iface\"]] > 0) do={ :set res \"OK: IP ya configurada\" } else={ /ip address add address=192.168.$segmento.1/24 interface=\"bridge-$iface\"; :set res \"OK: IP asignada\" };",
-            
             'pool'    => ":if ([:len [/ip pool find name=\"pool-$iface\"]] > 0) do={ :set res \"OK: Pool ya existe\" } else={ /ip pool add name=\"pool-$iface\" ranges=192.168.$segmento.10-192.168.$segmento.250; :set res \"OK: Pool creado\" };",
-            
             'dhcp'    => ":if ([:len [/ip dhcp-server find interface=\"bridge-$iface\"]] > 0) do={ :set res \"OK: DHCP ya existe\" } else={ /ip dhcp-server add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"srv-$iface\" disabled=no; /ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8; :set res \"OK: DHCP activo\" };",
-            
             'hotspot' => "{
-                :if ([:len [/ip hotspot user profile find name=\"neutro\"]] = 0) do={ /ip hotspot user profile add name=\"neutro\" shared-users=1 session-timeout=1s idle-timeout=1s; } else={ /ip hotspot user profile set [find name=\"neutro\"] session-timeout=1s idle-timeout=1s; };
-                :if ([:len [/ip hotspot user profile find name=\"cortesia 20min-0\"]] = 0) do={ /ip hotspot user profile add name=\"cortesia 20min-0\" shared-users=1 status-autorefresh=1m keepalive-timeout=2m; };
+                :if ([:len [/ip hotspot user profile find name=\"neutro\"]] = 0) do={ /ip hotspot user profile add name=\"neutro\" shared-users=1 session-timeout=1s; };
+                :if ([:len [/ip hotspot user profile find name=\"cortesia 20min-0\"]] = 0) do={ /ip hotspot user profile add name=\"cortesia 20min-0\" shared-users=1 session-timeout=20m; };
                 :if ([:len [/ip hotspot user profile find name=\"conexiongratis\"]] = 0) do={ /ip hotspot user profile add name=\"conexiongratis\" shared-users=1 rate-limit=\"2M/2M\"; };
-                :if ([:len [/ip hotspot profile find name=\"hsprof1\"]] = 0) do={ 
-                    /ip hotspot profile add dns-name=wifi.login name=hsprof1 login-by=http-chap,http-pap,trial,cookie,mac-cookie trial-user-profile=conexiongratis;
-                };
-                :if ([:len [/ip hotspot find interface=\"bridge-$iface\"]] > 0) do={ :set res \"OK: Hotspot ya existe\"; } else={ 
-                    /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no;
-                    :set res \"OK: Hotspot listo\";
-                };
-            }"
+                :if ([:len [/ip hotspot profile find name=\"hsprof1\"]] = 0) do={ /ip hotspot profile add dns-name=wifi.login name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis; };
+                :if ([:len [/ip hotspot find interface=\"bridge-$iface\"]] > 0) do={ :set res \"OK: Hotspot ya existe\"; } else={ /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no; :set res \"OK: Hotspot Creado\"; };
+            }",
+            'walledgarden' => "{
+                /ip hotspot walled-garden add dst-host=wifiexpres.com comment=\"Auto\";
+                /ip hotspot walled-garden ip add dst-address=188.95.113.44 comment=\"Auto\";
+                :set res \"OK: Walled Garden Configurado\";
+            }",
+            'portal' => "{
+                /ip hotspot profile set [find name=\"hsprof1\"] html-directory=hotspot;
+                /tool fetch url=\"$downloadUrl\" dst-path=\"hotspot/login.html\" check-certificate=no;
+                :set res \"OK: Portal Descargado\";
+            }",
+            'reboot' => "/system reboot; :set res \"OK: Reiniciando...\""
         ];
 
-        // Validar que la tarea exista antes de procesar
-        if (!isset($cmds[$tarea])) {
-            $this->taskStatus[$iface][$tarea] = 'error';
-            $this->taskResult[$iface][$tarea] = 'Tarea no definida';
-            $this->queue = [];
-            return;
-        }
-
-        $this->currentTid = "CFG" . rand(100,999) . time();
+        $this->currentTid = "CFG" . rand(10,99) . time();
         $this->intentos = 0;
-        
         $script = ":local res \"\"; :local m \"$mac\"; :local t \"{$this->currentTid}\"; " .
-                  ":do { {$cmds[$tarea]} } on-error={ :set res \"Error: Fallo dependencia\" }; " .
+                  ":do { {$cmds[$tarea]} } on-error={ :set res \"Error en paso $tarea\" }; " .
                   "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$res keep-result=no;";
         
         $this->emitirAlBridge($script, $mac, $this->currentTid);
@@ -146,13 +133,7 @@ class ConfDetallada extends Component
     protected function emitirAlBridge($script, $mac, $tid)
     {
         $comandoLimpio = trim(preg_replace('/\s+/', ' ', $script));
-        try {
-            Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
-                ->withBody($comandoLimpio, 'text/plain')
-                ->post("{$this->bridgeUrl}/set-command");
-        } catch (\Exception $e) {
-            Log::error("Error Bridge: " . $e->getMessage());
-        }
+        Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])->withBody($comandoLimpio, 'text/plain')->post("{$this->bridgeUrl}/set-command");
     }
 
     public function checkStatus()
@@ -160,40 +141,33 @@ class ConfDetallada extends Component
         if (!$this->isWaitingResponse && !$this->activeTask) return;
         $this->intentos++;
         $router = Router::find($this->router_id);
-        if (!$router) return;
         $mac = strtoupper(trim($router->macAddress));
         
         try {
             $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $this->currentTid]);
             if ($res->successful() && $res->json('status') === 'ready') {
                 $data = trim($res->json('data'));
-                
                 if ($this->isWaitingResponse) {
                     $this->interfaces = array_filter(explode(',', $data));
                     $this->isWaitingResponse = false;
                 } elseif ($this->activeTask) {
                     $iface = $this->activeTask['iface'];
                     $tarea = $this->activeTask['tarea'];
-                    
                     if (strpos($data, 'OK') !== false) {
                         $this->taskStatus[$iface][$tarea] = 'success';
                         $this->taskResult[$iface][$tarea] = $data;
                         $this->activeTask = null;
-                        
-                        // Pequeña pausa para MikroTik Lite (evita saturación de CPU)
-                        usleep(300000); 
+                        usleep(200000); // Pausa de 0.2s para estabilidad
                         $this->procesarSiguienteEnCola();
                     } else {
                         $this->taskStatus[$iface][$tarea] = 'error';
                         $this->taskResult[$iface][$tarea] = $data;
                         $this->activeTask = null;
-                        $this->queue = []; // DETENER si falla un paso
+                        $this->queue = [];
                     }
                 }
                 $this->intentos = 0;
-            } elseif ($this->intentos >= 35) { 
-                $this->handleTimeout(); 
-            }
+            } elseif ($this->intentos >= 35) { $this->handleTimeout(); }
         } catch (\Exception $e) {}
     }
 
@@ -202,7 +176,7 @@ class ConfDetallada extends Component
         if ($this->isWaitingResponse) $this->isWaitingResponse = false;
         if ($this->activeTask) {
             $this->taskStatus[$this->activeTask['iface']][$this->activeTask['tarea']] = 'error';
-            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'Sin respuesta (Timeout)';
+            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'Timeout';
             $this->activeTask = null;
             $this->queue = [];
         }

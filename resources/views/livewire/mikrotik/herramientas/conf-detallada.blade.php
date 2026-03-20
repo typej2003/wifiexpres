@@ -1,5 +1,4 @@
 <div class="p-4" @if($isWaitingResponse || $activeTask) wire:poll.1s="checkStatus" @endif>
-    
     <div class="card shadow-sm border-0 mb-4 bg-light rounded-4">
         <div class="card-body">
             <div class="row align-items-end">
@@ -63,7 +62,10 @@
                                         'address' => 'IP Address (.'.(($index+1)*10).'.1)',
                                         'pool'    => 'Crear Pool de IPs',
                                         'dhcp'    => 'Servidor DHCP',
-                                        'hotspot' => 'Hotspot & Profiles'
+                                        'hotspot' => 'Servidor Hotspot',
+                                        'walledgarden' => 'Walled Garden',
+                                        'portal'  => 'Download Portal',
+                                        'reboot'  => 'Reiniciar Router'
                                     ];
                                 @endphp
 
@@ -71,7 +73,6 @@
                                     <li class="list-group-item py-3">
                                         <div class="d-flex justify-content-between align-items-center mb-1">
                                             <span class="small fw-bold text-uppercase" style="font-size: 0.75rem;">{{ $label }}</span>
-                                            
                                             <button 
                                                 wire:click="ejecutarTarea('{{ $iface }}', {{ $index }}, '{{ $key }}')"
                                                 wire:loading.attr="disabled"
