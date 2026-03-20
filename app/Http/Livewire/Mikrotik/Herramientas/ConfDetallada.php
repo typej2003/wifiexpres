@@ -13,16 +13,14 @@ class ConfDetallada extends Component
     public $selectedAliado = null;
     public $router_id = null;
     
+    // Estados de descubrimiento
     public $interfaces = []; 
-    public $isSearching = false;
-    public $isWaitingResponse = false;
-    public $showRetry = false; 
-    
-    // Estados específicos por puerto y por tarea
-    // Ejemplo: $status['ether2']['bridge'] = 'success'
-    public $taskStatus = [];
+    public $isWaitingResponse = false; 
+    public $currentTid = null;
+    public $intentos = 0;
+    public $showRetry = false;
     public $logs = [];
-    
+
     protected $bridgeUrl = "http://188.95.113.44:3000";
 
     public function mount()
@@ -34,91 +32,75 @@ class ConfDetallada extends Component
 
     public function updatedRouterId($value)
     {
-        if ($value) { $this->descubrirInterfaces(); }
+        if ($value) {
+            $this->iniciarDescubrimiento();
+        }
     }
 
-    public function descubrirInterfaces()
+    public function iniciarDescubrimiento()
     {
         if (!$this->router_id) return;
-        $this->isSearching = true;
-        $this->isWaitingResponse = true;
+
         $this->interfaces = [];
+        $this->intentos = 0;
+        $this->showRetry = false;
+        $this->currentTid = "DISC" . time();
         
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
-        $tid = "DISC" . time();
 
         $script = '{
             :local ifaces "";
             :foreach i in=[/interface find where type="ether" or type="wlan" or type="wifi"] do={
                 :set ifaces ($ifaces . [/interface get $i name] . ",");
             };
-            /tool fetch url="'.$this->bridgeUrl.'/post-result?mac='.$mac.'&tid='.$tid.'&data=$ifaces" keep-result=no
+            /tool fetch url="'.$this->bridgeUrl.'/post-result?mac='.$mac.'&tid='.$this->currentTid.'&data=$ifaces" keep-result=no
         }';
 
         try {
-            Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
-                ->withBody(trim(preg_replace('/\s+/', ' ', $script)), 'text/plain')
-                ->post("{$this->bridgeUrl}/set-command");
-
-            $this->isSearching = false;
-            $this->esperarRespuestaInterfaces($mac, $tid);
-        } catch (\Exception $e) { $this->showRetry = true; }
-    }
-
-    private function esperarRespuestaInterfaces($mac, $tid)
-    {
-        $intentos = 0;
-        while ($intentos < 12) {
-            sleep(1);
-            $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
-            if ($res->successful() && $res->json('status') === 'ready') {
-                $this->interfaces = array_filter(explode(',', $res->json('data')));
-                $this->isWaitingResponse = false;
-                return;
-            }
-            $intentos++;
-        }
-        $this->isWaitingResponse = false;
-        $this->showRetry = true;
-    }
-
-    /**
-     * Lógica genérica para ejecutar una tarea específica
-     */
-    public function ejecutarTarea($iface, $index, $tarea)
-    {
-        $this->taskStatus[$iface][$tarea] = 'loading';
-        
-        $router = Router::findOrFail($this->router_id);
-        $mac = strtoupper(trim($router->macAddress));
-        $segmento = ($index + 2) * 10;
-
-        // Definición de comandos por tarea
-        $comandos = [
-            'bridge'  => "/interface bridge add name=bridge-$iface; /interface bridge port add bridge=bridge-$iface interface=$iface",
-            'address' => "/ip address add address=192.168.$segmento.1/24 interface=bridge-$iface",
-            'pool'    => "/ip pool add name=pool-$iface ranges=192.168.$segmento.10-192.168.$segmento.250",
-            'dhcp'    => "/ip dhcp-server add address-pool=pool-$iface interface=bridge-$iface name=srv-$iface disabled=no; /ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8",
-            'hotspot' => "/ip hotspot add address-pool=pool-$iface interface=bridge-$iface name=hotspot-$iface profile=hsprof1 disabled=no"
-        ];
-
-        $cmd = $comandos[$tarea];
-        $tid = "TASK" . time();
-
-        try {
-            $script = '{ :do { '.$cmd.' } on-error={ :log info "Error en '.$tarea.'" } }';
-            $response = Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
+            $response = Http::withHeaders(['x-mac' => $mac, 'x-id' => $this->currentTid])
                 ->withBody(trim(preg_replace('/\s+/', ' ', $script)), 'text/plain')
                 ->post("{$this->bridgeUrl}/set-command");
 
             if ($response->successful()) {
-                $this->taskStatus[$iface][$tarea] = 'success';
-            } else {
-                $this->taskStatus[$iface][$tarea] = 'error';
+                $this->isWaitingResponse = true; // Aquí activamos el polling en la vista
+                $this->logs['global'] = "Comando enviado. Esperando respuesta del MikroTik...";
             }
         } catch (\Exception $e) {
-            $this->taskStatus[$iface][$tarea] = 'error';
+            $this->showRetry = true;
+        }
+    }
+
+    /**
+     * Esta función es llamada por wire:poll cada segundo desde la vista
+     */
+    public function checkDiscoveryStatus()
+    {
+        if (!$this->isWaitingResponse) return;
+
+        $this->intentos++;
+        $router = Router::findOrFail($this->router_id);
+        $mac = strtoupper(trim($router->macAddress));
+
+        try {
+            $res = Http::get("{$this->bridgeUrl}/api/check-task-result", [
+                'mac' => $mac,
+                'tid' => $this->currentTid
+            ]);
+
+            if ($res->successful() && $res->json('status') === 'ready') {
+                $data = $res->json('data');
+                $this->interfaces = array_filter(explode(',', $data));
+                $this->isWaitingResponse = false;
+                $this->currentTid = null;
+                $this->logs['global'] = "✅ Conectado: " . count($this->interfaces) . " interfaces halladas.";
+            } elseif ($this->intentos >= 20) { // Timeout a los 20 segundos
+                $this->isWaitingResponse = false;
+                $this->showRetry = true;
+                $this->logs['global'] = "❌ El router no respondió a tiempo.";
+            }
+        } catch (\Exception $e) {
+            // Error silencioso en el polling
         }
     }
 
