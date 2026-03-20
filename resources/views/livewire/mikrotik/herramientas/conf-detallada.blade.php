@@ -47,7 +47,10 @@
                     <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
                         <div class="card-header bg-dark text-white py-3 border-0 d-flex justify-content-between align-items-center">
                             <span class="fw-bold"><i class="fas fa-ethernet me-2 text-info"></i>{{ strtoupper($iface) }}</span>
-                            <button wire:click="scanearInterfaz('{{ $iface }}', {{ $index }})" class="btn btn-info btn-xs rounded-pill px-2 fw-bold text-white shadow-sm" style="font-size: 0.6rem;">
+                            <button wire:click="scanearInterfaz('{{ $iface }}', {{ $index }})" 
+                                    class="btn btn-info btn-xs rounded-pill px-2 fw-bold text-white shadow-sm" 
+                                    style="font-size: 0.6rem;" 
+                                    {{ $activeTask ? 'disabled' : '' }}>
                                 <i class="fas fa-search"></i> SCAN AUTO
                             </button>
                         </div>
@@ -85,7 +88,7 @@
                                         @if(isset($taskResult[$iface][$key]))
                                             <div class="mt-1">
                                                 <small class="font-monospace {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'text-success' : (($taskStatus[$iface][$key] ?? '') == 'error' ? 'text-danger' : 'text-muted') }}" style="font-size: 0.65rem;">
-                                                    <i class="fas fa-reply me-1"></i> {{ $taskResult[$iface][$key] }}
+                                                    <i class="fas fa-terminal me-1"></i> {{ $taskResult[$iface][$key] }}
                                                 </small>
                                             </div>
                                         @endif
