@@ -17,7 +17,7 @@ class ConfDetallada extends Component
     public $isWaitingResponse = false; 
     public $currentTid = null;
     public $intentos = 0;
-    public $version_id = 1; // Por defecto la versión 1 del portal
+    public $version_id = 1; 
     
     public $taskStatus = []; 
     public $taskResult = []; 
@@ -68,8 +68,8 @@ class ConfDetallada extends Component
     public function scanearInterfaz($iface, $index)
     {
         $this->queue = [];
-        // Ahora el SCAN AUTO incluye Walled Garden y Portal
-        $tareas = ['bridge', 'address', 'pool', 'dhcp', 'hotspot', 'walledgarden', 'portal'];
+        // El SCAN AUTO de la interfaz ahora solo hace lo necesario para levantar el servicio en ese puerto
+        $tareas = ['bridge', 'address', 'pool', 'dhcp', 'hotspot'];
         foreach ($tareas as $t) {
             $this->queue[] = ['iface' => $iface, 'index' => $index, 'tarea' => $t];
         }
@@ -108,6 +108,7 @@ class ConfDetallada extends Component
                 :if ([:len [/ip hotspot profile find name=\"hsprof1\"]] = 0) do={ /ip hotspot profile add dns-name=wifi.login name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis; };
                 :if ([:len [/ip hotspot find interface=\"bridge-$iface\"]] > 0) do={ :set res \"OK: Hotspot ya existe\"; } else={ /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no; :set res \"OK: Hotspot Creado\"; };
             }",
+            // Tareas Globales (Usan 'global' como llave de interfaz ficticia)
             'walledgarden' => "{
                 /ip hotspot walled-garden add dst-host=wifiexpres.com comment=\"Auto\";
                 /ip hotspot walled-garden ip add dst-address=188.95.113.44 comment=\"Auto\";
@@ -157,7 +158,6 @@ class ConfDetallada extends Component
                         $this->taskStatus[$iface][$tarea] = 'success';
                         $this->taskResult[$iface][$tarea] = $data;
                         $this->activeTask = null;
-                        usleep(200000); // Pausa de 0.2s para estabilidad
                         $this->procesarSiguienteEnCola();
                     } else {
                         $this->taskStatus[$iface][$tarea] = 'error';

@@ -1,4 +1,5 @@
 <div class="p-4" @if($isWaitingResponse || $activeTask) wire:poll.1s="checkStatus" @endif>
+    
     <div class="card shadow-sm border-0 mb-4 bg-light rounded-4">
         <div class="card-body">
             <div class="row align-items-end">
@@ -57,41 +58,28 @@
                         <div class="card-body p-0">
                             <ul class="list-group list-group-flush">
                                 @php 
-                                    $tareas = [
+                                    $tareasInterface = [
                                         'bridge'  => 'Configurar Bridge',
                                         'address' => 'IP Address (.'.(($index+1)*10).'.1)',
                                         'pool'    => 'Crear Pool de IPs',
                                         'dhcp'    => 'Servidor DHCP',
-                                        'hotspot' => 'Servidor Hotspot',
-                                        'walledgarden' => 'Walled Garden',
-                                        'portal'  => 'Download Portal',
-                                        'reboot'  => 'Reiniciar Router'
+                                        'hotspot' => 'Servidor Hotspot'
                                     ];
                                 @endphp
 
-                                @foreach($tareas as $key => $label)
+                                @foreach($tareasInterface as $key => $label)
                                     <li class="list-group-item py-3">
                                         <div class="d-flex justify-content-between align-items-center mb-1">
                                             <span class="small fw-bold text-uppercase" style="font-size: 0.75rem;">{{ $label }}</span>
-                                            <button 
-                                                wire:click="ejecutarTarea('{{ $iface }}', {{ $index }}, '{{ $key }}')"
-                                                wire:loading.attr="disabled"
+                                            <button wire:click="ejecutarTarea('{{ $iface }}', {{ $index }}, '{{ $key }}')"
                                                 class="btn btn-sm px-3 rounded-pill fw-bold shadow-sm {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'btn-success' : (($taskStatus[$iface][$key] ?? '') == 'error' ? 'btn-danger' : 'btn-primary') }}">
-                                                
-                                                @if(($taskStatus[$iface][$key] ?? '') == 'loading')
-                                                    <span class="spinner-border spinner-border-sm"></span>
-                                                @else
-                                                    Config
-                                                @endif
+                                                {{ ($taskStatus[$iface][$key] ?? '') == 'loading' ? '...' : 'Config' }}
                                             </button>
                                         </div>
-
                                         @if(isset($taskResult[$iface][$key]))
-                                            <div class="mt-1">
-                                                <small class="font-monospace {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'text-success' : (($taskStatus[$iface][$key] ?? '') == 'error' ? 'text-danger' : 'text-muted') }}" style="font-size: 0.65rem;">
-                                                    <i class="fas fa-terminal me-1"></i> {{ $taskResult[$iface][$key] }}
-                                                </small>
-                                            </div>
+                                            <small class="font-monospace {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'text-success' : 'text-danger' }}" style="font-size: 0.65rem;">
+                                                <i class="fas fa-terminal me-1"></i> {{ $taskResult[$iface][$key] }}
+                                            </small>
                                         @endif
                                     </li>
                                 @endforeach
@@ -101,6 +89,44 @@
                 </div>
                 @endif
             @endforeach
+        </div>
+
+        <div class="card shadow-sm border-0 rounded-4 bg-white mb-5">
+            <div class="card-header bg-primary text-white py-3 border-0 rounded-top-4">
+                <h6 class="mb-0 fw-bold"><i class="fas fa-globe-americas me-2"></i> PUESTA EN MARCHA GLOBAL</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    @php 
+                        $tareasGlobales = [
+                            'walledgarden' => ['label' => 'Walled Garden', 'icon' => 'fa-shield-alt'],
+                            'portal'       => ['label' => 'Descargar Portal', 'icon' => 'fa-download'],
+                            'reboot'       => ['label' => 'Reiniciar Router', 'icon' => 'fa-power-off']
+                        ];
+                    @endphp
+                    @foreach($tareasGlobales as $key => $info)
+                    <div class="col-md-4 mb-3">
+                        <div class="p-3 border rounded-3 bg-light shadow-sm text-center">
+                            <i class="fas {{ $info['icon'] }} mb-2 text-primary" style="font-size: 1.5rem;"></i>
+                            <p class="small fw-bold text-uppercase mb-2" style="font-size: 0.7rem;">{{ $info['label'] }}</p>
+                            
+                            <button wire:click="ejecutarTarea('global', 0, '{{ $key }}')"
+                                class="btn btn-sm w-100 rounded-pill fw-bold shadow-sm {{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'btn-success' : (($taskStatus['global'][$key] ?? '') == 'error' ? 'btn-danger' : 'btn-primary') }}">
+                                {{ ($taskStatus['global'][$key] ?? '') == 'loading' ? 'Procesando...' : 'EJECUTAR' }}
+                            </button>
+
+                            @if(isset($taskResult['global'][$key]))
+                                <div class="mt-2">
+                                    <small class="font-monospace {{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'text-success' : 'text-danger' }}" style="font-size: 0.65rem;">
+                                        {{ $taskResult['global'][$key] }}
+                                    </small>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
         </div>
     @endif
 </div>
