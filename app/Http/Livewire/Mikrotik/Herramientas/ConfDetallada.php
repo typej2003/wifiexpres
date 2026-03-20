@@ -22,6 +22,7 @@ class ConfDetallada extends Component
     public $taskResult = []; 
     public $activeTask = null; 
 
+    // Cola para el Scan Auto
     public $queue = [];
 
     protected $bridgeUrl = "http://188.95.113.44:3000";
@@ -67,6 +68,7 @@ class ConfDetallada extends Component
 
     public function scanearInterfaz($iface, $index)
     {
+        // Reiniciamos cola para esta interfaz
         $this->queue = [];
         $tareas = ['bridge', 'address', 'pool', 'dhcp', 'hotspot'];
         foreach ($tareas as $t) {
@@ -89,28 +91,26 @@ class ConfDetallada extends Component
 
     public function ejecutarTarea($iface, $index, $tarea)
     {
-        // Validar que la tarea exista en nuestro diccionario para evitar el Error de Array Key
-        $validTasks = ['bridge', 'address', 'pool', 'dhcp', 'hotspot'];
-        if (!in_array($tarea, $validTasks)) {
-            Log::error("Tarea no válida solicitada: " . $tarea);
-            return;
-        }
-
         $this->taskStatus[$iface][$tarea] = 'loading';
-        $this->taskResult[$iface][$tarea] = 'Enviando...';
+        $this->taskResult[$iface][$tarea] = 'Enviando comando...';
         $this->activeTask = ['iface' => $iface, 'tarea' => $tarea, 'index' => $index];
         
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
+        
+        // El parámetro clave: Segmento basado en el ID de la interfaz (ID:1 = .10.x, ID:2 = .20.x, etc.)
         $counter = $index + 1; 
         $segmento = $counter * 10;
 
-        // Comandos optimizados para Lite y hAP
         $cmds = [
             'bridge'  => ":if ([:len [/interface bridge find name=\"bridge-$iface\"]] > 0) do={ :set res \"OK: Bridge ya existe\" } else={ /interface bridge add name=\"bridge-$iface\"; /interface bridge port add bridge=\"bridge-$iface\" interface=\"$iface\"; :set res \"OK: Bridge creado\" };",
+            
             'address' => ":if ([:len [/ip address find where interface=\"bridge-$iface\"]] > 0) do={ :set res \"OK: IP ya configurada\" } else={ /ip address add address=192.168.$segmento.1/24 interface=\"bridge-$iface\"; :set res \"OK: IP asignada\" };",
+            
             'pool'    => ":if ([:len [/ip pool find name=\"pool-$iface\"]] > 0) do={ :set res \"OK: Pool ya existe\" } else={ /ip pool add name=\"pool-$iface\" ranges=192.168.$segmento.10-192.168.$segmento.250; :set res \"OK: Pool creado\" };",
+            
             'dhcp'    => ":if ([:len [/ip dhcp-server find interface=\"bridge-$iface\"]] > 0) do={ :set res \"OK: DHCP ya existe\" } else={ /ip dhcp-server add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"srv-$iface\" disabled=no; /ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8; :set res \"OK: DHCP activo\" };",
+            
             'hotspot' => "{
                 :if ([:len [/ip hotspot user profile find name=\"neutro\"]] = 0) do={ /ip hotspot user profile add name=\"neutro\" shared-users=1 session-timeout=1s idle-timeout=1s; } else={ /ip hotspot user profile set [find name=\"neutro\"] session-timeout=1s idle-timeout=1s; };
                 :if ([:len [/ip hotspot user profile find name=\"cortesia 20min-0\"]] = 0) do={ /ip hotspot user profile add name=\"cortesia 20min-0\" shared-users=1 status-autorefresh=1m keepalive-timeout=2m; };
@@ -120,16 +120,24 @@ class ConfDetallada extends Component
                 };
                 :if ([:len [/ip hotspot find interface=\"bridge-$iface\"]] > 0) do={ :set res \"OK: Hotspot ya existe\"; } else={ 
                     /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no;
-                    :set res \"OK: Hotspot Creado\";
+                    :set res \"OK: Hotspot listo\";
                 };
             }"
         ];
 
-        $this->currentTid = "CFG" . rand(10,99) . time();
+        // Validar que la tarea exista antes de procesar
+        if (!isset($cmds[$tarea])) {
+            $this->taskStatus[$iface][$tarea] = 'error';
+            $this->taskResult[$iface][$tarea] = 'Tarea no definida';
+            $this->queue = [];
+            return;
+        }
+
+        $this->currentTid = "CFG" . rand(100,999) . time();
         $this->intentos = 0;
         
         $script = ":local res \"\"; :local m \"$mac\"; :local t \"{$this->currentTid}\"; " .
-                  ":do { {$cmds[$tarea]} } on-error={ :set res \"Error en ejecucion\" }; " .
+                  ":do { {$cmds[$tarea]} } on-error={ :set res \"Error: Fallo dependencia\" }; " .
                   "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$res keep-result=no;";
         
         $this->emitirAlBridge($script, $mac, $this->currentTid);
@@ -143,7 +151,7 @@ class ConfDetallada extends Component
                 ->withBody($comandoLimpio, 'text/plain')
                 ->post("{$this->bridgeUrl}/set-command");
         } catch (\Exception $e) {
-            Log::error("Error Bridge Post: " . $e->getMessage());
+            Log::error("Error Bridge: " . $e->getMessage());
         }
     }
 
@@ -171,12 +179,15 @@ class ConfDetallada extends Component
                         $this->taskStatus[$iface][$tarea] = 'success';
                         $this->taskResult[$iface][$tarea] = $data;
                         $this->activeTask = null;
+                        
+                        // Pequeña pausa para MikroTik Lite (evita saturación de CPU)
+                        usleep(300000); 
                         $this->procesarSiguienteEnCola();
                     } else {
                         $this->taskStatus[$iface][$tarea] = 'error';
                         $this->taskResult[$iface][$tarea] = $data;
                         $this->activeTask = null;
-                        $this->queue = []; // Detener scan auto en error
+                        $this->queue = []; // DETENER si falla un paso
                     }
                 }
                 $this->intentos = 0;
@@ -191,7 +202,7 @@ class ConfDetallada extends Component
         if ($this->isWaitingResponse) $this->isWaitingResponse = false;
         if ($this->activeTask) {
             $this->taskStatus[$this->activeTask['iface']][$this->activeTask['tarea']] = 'error';
-            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'Timeout';
+            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'Sin respuesta (Timeout)';
             $this->activeTask = null;
             $this->queue = [];
         }
