@@ -17,14 +17,14 @@
                     <select wire:model="router_id" class="form-select border-0 shadow-sm rounded-3" {{ !$selectedAliado ? 'disabled' : '' }}>
                         <option value="">-- Seleccionar --</option>
                         @foreach($routers as $router)
-                            <option value="{{ $router->id }}">{{ $router->identity }}</option>
+                            <option value="{{ $router->id }}">{{ $router->identity }} ({{ $router->macAddress }})</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="col-md-2 text-end">
                     @if(count($interfaces) > 0)
-                        <button wire:click="iniciarDescubrimiento" class="btn btn-outline-primary btn-sm rounded-pill">
-                            <i class="fas fa-sync-alt"></i> Recargar
+                        <button wire:click="iniciarDescubrimiento" class="btn btn-outline-primary btn-sm rounded-pill fw-bold">
+                            <i class="fas fa-sync-alt"></i> RECARGAR
                         </button>
                     @endif
                 </div>
@@ -33,9 +33,9 @@
     </div>
 
     @if($isWaitingResponse)
-        <div class="card border-0 shadow-sm rounded-4 py-5 mb-4 text-center">
-            <div class="spinner-border text-primary mb-3"></div>
-            <h5 class="fw-bold">Interrogando MikroTik...</h5>
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary mb-3" role="status"></div>
+            <h5 class="fw-bold">Leyendo Interfaces...</h5>
         </div>
     @endif
 
@@ -44,7 +44,7 @@
             @foreach($interfaces as $index => $iface)
                 @if($iface != 'ether1')
                 <div class="col-md-6 col-lg-4 mb-4">
-                    <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100">
+                    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
                         <div class="card-header bg-dark text-white py-3 border-0">
                             <span class="fw-bold"><i class="fas fa-ethernet me-2 text-info"></i>{{ strtoupper($iface) }}</span>
                         </div>
@@ -53,10 +53,10 @@
                             <ul class="list-group list-group-flush">
                                 @php 
                                     $tareas = [
-                                        'bridge' => 'Configurar Bridge',
-                                        'address' => 'IP Address (.'.(($index+2)*10).'.1)',
-                                        'pool' => 'Crear Pool de IPs',
-                                        'dhcp' => 'Servidor DHCP',
+                                        'bridge'  => 'Configurar Bridge',
+                                        'address' => 'IP Address (.'.(($index+1)*10).'.1)',
+                                        'pool'    => 'Crear Pool de IPs',
+                                        'dhcp'    => 'Servidor DHCP',
                                         'hotspot' => 'Servidor Hotspot'
                                     ];
                                 @endphp
@@ -64,7 +64,7 @@
                                 @foreach($tareas as $key => $label)
                                     <li class="list-group-item py-3">
                                         <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <span class="small fw-bold">{{ $label }}</span>
+                                            <span class="small fw-bold text-uppercase" style="font-size: 0.75rem;">{{ $label }}</span>
                                             
                                             <button 
                                                 wire:click="ejecutarTarea('{{ $iface }}', {{ $index }}, '{{ $key }}')"
@@ -81,8 +81,8 @@
 
                                         @if(isset($taskResult[$iface][$key]))
                                             <div class="mt-1">
-                                                <small class="font-monospace {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'text-success' : (($taskStatus[$iface][$key] ?? '') == 'error' ? 'text-danger' : 'text-muted') }}" style="font-size: 0.7rem; line-height: 1;">
-                                                    <i class="fas fa-chevron-right me-1"></i> {{ $taskResult[$iface][$key] }}
+                                                <small class="font-monospace {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'text-success' : (($taskStatus[$iface][$key] ?? '') == 'error' ? 'text-danger' : 'text-muted') }}" style="font-size: 0.65rem;">
+                                                    <i class="fas fa-terminal me-1"></i> {{ $taskResult[$iface][$key] }}
                                                 </small>
                                             </div>
                                         @endif

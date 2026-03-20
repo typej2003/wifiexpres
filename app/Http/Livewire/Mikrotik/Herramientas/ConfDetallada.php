@@ -13,16 +13,16 @@ class ConfDetallada extends Component
     public $selectedAliado = null;
     public $router_id = null;
     
-    // Estados principales
+    // Estados de descubrimiento
     public $interfaces = []; 
     public $isWaitingResponse = false; 
     public $currentTid = null;
     public $intentos = 0;
     public $showRetry = false;
 
-    // Estados de ejecución
-    public $taskStatus = []; // 'loading', 'success', 'error'
-    public $taskResult = []; // Mensaje detallado del router
+    // Estados de ejecución y resultados
+    public $taskStatus = []; 
+    public $taskResult = []; 
     public $activeTask = null; 
 
     protected $bridgeUrl = "http://188.95.113.44:3000";
@@ -47,7 +47,7 @@ class ConfDetallada extends Component
     }
 
     /**
-     * PASO 1: Descubrir interfaces
+     * PASO 1: Descubrir interfaces físicas
      */
     public function iniciarDescubrimiento()
     {
@@ -79,7 +79,7 @@ class ConfDetallada extends Component
     }
 
     /**
-     * PASO 2: Configurar aspecto específico y capturar respuesta
+     * PASO 2: Ejecutar configuración usando TUS COMANDOS de fuerza bruta
      */
     public function ejecutarTarea($iface, $index, $tarea)
     {
@@ -89,24 +89,30 @@ class ConfDetallada extends Component
         
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
-        $segmento = ($index + 2) * 10;
-        $this->currentTid = "TASK-" . $tarea . "-" . time();
-        $this->intentos = 0;
+        
+        // El index + 2 asegura que ether2 sea 192.168.20.1, ether3 30.1, etc.
+        $counter = $index + 1; 
+        $segmento = $counter * 10;
 
+        // Mapeo de comandos usando TU LÓGICA de MikroTik Script
         $comandos = [
             'bridge'  => "/interface bridge add name=bridge-$iface; /interface bridge port add bridge=bridge-$iface interface=$iface",
             'address' => "/ip address add address=192.168.$segmento.1/24 interface=bridge-$iface",
             'pool'    => "/ip pool add name=pool-$iface ranges=192.168.$segmento.10-192.168.$segmento.250",
             'dhcp'    => "/ip dhcp-server add address-pool=pool-$iface interface=bridge-$iface name=srv-$iface disabled=no; /ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8",
-            'hotspot' => "/ip hotspot add address-pool=pool-$iface interface=bridge-$iface name=hotspot-$iface profile=default disabled=no"
+            'hotspot' => "/ip hotspot add address-pool=pool-$iface interface=bridge-$iface name=hotspot-$iface profile=hsprof1 disabled=no"
         ];
 
-        // Script que intenta ejecutar y devuelve el resultado o el error
+        $cmd = $comandos[$tarea];
+        $this->currentTid = "TASK-" . strtoupper($tarea) . "-" . time();
+        $this->intentos = 0;
+
+        // Script con captura de error para devolver feedback real
         $script = '{ 
-            :local msg "OK: Operacion exitosa"; 
+            :local msg "OK: Operacion completada"; 
             :do { 
-                '.$comandos[$tarea].' 
-            } on-error={ :set msg "Error: No se pudo aplicar el comando" }; 
+                '.$cmd.' 
+            } on-error={ :set msg "Error: Verifique si ya existe o dependencias" }; 
             /tool fetch url="'.$this->bridgeUrl.'/post-result?mac='.$mac.'&tid='.$this->currentTid.'&data=$msg" keep-result=no 
         }';
 
@@ -114,16 +120,14 @@ class ConfDetallada extends Component
             Http::withHeaders(['x-mac' => $mac, 'x-id' => $this->currentTid])
                 ->withBody(trim(preg_replace('/\s+/', ' ', $script)), 'text/plain')
                 ->post("{$this->bridgeUrl}/set-command");
-            
-            $this->taskResult[$iface][$tarea] = 'Esperando confirmación...';
         } catch (\Exception $e) {
             $this->taskStatus[$iface][$tarea] = 'error';
-            $this->taskResult[$iface][$tarea] = 'Error de conexión con el Bridge';
+            $this->taskResult[$iface][$tarea] = 'Error de comunicación';
         }
     }
 
     /**
-     * POLLING UNIFICADO
+     * POLLING
      */
     public function checkStatus()
     {
@@ -148,11 +152,7 @@ class ConfDetallada extends Component
                     $iface = $this->activeTask['iface'];
                     $tarea = $this->activeTask['tarea'];
                     
-                    if (strpos($data, 'OK') !== false) {
-                        $this->taskStatus[$iface][$tarea] = 'success';
-                    } else {
-                        $this->taskStatus[$iface][$tarea] = 'error';
-                    }
+                    $this->taskStatus[$iface][$tarea] = (strpos($data, 'OK') !== false) ? 'success' : 'error';
                     $this->taskResult[$iface][$tarea] = $data;
                     $this->activeTask = null;
                 }
@@ -167,10 +167,8 @@ class ConfDetallada extends Component
     {
         if ($this->isWaitingResponse) $this->showRetry = true;
         if ($this->activeTask) {
-            $iface = $this->activeTask['iface'];
-            $tarea = $this->activeTask['tarea'];
-            $this->taskStatus[$iface][$tarea] = 'error';
-            $this->taskResult[$iface][$tarea] = 'Timeout: Sin respuesta del router';
+            $this->taskStatus[$this->activeTask['iface']][$this->activeTask['tarea']] = 'error';
+            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'Timeout: Sin respuesta del router';
         }
         $this->isWaitingResponse = false;
         $this->activeTask = null;
