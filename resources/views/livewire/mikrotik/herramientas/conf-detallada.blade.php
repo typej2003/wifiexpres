@@ -1,5 +1,10 @@
 <div class="p-4" @if($isWaitingResponse) wire:poll.2s="checkStatus" @endif>
     
+    <style>
+        .text-success-neon { color: #00C851 !important; font-weight: 800; text-shadow: 0px 0px 5px rgba(0, 200, 81, 0.2); }
+        .btn-success-neon { background-color: #00C851 !important; border-color: #00C851 !important; color: white !important; font-weight: bold; }
+    </style>
+
     <div class="card shadow-sm border-0 mb-4 bg-light rounded-4">
         <div class="card-body">
             <div class="row align-items-end">
@@ -55,14 +60,14 @@
                                         <div class="flex-grow-1">
                                             <span class="small fw-bold text-muted text-uppercase d-block">{{ $label }}</span>
                                             @if(isset($taskResult[$iface][$key]))
-                                                <small class="{{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'text-success font-monospace' : 'text-danger' }}">
+                                                <small class="{{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'text-success-neon' : 'text-danger fw-bold' }}">
                                                     {{ ($taskStatus[$iface][$key] ?? '') == 'loading' ? '⏳ Procesando...' : $taskResult[$iface][$key] }}
                                                 </small>
                                             @endif
                                         </div>
                                         <button wire:click="ejecutarTarea('{{ $iface }}', {{ $index }}, '{{ $key }}')"
                                             wire:loading.attr="disabled" {{ $isProcessing ? 'disabled' : '' }}
-                                            class="btn btn-sm rounded-pill px-3 {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'btn-success' : 'btn-primary' }}">
+                                            class="btn btn-sm rounded-pill px-3 {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'btn-success-neon' : 'btn-primary' }}">
                                             @if(($taskStatus[$iface][$key] ?? '') == 'loading') 
                                                 <span class="spinner-border spinner-border-sm"></span> 
                                             @else 
@@ -115,15 +120,15 @@
                                 <div class="flex-grow-1">
                                     <span class="small fw-bold text-primary text-uppercase d-block">{{ $info['label'] }}</span>
                                     @if(isset($taskResult['global'][$key]))
-                                        <div class="mt-1 fw-bold {{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'text-success' : 'text-danger' }}" style="font-size: 11px;">
-                                            {{ $taskResult['global'][$key] }}
+                                        <div class="mt-1 {{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'text-success-neon' : 'text-danger fw-bold' }}" style="font-size: 11px;">
+                                            RESULTADO: {{ $taskResult['global'][$key] }}
                                         </div>
                                     @endif
                                 </div>
                                 <button wire:click="ejecutarTarea('global', 0, '{{ $key }}')"
                                     wire:loading.attr="disabled" 
                                     {{ $isProcessing ? 'disabled' : '' }}
-                                    class="btn btn-sm rounded-pill px-4 shadow-sm fw-bold {{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'btn-success' : 'btn-outline-primary' }}">
+                                    class="btn btn-sm rounded-pill px-4 shadow-sm fw-bold {{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'btn-success-neon' : 'btn-outline-primary' }}">
                                     @if(($taskStatus['global'][$key] ?? '') == 'loading')
                                         <span class="spinner-border spinner-border-sm"></span>
                                     @else
