@@ -58,8 +58,6 @@ class ConfDetallada extends Component
         if ($this->isProcessing) return;
         $this->isProcessing = true;
         $this->queue = [];
-        // El orden de las tareas es vital para la construcción, 
-        // pero cada una limpiará lo que estorbe.
         $tareas = ['bridge', 'address', 'pool', 'dhcp', 'hotspot'];
         foreach ($tareas as $t) {
             $this->queue[] = ['iface' => $iface, 'index' => $index, 'tarea' => $t];
@@ -107,28 +105,24 @@ class ConfDetallada extends Component
         }
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $vCode;
 
-        // --- LÓGICA DE LIMPIEZA ATÓMICA ---
-        // Estos comandos intentan borrar en cadena de dependencia para "soltar" los recursos.
+        // --- BLOQUES DE LIMPIEZA ATÓMICA ---
         $killHotspot = ":do { /ip hotspot remove [find interface=\"bridge-$iface\"] } on-error={};";
+        $killProf    = ":do { /ip hotspot profile remove [find name=\"hsprof1\"] } on-error={};";
         $killDhcp    = ":do { /ip dhcp-server remove [find interface=\"bridge-$iface\"] } on-error={};";
         $killPool    = ":do { /ip pool remove [find name=\"pool-$iface\"] } on-error={};";
         $killAddr    = ":do { /ip address remove [find interface=\"bridge-$iface\"] } on-error={};";
         $killBridge  = ":do { /interface bridge port remove [find interface=\"$iface\"]; /interface bridge remove [find name=\"bridge-$iface\"] } on-error={};";
 
         $cmds = [
-            // Para el Bridge, matamos TODO lo que dependa de él primero.
-            'bridge'  => "$killHotspot $killDhcp $killPool $killAddr $killBridge /interface bridge add name=\"bridge-$iface\"; /interface bridge port add bridge=\"bridge-$iface\" interface=\"$iface\"",
+            'bridge'  => "$killHotspot $killProf $killDhcp $killPool $killAddr $killBridge /interface bridge add name=\"bridge-$iface\"; /interface bridge port add bridge=\"bridge-$iface\" interface=\"$iface\"",
             
             'address' => "$killAddr /ip address add address=192.168.$segmento.1/24 interface=\"bridge-$iface\"",
             
-            // Para el Pool, nos aseguramos que el Hotspot y el DHCP no lo estén usando.
-            'pool'    => "$killHotspot $killDhcp $killPool /ip pool add name=\"pool-$iface\" ranges=192.168.$segmento.10-192.168.$segmento.250",
+            'pool'    => "$killHotspot $killProf $killDhcp $killPool /ip pool add name=\"pool-$iface\" ranges=192.168.$segmento.10-192.168.$segmento.250",
             
-            // Para el DHCP, limpiamos el server y la red previa.
-            'dhcp'    => "$killHotspot $killDhcp :do { /ip dhcp-server network remove [find address=192.168.$segmento.0/24] } on-error={}; /ip dhcp-server add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"srv-$iface\" disabled=no; /ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8",
+            'dhcp'    => "$killHotspot $killProf $killDhcp :do { /ip dhcp-server network remove [find address=192.168.$segmento.0/24] } on-error={}; /ip dhcp-server add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"srv-$iface\" disabled=no; /ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8",
             
-            // Para el Hotspot, borramos el perfil previo para evitar conflictos de nombres.
-            'hotspot' => "$killHotspot :do { /ip hotspot profile remove [find name=\"hsprof1\"] } on-error={}; :do { /ip hotspot user profile remove [find name~\"neutro|cortesia|conexion\"] } on-error={}; /ip hotspot user profile add name=\"neutro\" shared-users=1 session-timeout=1s; /ip hotspot user profile add name=\"cortesia 20min-0\" shared-users=1 session-timeout=20m; /ip hotspot user profile add name=\"conexiongratis\" shared-users=1 rate-limit=\"2M/2M\"; /ip hotspot profile add dns-name=wifi.login name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis; /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no",
+            'hotspot' => "$killHotspot $killProf :do { /ip hotspot user profile remove [find name~\"neutro|cortesia|conexion\"] } on-error={}; /ip hotspot user profile add name=\"neutro\" shared-users=1 session-timeout=1s; /ip hotspot user profile add name=\"cortesia 20min-0\" shared-users=1 session-timeout=20m; /ip hotspot user profile add name=\"conexiongratis\" shared-users=1 rate-limit=\"2M/2M\"; /ip hotspot profile add dns-name=wifi.login name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis; /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no",
             
             'wg_servidor' => "/ip hotspot walled-garden remove [find dst-host=\"wifiexpres.com\" or dst-host=\"*.wifiexpres.com\" or dst-host=\"188.95.113.44\"]; /ip hotspot walled-garden add dst-host=wifiexpres.com; /ip hotspot walled-garden add dst-host=*.wifiexpres.com; /ip hotspot walled-garden add dst-host=188.95.113.44; :do { /ip hotspot walled-garden ip remove [find dst-address=188.95.113.44] } on-error={}; /ip hotspot walled-garden ip add dst-address=188.95.113.44 dst-port=3000 protocol=tcp comment=\"Acceso Bridge Nodejs\"",
 
@@ -195,8 +189,7 @@ class ConfDetallada extends Component
             $this->intentos = 0;
 
             if ($status === 'success') {
-                // Aumentamos el delay a 800ms para dar tiempo real al CPU del router
-                usleep(800000); 
+                usleep(900000); 
                 $this->procesarSiguienteEnCola();
             } else {
                 $this->queue = [];
