@@ -127,8 +127,11 @@ class ConfDetallada extends Component
         ];
 
         $this->currentTid = "CFG" . rand(10,99) . time();
-        // Agregamos un delay de 1 segundo al router antes del fetch para que termine de procesar el DHCP
-        $script = $cmds[$tarea] . "; :delay 1s; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no";
+        
+        // DISPARO SEGURO: El MikroTik intentará enviar el OK hasta 3 veces si falla
+        $confirmar = ":for i from=1 to=3 do={ :do { /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no; :set i 3 } on-error={ :delay 2s } }";
+        
+        $script = $cmds[$tarea] . "; :delay 2s; " . $confirmar;
         
         $this->emitirAlBridge($script, $mac, $this->currentTid);
     }
@@ -164,13 +167,13 @@ class ConfDetallada extends Component
                         $this->intentos = 0;
                     }
                 } elseif ($status === 'failed' || $status === 'error') {
-                    // Si falla, pero el router es lento, le damos una segunda oportunidad
-                    if($this->intentos < 5) return; 
+                    // Ignoramos errores prematuros del bridge mientras el router intenta re-enviar el OK
+                    if($this->intentos < 10) return; 
                     $this->finalizarTareaActual('error', 'Fallo');
                 }
             }
-            // Aumentamos los intentos a 60 (1 minuto de espera máximo)
-            if ($this->intentos >= 60) $this->finalizarTareaActual('error', 'Expirado');
+            // Aumentamos a 80 intentos para dar tiempo a los reintentos del MikroTik
+            if ($this->intentos >= 80) $this->finalizarTareaActual('error', 'Expirado');
         } catch (\Exception $e) { }
     }
 
@@ -185,8 +188,7 @@ class ConfDetallada extends Component
             $this->intentos = 0;
 
             if ($status === 'success') {
-                // Delay de 1.2 segundos en PHP para sincronizar con el router
-                usleep(1200000); 
+                usleep(1500000); // 1.5 segundos entre tareas para estabilidad
                 $this->procesarSiguienteEnCola();
             } else {
                 $this->queue = [];
