@@ -70,7 +70,8 @@ class ConfDetallada extends Component
         if (!$this->version_id || $this->isProcessing) return;
         $this->isProcessing = true;
         $this->queue = [];
-        $tareas = ['walledgarden', 'walledgardenip', 'portal', 'reboot'];
+        // Ejecución secuencial de todas las configuraciones globales
+        $tareas = ['wg_servidor', 'wg_bdv', 'wg_push', 'portal', 'reboot'];
         foreach ($tareas as $t) {
             $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => $t];
         }
@@ -89,25 +90,20 @@ class ConfDetallada extends Component
 
     public function ejecutarTarea($iface, $index, $tarea)
     {
-        if ($this->isProcessing && !$this->activeTask && count($this->queue) == 0) {
-            $this->isProcessing = true;
-        }
-
         $this->taskStatus[$iface][$tarea] = 'loading';
         $this->taskResult[$iface][$tarea] = 'Enviando...';
         $this->activeTask = ['iface' => $iface, 'tarea' => $tarea, 'index' => $index];
+        $this->isProcessing = true;
         
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
-        $counter = $index + 1; 
-        $segmento = $counter * 10;
+        $segmento = ($index + 1) * 10;
         
         $vCode = 1;
         if($this->version_id) {
             $versionObj = HotspotVersion::find($this->version_id);
             $vCode = $versionObj ? $versionObj->code : 1;
         }
-
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $vCode;
 
         $cmds = [
@@ -117,9 +113,14 @@ class ConfDetallada extends Component
             'dhcp'    => "/ip dhcp-server remove [find interface=\"bridge-$iface\"]; /ip dhcp-server add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"srv-$iface\" disabled=no; /ip dhcp-server network remove [find address=192.168.$segmento.0/24]; /ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8",
             'hotspot' => "/ip hotspot user profile remove [find name~\"neutro|cortesia|conexion\"]; /ip hotspot user profile add name=\"neutro\" shared-users=1 session-timeout=1s; /ip hotspot user profile add name=\"cortesia 20min-0\" shared-users=1 session-timeout=20m; /ip hotspot user profile add name=\"conexiongratis\" shared-users=1 rate-limit=\"2M/2M\"; /ip hotspot profile remove [find name=\"hsprof1\"]; /ip hotspot profile add dns-name=wifi.login name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis; /ip hotspot remove [find interface=\"bridge-$iface\"]; /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no",
             
-            'walledgarden' => "/ip hotspot walled-garden remove [find]; :foreach h in={\"wifiexpres.com\",\"*.wifiexpres.com\",\"*.biopagobdv.com\",\"*.banvenez.com\",\"biopago.banvenez.com\",\"fcm.googleapis.com\",\"*.push.apple.com\",\"188.95.113.44\"} do={/ip hotspot walled-garden add dst-host=\$h}",
-            
-            'walledgardenip' => "/ip hotspot walled-garden ip remove [find]; :foreach i in={\"188.95.113.44\",\"190.217.7.106\",\"190.217.7.229\",\"200.11.243.174\",\"190.202.148.187\"} do={/ip hotspot walled-garden ip add dst-address=\$i}; /ip hotspot walled-garden ip add action=accept dst-port=5228-5230 protocol=tcp; /ip hotspot walled-garden ip add action=accept dst-port=53 protocol=udp",
+            // SECCIÓN: Comunicación Servidor Remoto
+            'wg_servidor' => "/ip hotspot walled-garden remove [find dst-host=\"wifiexpres.com\" or dst-host=\"*.wifiexpres.com\" or dst-host=\"188.95.113.44\"]; /ip hotspot walled-garden add dst-host=wifiexpres.com; /ip hotspot walled-garden add dst-host=*.wifiexpres.com; /ip hotspot walled-garden add dst-host=188.95.113.44; /ip hotspot walled-garden ip remove [find dst-address=188.95.113.44]; /ip hotspot walled-garden ip add dst-address=188.95.113.44 dst-port=3000 protocol=tcp comment=\"Acceso Bridge Nodejs\"",
+
+            // SECCIÓN: Pasarela BDV
+            'wg_bdv' => "/ip hotspot walled-garden remove [find comment=\"Pasarela BDV\"]; /ip hotspot walled-garden add dst-host=*.biopagobdv.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden add dst-host=*.banvenez.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden add dst-host=biopago.banvenez.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip remove [find comment=\"Pasarela BDV\"]; /ip hotspot walled-garden ip add dst-address=190.217.7.106 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=190.217.7.229 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=200.11.243.174 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=190.202.148.187 action=accept comment=\"Pasarela BDV\"",
+
+            // SECCIÓN: Notificaciones Push
+            'wg_push' => "/ip hotspot walled-garden remove [find comment=\"Notificaciones Push\"]; /ip hotspot walled-garden add dst-host=fcm.googleapis.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=fcm-xmpp.googleapis.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=mtalk.google.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=*.push.apple.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=*.push.apple.com.akadns.net action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=appleid.apple.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden ip remove [find comment=\"Notificaciones Push\"]; /ip hotspot walled-garden ip add dst-port=5228-5230 protocol=tcp action=accept comment=\"Notificaciones Push\"; /ip hotspot walled-garden ip add dst-port=5223 protocol=tcp action=accept comment=\"Notificaciones Push\"",
 
             'portal' => "/file make-directory hotspot; /ip hotspot profile set [find name=\"hsprof1\"] html-directory=hotspot; /tool fetch url=\"$downloadUrl\" dst-path=\"hotspot/login.html\" check-certificate=no",
             'reboot' => "/system reboot"
@@ -149,38 +150,23 @@ class ConfDetallada extends Component
 
         try {
             $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $this->currentTid]);
-            
             if ($res->successful()) {
                 $status = $res->json('status');
                 $data = trim($res->json('data'));
 
                 if ($status === 'ready') {
                     if ($this->activeTask) {
-                        if ($data === "OK") {
-                            $this->finalizarTareaActual('success', 'OK');
-                        } else {
-                            $this->finalizarTareaActual('error', 'Fallo');
-                        }
+                        $this->finalizarTareaActual($data === "OK" ? 'success' : 'error', $data === "OK" ? 'OK' : 'Error');
                     } else {
-                        $ifaceList = array_filter(explode('|', $data));
-                        $this->interfaces = array_values($ifaceList);
-                        $this->isWaitingResponse = false;
-                        $this->isProcessing = false;
+                        $this->interfaces = array_values(array_filter(explode('|', $data)));
+                        $this->isWaitingResponse = $this->isProcessing = false;
                         $this->intentos = 0;
                     }
-                    return;
-                }
-
-                if ($status === 'failed' || $status === 'error') {
-                    $this->finalizarTareaActual('error', 'Error Socket');
-                    return;
+                } elseif ($status === 'failed' || $status === 'error') {
+                    $this->finalizarTareaActual('error', 'Fallo');
                 }
             }
-
-            if ($this->intentos >= 45) {
-                $this->finalizarTareaActual('error', 'No response');
-            }
-
+            if ($this->intentos >= 45) $this->finalizarTareaActual('error', 'Expirado');
         } catch (\Exception $e) { }
     }
 
@@ -199,12 +185,10 @@ class ConfDetallada extends Component
                 $this->procesarSiguienteEnCola();
             } else {
                 $this->queue = [];
-                $this->isWaitingResponse = false;
-                $this->isProcessing = false;
+                $this->isWaitingResponse = $this->isProcessing = false;
             }
         } else {
-            $this->isWaitingResponse = false;
-            $this->isProcessing = false;
+            $this->isWaitingResponse = $this->isProcessing = false;
         }
     }
 
