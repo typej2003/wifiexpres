@@ -59,7 +59,7 @@ class ConfDetallada extends Component
         $this->isProcessing = true;
         $this->queue = [];
         
-        // SECUENCIA LÓGICA: Limpiar SOLO esta interfaz -> Crear Bridge -> Address -> Pool -> DHCP -> Hotspot
+        // SECUENCIA LÓGICA
         $tareas = ['limpiar_interfaz', 'bridge', 'address', 'pool', 'dhcp', 'hotspot'];
         foreach ($tareas as $t) {
             $this->queue[] = ['iface' => $iface, 'index' => $index, 'tarea' => $t];
@@ -85,7 +85,10 @@ class ConfDetallada extends Component
             $next = array_shift($this->queue);
             $this->ejecutarTarea($next['iface'], $next['index'], $next['tarea']);
         } else {
+            // FIN DE PROCESO: Apagamos flags para detener el poll
             $this->isProcessing = false;
+            $this->isWaitingResponse = false;
+            $this->activeTask = null;
         }
     }
 
@@ -95,6 +98,7 @@ class ConfDetallada extends Component
         $this->taskResult[$iface][$tarea] = 'Enviando...';
         $this->activeTask = ['iface' => $iface, 'tarea' => $tarea, 'index' => $index];
         $this->isProcessing = true;
+        $this->isWaitingResponse = true;
         
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
@@ -107,9 +111,7 @@ class ConfDetallada extends Component
         }
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $vCode;
 
-        // SCRIPTS DE ACCIÓN
         $cmds = [
-            // PASO 1: Limpiar solo lo relacionado a esta interfaz específica
             'limpiar_interfaz' => "
                 :do { /ip hotspot remove [find where interface=\"bridge-$iface\"] } on-error={};
                 :do { /ip hotspot profile remove [find where name=\"hsprof-$iface\" or name=\"hsprof1\"] } on-error={};
@@ -120,15 +122,10 @@ class ConfDetallada extends Component
                 :do { /interface bridge port remove [find where interface=\"$iface\"] } on-error={};
                 :do { /interface bridge remove [find where name=\"bridge-$iface\"] } on-error={};
             ",
-
             'bridge'  => "/interface bridge add name=\"bridge-$iface\"; /interface bridge port add bridge=\"bridge-$iface\" interface=\"$iface\"",
-            
             'address' => "/ip address add address=192.168.$segmento.1/24 interface=\"bridge-$iface\"",
-            
             'pool'    => "/ip pool add name=\"pool-$iface\" ranges=192.168.$segmento.10-192.168.$segmento.250",
-            
             'dhcp'    => "/ip dhcp-server add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"srv-$iface\" disabled=no; /ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8",
-            
             'hotspot' => "
                 :do { /ip hotspot user profile remove [find where name~\"neutro|cortesia|conexion\"] } on-error={};
                 /ip hotspot user profile add name=\"neutro\" shared-users=1 session-timeout=1s;
@@ -137,7 +134,6 @@ class ConfDetallada extends Component
                 /ip hotspot profile add dns-name=wifi.login name=\"hsprof-$iface\" login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis;
                 /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=\"hsprof-$iface\" disabled=no
             ",
-            
             'wg_servidor' => "/ip hotspot walled-garden remove [find dst-host=\"wifiexpres.com\" or dst-host=\"*.wifiexpres.com\" or dst-host=\"188.95.113.44\"]; /ip hotspot walled-garden add dst-host=wifiexpres.com; /ip hotspot walled-garden add dst-host=*.wifiexpres.com; /ip hotspot walled-garden add dst-host=188.95.113.44; :do { /ip hotspot walled-garden ip remove [find dst-address=188.95.113.44] } on-error={}; /ip hotspot walled-garden ip add dst-address=188.95.113.44 dst-port=3000 protocol=tcp comment=\"Acceso Bridge Nodejs\"",
             'wg_bdv' => "/ip hotspot walled-garden remove [find comment=\"Pasarela BDV\"]; /ip hotspot walled-garden add dst-host=*.biopagobdv.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden add dst-host=*.banvenez.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden add dst-host=biopago.banvenez.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip remove [find comment=\"Pasarela BDV\"]; /ip hotspot walled-garden ip add dst-address=190.217.7.106 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=190.217.7.229 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=200.11.243.174 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=190.202.148.187 action=accept comment=\"Pasarela BDV\"",
             'wg_push' => "/ip hotspot walled-garden remove [find comment=\"Notificaciones Push\"]; /ip hotspot walled-garden add dst-host=fcm.googleapis.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=fcm-xmpp.googleapis.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=mtalk.google.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=*.push.apple.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=*.push.apple.com.akadns.net action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=appleid.apple.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden ip remove [find comment=\"Notificaciones Push\"]; /ip hotspot walled-garden ip add dst-port=5228-5230 protocol=tcp action=accept comment=\"Notificaciones Push\"; /ip hotspot walled-garden ip add dst-port=5223 protocol=tcp action=accept comment=\"Notificaciones Push\"",
@@ -146,8 +142,6 @@ class ConfDetallada extends Component
         ];
 
         $this->currentTid = "CFG" . rand(10,99) . time();
-        
-        // Ejecución con delay para asegurar que el MikroTik refresque su base de datos
         $script = $cmds[$tarea] . "; :delay 2s; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no";
         
         $this->emitirAlBridge($script, $mac, $this->currentTid);
@@ -162,7 +156,8 @@ class ConfDetallada extends Component
 
     public function checkStatus()
     {
-        if (!$this->isWaitingResponse && !$this->activeTask) return;
+        if (!$this->isWaitingResponse) return;
+        
         $router = Router::find($this->router_id);
         if (!$router) return;
         $mac = strtoupper(trim($router->macAddress));
@@ -195,19 +190,19 @@ class ConfDetallada extends Component
             $tarea = $this->activeTask['tarea'];
             $this->taskStatus[$iface][$tarea] = $status;
             $this->taskResult[$iface][$tarea] = $mensaje;
+            
+            // Apagamos la espera momentáneamente
+            $this->isWaitingResponse = false;
             $this->activeTask = null;
             $this->intentos = 0;
 
             if ($status === 'success') {
-                usleep(1200000); 
+                usleep(800000); 
                 $this->procesarSiguienteEnCola();
             } else {
                 $this->queue = [];
                 $this->isProcessing = false;
-                $this->isWaitingResponse = false;
             }
-        } else {
-            $this->isWaitingResponse = $this->isProcessing = false;
         }
     }
 

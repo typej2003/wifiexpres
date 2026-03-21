@@ -1,4 +1,4 @@
-<div class="p-4" @if($isWaitingResponse || $activeTask) wire:poll.1s="checkStatus" @endif>
+<div class="p-4" @if($isWaitingResponse) wire:poll.2s="checkStatus" @endif>
     
     <div class="card shadow-sm border-0 mb-4 bg-light rounded-4">
         <div class="card-body">
@@ -37,7 +37,7 @@
         <div class="row">
             @foreach($interfaces as $index => $iface)
                 @if($iface != 'ether1')
-                <div class="col-md-6 col-lg-4 mb-4">
+                <div class="col-md-6 col-lg-4 mb-4" wire:key="card-iface-{{ $iface }}">
                     <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden bg-white">
                         <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
                             <span class="fw-bold text-uppercase">{{ $iface }}</span>
@@ -51,17 +51,23 @@
                             <ul class="list-group list-group-flush">
                                 @php $tareas = ['bridge'=>'BRIDGE','address'=>'ADDRESS','pool'=>'POOL','dhcp'=>'DHCP','hotspot'=>'HOTSPOT']; @endphp
                                 @foreach($tareas as $key => $label)
-                                    <li class="list-group-item py-2 d-flex justify-content-between align-items-center">
+                                    <li class="list-group-item py-2 d-flex justify-content-between align-items-center" wire:key="task-{{ $iface }}-{{ $key }}">
                                         <div class="flex-grow-1">
                                             <span class="small fw-bold text-muted text-uppercase d-block">{{ $label }}</span>
                                             @if(isset($taskResult[$iface][$key]))
-                                                <small class="{{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'text-success' : 'text-danger' }}">{{ $taskResult[$iface][$key] }}</small>
+                                                <small class="{{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'text-success font-monospace' : 'text-danger' }}">
+                                                    {{ ($taskStatus[$iface][$key] ?? '') == 'loading' ? '⏳ Procesando...' : $taskResult[$iface][$key] }}
+                                                </small>
                                             @endif
                                         </div>
                                         <button wire:click="ejecutarTarea('{{ $iface }}', {{ $index }}, '{{ $key }}')"
                                             wire:loading.attr="disabled" {{ $isProcessing ? 'disabled' : '' }}
                                             class="btn btn-sm rounded-pill px-3 {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'btn-success' : 'btn-primary' }}">
-                                            @if(($taskStatus[$iface][$key] ?? '') == 'loading') <span class="spinner-border spinner-border-sm"></span> @else Instalar @endif
+                                            @if(($taskStatus[$iface][$key] ?? '') == 'loading') 
+                                                <span class="spinner-border spinner-border-sm"></span> 
+                                            @else 
+                                                <i class="fas fa-plus-circle" style="font-size: 10px;"></i>
+                                            @endif
                                         </button>
                                     </li>
                                 @endforeach
@@ -73,11 +79,11 @@
             @endforeach
         </div>
 
-        <div class="card border-0 shadow-sm rounded-4 bg-white mb-5 overflow-hidden">
+        <div class="card border-0 shadow-sm rounded-4 bg-white mb-5 overflow-hidden" wire:key="card-global-settings">
             <div class="card-header bg-primary text-white py-3 d-flex justify-content-between align-items-center">
-                <h6 class="mb-0 fw-bold"><i class="fas fa-globe me-2"></i>CONFIGURACIÓN GENERAL (WALLED GARDEN / PORTAL)</h6>
+                <h6 class="mb-0 fw-bold"><i class="fas fa-globe me-2"></i>WALLED GARDEN / PORTAL</h6>
                 <button wire:click="scanGlobal" wire:loading.attr="disabled" {{ $isProcessing || !$version_id ? 'disabled' : '' }} class="btn btn-warning btn-sm rounded-pill fw-bold text-dark shadow-sm">
-                    INSTALAR TODO EL PORTAL
+                    INSTALAR TODO
                 </button>
             </div>
             <div class="card-body p-0">
@@ -90,46 +96,40 @@
                                 @foreach($hotspot_versions as $v) <option value="{{ $v->id }}">{{ $v->name }}</option> @endforeach
                             </select>
                         </div>
-                        <div class="col-md-8 text-muted small">
-                            Añada los permisos necesarios para el funcionamiento del sistema de forma individual.
-                        </div>
                     </div>
                 </div>
 
                 <ul class="list-group list-group-flush">
                     @php 
                         $globals = [
-                            'wg_servidor' => ['label' => 'SERVIDOR REMOTO & BRIDGE', 'desc' => 'Permitir wifiexpres.com y conexión al puerto 3000 del Bridge.'],
-                            'wg_bdv' => ['label' => 'PASARELA BANCO DE VENEZUELA', 'desc' => 'Habilitar dominios e IPs de Biopago BDV y Banvenez.'],
-                            'wg_push' => ['label' => 'NOTIFICACIONES PUSH', 'desc' => 'Habilitar Google FCM, Apple Push y puertos TCP 5223/5228-5230.'],
-                            'portal' => ['label' => 'PORTAL CAUTIVO', 'desc' => 'Descarga de archivos login.html según versión seleccionada.'],
-                            'reboot' => ['label' => 'REINICIAR SISTEMA', 'desc' => 'Reinicia el router para asegurar que todas las reglas carguen limpias.']
+                            'wg_servidor' => ['label' => 'SERVIDOR & BRIDGE'],
+                            'wg_bdv' => ['label' => 'BANCO DE VENEZUELA'],
+                            'wg_push' => ['label' => 'NOTIFICACIONES PUSH'],
+                            'portal' => ['label' => 'PORTAL CAUTIVO'],
+                            'reboot' => ['label' => 'REINICIAR SISTEMA']
                         ];
                     @endphp
                     @foreach($globals as $key => $info)
-                        <li class="list-group-item py-3">
+                        <li class="list-group-item py-3" wire:key="global-task-{{ $key }}">
                             <div class="d-flex justify-content-between align-items-center px-3">
                                 <div class="flex-grow-1">
                                     <span class="small fw-bold text-primary text-uppercase d-block">{{ $info['label'] }}</span>
-                                    <span class="text-muted d-block" style="font-size: 11px;">{{ $info['desc'] }}</span>
                                     @if(isset($taskResult['global'][$key]))
                                         <div class="mt-1 fw-bold {{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'text-success' : 'text-danger' }}" style="font-size: 11px;">
-                                            RESULTADO: {{ $taskResult['global'][$key] }}
+                                            {{ $taskResult['global'][$key] }}
                                         </div>
                                     @endif
                                 </div>
-                                <div class="ms-3">
-                                    <button wire:click="ejecutarTarea('global', 0, '{{ $key }}')"
-                                        wire:loading.attr="disabled" 
-                                        {{ $isProcessing || (!$version_id && !in_array($key,['reboot','wg_servidor','wg_bdv','wg_push'])) ? 'disabled' : '' }}
-                                        class="btn btn-sm rounded-pill px-4 shadow-sm fw-bold {{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'btn-success' : 'btn-outline-primary' }}">
-                                        @if(($taskStatus['global'][$key] ?? '') == 'loading')
-                                            <span class="spinner-border spinner-border-sm"></span>
-                                        @else
-                                            <i class="fas fa-paper-plane me-1"></i> ENVIAR
-                                        @endif
-                                    </button>
-                                </div>
+                                <button wire:click="ejecutarTarea('global', 0, '{{ $key }}')"
+                                    wire:loading.attr="disabled" 
+                                    {{ $isProcessing ? 'disabled' : '' }}
+                                    class="btn btn-sm rounded-pill px-4 shadow-sm fw-bold {{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'btn-success' : 'btn-outline-primary' }}">
+                                    @if(($taskStatus['global'][$key] ?? '') == 'loading')
+                                        <span class="spinner-border spinner-border-sm"></span>
+                                    @else
+                                        ENVIAR
+                                    @endif
+                                </button>
                             </div>
                         </li>
                     @endforeach
