@@ -22,8 +22,12 @@
                     </select>
                 </div>
                 <div class="col-md-4 text-end">
-                    @if(count($interfaces) > 0)
-                        <button wire:click="iniciarDescubrimiento" class="btn btn-primary btn-sm rounded-pill px-4 shadow-sm fw-bold">
+                    {{-- Botón ahora aparece si hay un router seleccionado --}}
+                    @if($router_id)
+                        <button wire:click="iniciarDescubrimiento" 
+                                wire:loading.attr="disabled"
+                                class="btn btn-primary btn-sm rounded-pill px-4 shadow-sm fw-bold">
+                            <span wire:loading wire:target="iniciarDescubrimiento" class="spinner-border spinner-border-sm me-1"></span>
                             REFRESCAR HARDWARE
                         </button>
                     @endif
@@ -32,13 +36,14 @@
         </div>
     </div>
 
-    @if($isWaitingResponse)
+    @if($isWaitingResponse && count($interfaces) == 0)
         <div class="text-center py-5">
             <div class="spinner-border text-primary"></div>
+            <p class="mt-2 text-muted small fw-bold">DESCUBRIENDO INTERFACES...</p>
         </div>
     @endif
 
-    @if(count($interfaces) > 0 && !$isWaitingResponse)
+    @if(count($interfaces) > 0)
         <div class="row">
             @foreach($interfaces as $index => $iface)
                 @if($iface != 'ether1')
@@ -47,9 +52,11 @@
                         <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
                             <span class="fw-bold text-uppercase">{{ $iface }}</span>
                             <button wire:click="scanearInterfaz('{{ $iface }}', {{ $index }})" 
+                                    wire:loading.attr="disabled"
                                     class="btn btn-info btn-xs rounded-pill px-2 fw-bold text-white shadow-sm" style="font-size: 10px;"
-                                    {{ $activeTask ? 'disabled' : '' }}>
-                                SCAN AUTO
+                                    {{ $isProcessing ? 'disabled' : '' }}>
+                                <span wire:loading wire:target="scanearInterfaz('{{ $iface }}', {{ $index }})" class="spinner-border spinner-border-sm"></span>
+                                <span wire:loading.remove wire:target="scanearInterfaz('{{ $iface }}', {{ $index }})">SCAN AUTO</span>
                             </button>
                         </div>
                         <div class="card-body p-0">
@@ -69,6 +76,8 @@
                                                 @endif
                                             </div>
                                             <button wire:click="ejecutarTarea('{{ $iface }}', {{ $index }}, '{{ $key }}')"
+                                                wire:loading.attr="disabled"
+                                                {{ $isProcessing ? 'disabled' : '' }}
                                                 class="btn btn-sm rounded-pill px-3 shadow-sm 
                                                 {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'btn-success' : (($taskStatus[$iface][$key] ?? '') == 'error' ? 'btn-danger' : 'btn-primary') }}">
                                                 @if(($taskStatus[$iface][$key] ?? '') == 'loading')
@@ -91,7 +100,11 @@
         <div class="card border-0 shadow-sm rounded-4 bg-white mb-5 overflow-hidden">
             <div class="card-header bg-primary text-white py-3 d-flex justify-content-between align-items-center">
                 <h6 class="mb-0 fw-bold">CONFIGURACIÓN GLOBAL</h6>
-                <button wire:click="scanGlobal" class="btn btn-warning btn-sm rounded-pill fw-bold" {{ $activeTask || !$version_id ? 'disabled' : '' }}>
+                <button wire:click="scanGlobal" 
+                        wire:loading.attr="disabled"
+                        class="btn btn-warning btn-sm rounded-pill fw-bold" 
+                        {{ $isProcessing || !$version_id ? 'disabled' : '' }}>
+                    <span wire:loading wire:target="scanGlobal" class="spinner-border spinner-border-sm me-1"></span>
                     PROCESAR TODO
                 </button>
             </div>
@@ -120,6 +133,8 @@
                                 <div class="col-3">
                                     <div class="bg-white p-2 rounded-3 border">
                                         <button wire:click="ejecutarTarea('global', 0, '{{ $key }}')"
+                                            wire:loading.attr="disabled"
+                                            {{ $isProcessing ? 'disabled' : '' }}
                                             class="btn btn-sm w-100 rounded-3 mb-1 
                                             {{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'btn-success' : (($taskStatus['global'][$key] ?? '') == 'error' ? 'btn-danger' : 'btn-primary') }}">
                                             @if(($taskStatus['global'][$key] ?? '') == 'loading')
