@@ -58,6 +58,7 @@ class ConfDetallada extends Component
         if ($this->isProcessing) return;
         $this->isProcessing = true;
         $this->queue = [];
+        // Orden lógico de construcción
         $tareas = ['bridge', 'address', 'pool', 'dhcp', 'hotspot'];
         foreach ($tareas as $t) {
             $this->queue[] = ['iface' => $iface, 'index' => $index, 'tarea' => $t];
@@ -105,19 +106,22 @@ class ConfDetallada extends Component
         }
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $vCode;
 
-        // COMANDOS CON LÓGICA DE LIBERACIÓN DE RECURSOS
+        /**
+         * LÓGICA DE LIMPIEZA TOTAL (FORCE RESET)
+         * El secreto es limpiar las dependencias del Hotspot en CUALQUIER paso que falle.
+         */
+        $limpiarTodo = ":do { /ip hotspot remove [find interface=\"bridge-$iface\"] } on-error={}; :do { /ip dhcp-server remove [find interface=\"bridge-$iface\"] } on-error={};";
+
         $cmds = [
-            // BRIDGE: Antes de borrar el bridge, quitamos los puertos y el hotspot que lo use
-            'bridge'  => ":do { /ip hotspot remove [find interface=\"bridge-$iface\"] } on-error={}; :do { /interface bridge port remove [find interface=\"$iface\"] } on-error={}; :do { /interface bridge remove [find name=\"bridge-$iface\"] } on-error={}; /interface bridge add name=\"bridge-$iface\"; /interface bridge port add bridge=\"bridge-$iface\" interface=\"$iface\"",
+            'bridge'  => "$limpiarTodo :do { /interface bridge port remove [find interface=\"$iface\"] } on-error={}; :do { /interface bridge remove [find name=\"bridge-$iface\"] } on-error={}; /interface bridge add name=\"bridge-$iface\"; /interface bridge port add bridge=\"bridge-$iface\" interface=\"$iface\"",
             
             'address' => ":do { /ip address remove [find interface=\"bridge-$iface\"] } on-error={}; /ip address add address=192.168.$segmento.1/24 interface=\"bridge-$iface\"",
             
-            'pool'    => ":do { /ip hotspot remove [find interface=\"bridge-$iface\"] } on-error={}; :do { /ip pool remove [find name=\"pool-$iface\"] } on-error={}; /ip pool add name=\"pool-$iface\" ranges=192.168.$segmento.10-192.168.$segmento.250",
+            'pool'    => "$limpiarTodo :do { /ip pool remove [find name=\"pool-$iface\"] } on-error={}; /ip pool add name=\"pool-$iface\" ranges=192.168.$segmento.10-192.168.$segmento.250",
             
-            // DHCP: Borra hotspot primero para liberar el DHCP Server y el Pool
-            'dhcp'    => ":do { /ip hotspot remove [find interface=\"bridge-$iface\"] } on-error={}; :do { /ip dhcp-server remove [find interface=\"bridge-$iface\"] } on-error={}; :do { /ip dhcp-server network remove [find address=192.168.$segmento.0/24] } on-error={}; /ip dhcp-server add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"srv-$iface\" disabled=no; /ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8",
+            'dhcp'    => "$limpiarTodo :do { /ip dhcp-server network remove [find address=192.168.$segmento.0/24] } on-error={}; /ip dhcp-server add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"srv-$iface\" disabled=no; /ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8",
             
-            'hotspot' => ":do { /ip hotspot remove [find interface=\"bridge-$iface\"] } on-error={}; :do { /ip hotspot profile remove [find name=\"hsprof1\"] } on-error={}; :do { /ip hotspot user profile remove [find name~\"neutro|cortesia|conexion\"] } on-error={}; /ip hotspot user profile add name=\"neutro\" shared-users=1 session-timeout=1s; /ip hotspot user profile add name=\"cortesia 20min-0\" shared-users=1 session-timeout=20m; /ip hotspot user profile add name=\"conexiongratis\" shared-users=1 rate-limit=\"2M/2M\"; /ip hotspot profile add dns-name=wifi.login name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis; /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no",
+            'hotspot' => "$limpiarTodo :do { /ip hotspot profile remove [find name=\"hsprof1\"] } on-error={}; :do { /ip hotspot user profile remove [find name~\"neutro|cortesia|conexion\"] } on-error={}; /ip hotspot user profile add name=\"neutro\" shared-users=1 session-timeout=1s; /ip hotspot user profile add name=\"cortesia 20min-0\" shared-users=1 session-timeout=20m; /ip hotspot user profile add name=\"conexiongratis\" shared-users=1 rate-limit=\"2M/2M\"; /ip hotspot profile add dns-name=wifi.login name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis; /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no",
             
             'wg_servidor' => "/ip hotspot walled-garden remove [find dst-host=\"wifiexpres.com\" or dst-host=\"*.wifiexpres.com\" or dst-host=\"188.95.113.44\"]; /ip hotspot walled-garden add dst-host=wifiexpres.com; /ip hotspot walled-garden add dst-host=*.wifiexpres.com; /ip hotspot walled-garden add dst-host=188.95.113.44; :do { /ip hotspot walled-garden ip remove [find dst-address=188.95.113.44] } on-error={}; /ip hotspot walled-garden ip add dst-address=188.95.113.44 dst-port=3000 protocol=tcp comment=\"Acceso Bridge Nodejs\"",
 
