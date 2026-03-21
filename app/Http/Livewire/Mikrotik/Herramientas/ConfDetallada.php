@@ -105,7 +105,7 @@ class ConfDetallada extends Component
         }
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $vCode;
 
-        // LIMPIEZA ATÓMICA
+        // LIMPIEZA ATÓMICA REFORZADA
         $killHotspot = ":do { /ip hotspot remove [find interface=\"bridge-$iface\"] } on-error={};";
         $killProf    = ":do { /ip hotspot profile remove [find name=\"hsprof1\"] } on-error={};";
         $killDhcp    = ":do { /ip dhcp-server remove [find interface=\"bridge-$iface\"] } on-error={};";
@@ -117,8 +117,12 @@ class ConfDetallada extends Component
             'bridge'  => "$killHotspot $killProf $killDhcp $killPool $killAddr $killBridge /interface bridge add name=\"bridge-$iface\"; /interface bridge port add bridge=\"bridge-$iface\" interface=\"$iface\"",
             'address' => "$killAddr /ip address add address=192.168.$segmento.1/24 interface=\"bridge-$iface\"",
             'pool'    => "$killHotspot $killProf $killDhcp $killPool /ip pool add name=\"pool-$iface\" ranges=192.168.$segmento.10-192.168.$segmento.250",
-            'dhcp'    => "$killHotspot $killProf $killDhcp :do { /ip dhcp-server network remove [find address=192.168.$segmento.0/24] } on-error={}; /ip dhcp-server add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"srv-$iface\" disabled=no; /ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8",
+            
+            // TAREA CRÍTICA: Añadimos más delays para que el router respire entre borrar y crear
+            'dhcp'    => "$killHotspot $killProf $killDhcp; :delay 1s; :do { /ip dhcp-server network remove [find address=192.168.$segmento.0/24] } on-error={}; /ip dhcp-server add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"srv-$iface\" disabled=no; /ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8",
+            
             'hotspot' => "$killHotspot $killProf :do { /ip hotspot user profile remove [find name~\"neutro|cortesia|conexion\"] } on-error={}; /ip hotspot user profile add name=\"neutro\" shared-users=1 session-timeout=1s; /ip hotspot user profile add name=\"cortesia 20min-0\" shared-users=1 session-timeout=20m; /ip hotspot user profile add name=\"conexiongratis\" shared-users=1 rate-limit=\"2M/2M\"; /ip hotspot profile add dns-name=wifi.login name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis; /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no",
+            
             'wg_servidor' => "/ip hotspot walled-garden remove [find dst-host=\"wifiexpres.com\" or dst-host=\"*.wifiexpres.com\" or dst-host=\"188.95.113.44\"]; /ip hotspot walled-garden add dst-host=wifiexpres.com; /ip hotspot walled-garden add dst-host=*.wifiexpres.com; /ip hotspot walled-garden add dst-host=188.95.113.44; :do { /ip hotspot walled-garden ip remove [find dst-address=188.95.113.44] } on-error={}; /ip hotspot walled-garden ip add dst-address=188.95.113.44 dst-port=3000 protocol=tcp comment=\"Acceso Bridge Nodejs\"",
             'wg_bdv' => "/ip hotspot walled-garden remove [find comment=\"Pasarela BDV\"]; /ip hotspot walled-garden add dst-host=*.biopagobdv.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden add dst-host=*.banvenez.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden add dst-host=biopago.banvenez.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip remove [find comment=\"Pasarela BDV\"]; /ip hotspot walled-garden ip add dst-address=190.217.7.106 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=190.217.7.229 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=200.11.243.174 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=190.202.148.187 action=accept comment=\"Pasarela BDV\"",
             'wg_push' => "/ip hotspot walled-garden remove [find comment=\"Notificaciones Push\"]; /ip hotspot walled-garden add dst-host=fcm.googleapis.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=fcm-xmpp.googleapis.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=mtalk.google.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=*.push.apple.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=*.push.apple.com.akadns.net action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=appleid.apple.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden ip remove [find comment=\"Notificaciones Push\"]; /ip hotspot walled-garden ip add dst-port=5228-5230 protocol=tcp action=accept comment=\"Notificaciones Push\"; /ip hotspot walled-garden ip add dst-port=5223 protocol=tcp action=accept comment=\"Notificaciones Push\"",
@@ -128,10 +132,9 @@ class ConfDetallada extends Component
 
         $this->currentTid = "CFG" . rand(10,99) . time();
         
-        // DISPARO SEGURO: El MikroTik intentará enviar el OK hasta 3 veces si falla
-        $confirmar = ":for i from=1 to=3 do={ :do { /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no; :set i 3 } on-error={ :delay 2s } }";
-        
-        $script = $cmds[$tarea] . "; :delay 2s; " . $confirmar;
+        // AVISO RESILIENTE: Esperamos 3 segundos fijos antes de intentar avisar al Bridge.
+        // Esto le da tiempo al servicio DHCP de MikroTik para estabilizarse.
+        $script = $cmds[$tarea] . "; :delay 3s; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no";
         
         $this->emitirAlBridge($script, $mac, $this->currentTid);
     }
@@ -167,13 +170,12 @@ class ConfDetallada extends Component
                         $this->intentos = 0;
                     }
                 } elseif ($status === 'failed' || $status === 'error') {
-                    // Ignoramos errores prematuros del bridge mientras el router intenta re-enviar el OK
-                    if($this->intentos < 10) return; 
+                    // El DHCP toma tiempo. No daremos error hasta haber intentado 15 veces (aprox 15-20 seg)
+                    if($this->intentos < 15) return; 
                     $this->finalizarTareaActual('error', 'Fallo');
                 }
             }
-            // Aumentamos a 80 intentos para dar tiempo a los reintentos del MikroTik
-            if ($this->intentos >= 80) $this->finalizarTareaActual('error', 'Expirado');
+            if ($this->intentos >= 90) $this->finalizarTareaActual('error', 'Expirado');
         } catch (\Exception $e) { }
     }
 
@@ -188,7 +190,8 @@ class ConfDetallada extends Component
             $this->intentos = 0;
 
             if ($status === 'success') {
-                usleep(1500000); // 1.5 segundos entre tareas para estabilidad
+                // Delay de 2 segundos en PHP para asegurar que el MikroTik está listo para la siguiente tarea
+                usleep(2000000); 
                 $this->procesarSiguienteEnCola();
             } else {
                 $this->queue = [];
