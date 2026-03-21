@@ -136,8 +136,6 @@ class ConfDetallada extends Component
                 :delay 1s;
                 /ip dhcp-server add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"srv-$iface\" disabled=no;
             ",
-            
-            // HOTSPOT REFORZADO CON DELAYS Y VERIFICACIÓN
             'hotspot' => "
                 :delay 2s;
                 :do { /ip hotspot user profile remove [find where name~\"neutro|cortesia|conexion\"] } on-error={};
@@ -153,19 +151,23 @@ class ConfDetallada extends Component
                     /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=\"hsprof-$iface\" disabled=no;
                 };
             ",
-            
             'wg_servidor' => "/ip hotspot walled-garden remove [find dst-host=\"wifiexpres.com\" or dst-host=\"*.wifiexpres.com\" or dst-host=\"188.95.113.44\"]; /ip hotspot walled-garden add dst-host=wifiexpres.com; /ip hotspot walled-garden add dst-host=*.wifiexpres.com; /ip hotspot walled-garden add dst-host=188.95.113.44; :do { /ip hotspot walled-garden ip remove [find dst-address=188.95.113.44] } on-error={}; /ip hotspot walled-garden ip add dst-address=188.95.113.44 dst-port=3000 protocol=tcp comment=\"Acceso Bridge Nodejs\"",
             'wg_bdv' => "/ip hotspot walled-garden remove [find comment=\"Pasarela BDV\"]; /ip hotspot walled-garden add dst-host=*.biopagobdv.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden add dst-host=*.banvenez.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden add dst-host=biopago.banvenez.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip remove [find comment=\"Pasarela BDV\"]; /ip hotspot walled-garden ip add dst-address=190.217.7.106 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=190.217.7.229 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=200.11.243.174 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=190.202.148.187 action=accept comment=\"Pasarela BDV\"",
             'wg_push' => "/ip hotspot walled-garden remove [find comment=\"Notificaciones Push\"]; /ip hotspot walled-garden add dst-host=fcm.googleapis.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=fcm-xmpp.googleapis.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=mtalk.google.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=*.push.apple.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=*.push.apple.com.akadns.net action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=appleid.apple.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden ip remove [find comment=\"Notificaciones Push\"]; /ip hotspot walled-garden ip add dst-port=5228-5230 protocol=tcp action=accept comment=\"Notificaciones Push\"; /ip hotspot walled-garden ip add dst-port=5223 protocol=tcp action=accept comment=\"Notificaciones Push\"",
+            
+            // PORTAL AJUSTADO PARA hAP lite (Memoria Lenta)
             'portal' => "
                 :do { /resolve wifiexpres.com } on-error={};
+                :delay 1s;
                 :do { /file remove [find name=\"hotspot/login.html\"] } on-error={};
                 :do { /file remove [find name=\"login_temp.html\"] } on-error={};
-                /ip hotspot profile set [find name=\"hsprof1\" or name=\"hsprof-$iface\"] html-directory=hotspot;
+                :delay 2s;
                 /tool fetch url=\"$downloadUrl\" dst-path=\"login_temp.html\" check-certificate=no;
-                :delay 3s;
+                :delay 5s;
                 :if ([:len [/file find name=\"login_temp.html\"]] > 0) do={
+                    :delay 2s;
                     /file set [find name=\"login_temp.html\"] name=\"hotspot/login.html\";
+                    :delay 1s;
                 }
             ",
             'reboot' => "/system reboot"
