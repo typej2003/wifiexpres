@@ -35,13 +35,13 @@
 
     @if(count($interfaces) > 0)
         <div class="row">
-            @foreach($interfaces as $index => $iface)
+            @foreach($interfaces as $idx => $iface)
                 @if($iface != 'ether1')
-                <div class="col-md-6 col-lg-4 mb-4" wire:key="card-{{ $iface }}">
+                <div class="col-md-6 col-lg-4 mb-4" wire:key="iface-container-{{ $idx }}">
                     <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden bg-white">
                         <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
                             <span class="fw-bold text-uppercase">{{ $iface }}</span>
-                            <button wire:click="scanearInterfaz('{{ $iface }}', {{ $index }})" 
+                            <button wire:click="scanearInterfaz('{{ $iface }}', {{ $idx }})" 
                                     wire:loading.attr="disabled" {{ $isProcessing ? 'disabled' : '' }}
                                     class="btn btn-info btn-xs rounded-pill px-2 fw-bold text-white shadow-sm" style="font-size: 10px;">
                                 SCAN AUTO
@@ -51,19 +51,19 @@
                             <ul class="list-group list-group-flush">
                                 @php $tareas = ['limpiar_interfaz'=>'LIMPIEZA','bridge'=>'BRIDGE','address'=>'ADDRESS','pool'=>'POOL','dhcp'=>'DHCP','hotspot'=>'HOTSPOT']; @endphp
                                 @foreach($tareas as $key => $label)
-                                    <li class="list-group-item py-2 d-flex justify-content-between align-items-center" wire:key="item-{{ $iface }}-{{ $key }}">
+                                    <li class="list-group-item py-2 d-flex justify-content-between align-items-center" wire:key="task-{{ $iface }}-{{ $key }}">
                                         <div class="flex-grow-1">
                                             <span class="small fw-bold text-muted text-uppercase d-block">{{ $label }}</span>
                                             @if(isset($taskResult[$iface][$key]))
-                                                <small class="{{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'text-success' : 'text-danger' }}">
-                                                    {{ ($taskStatus[$iface][$key] ?? '') == 'loading' ? 'En proceso...' : $taskResult[$iface][$key] }}
+                                                <small class="{{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'text-success font-monospace' : 'text-danger' }}">
+                                                    {{ ($taskStatus[$iface][$key] ?? '') == 'loading' ? '⏳ Procesando...' : $taskResult[$iface][$key] }}
                                                 </small>
                                             @endif
                                         </div>
-                                        <button wire:click="ejecutarTarea('{{ $iface }}', {{ $index }}, '{{ $key }}')"
+                                        <button wire:click="ejecutarTarea('{{ $iface }}', {{ $idx }}, '{{ $key }}')"
                                             wire:loading.attr="disabled" {{ $isProcessing ? 'disabled' : '' }}
                                             class="btn btn-sm rounded-pill px-3 {{ ($taskStatus[$iface][$key] ?? '') == 'success' ? 'btn-success' : 'btn-primary' }}">
-                                            @if(($taskStatus[$iface][$key] ?? '') == 'loading') <span class="spinner-border spinner-border-sm"></span> @else Instalar @endif
+                                            @if(($taskStatus[$iface][$key] ?? '') == 'loading') <span class="spinner-border spinner-border-sm"></span> @else <i class="fas fa-download" style="font-size: 10px;"></i> @endif
                                         </button>
                                     </li>
                                 @endforeach
@@ -75,39 +75,48 @@
             @endforeach
         </div>
 
-        <div class="card border-0 shadow-sm rounded-4 bg-white mb-5 overflow-hidden">
+        <div class="card border-0 shadow-sm rounded-4 bg-white mb-5 overflow-hidden" wire:key="global-card">
             <div class="card-header bg-primary text-white py-3 d-flex justify-content-between align-items-center">
-                <h6 class="mb-0 fw-bold"><i class="fas fa-globe me-2"></i>CONFIGURACIÓN GENERAL</h6>
+                <h6 class="mb-0 fw-bold">CONFIGURACIÓN GENERAL</h6>
                 <button wire:click="scanGlobal" wire:loading.attr="disabled" {{ $isProcessing || !$version_id ? 'disabled' : '' }} class="btn btn-warning btn-sm rounded-pill fw-bold text-dark shadow-sm">
-                    INSTALAR TODO EL PORTAL
+                    INSTALAR TODO
                 </button>
             </div>
             <div class="card-body p-0">
+                <div class="p-3 bg-light border-bottom">
+                    <div class="row align-items-center">
+                        <div class="col-md-4">
+                            <label class="small fw-bold text-muted text-uppercase">Versión del Portal</label>
+                            <select wire:model="version_id" class="form-select border-0 shadow-sm rounded-3">
+                                <option value="">-- Seleccionar --</option>
+                                @foreach($hotspot_versions as $v) <option value="{{ $v->id }}">{{ $v->name }}</option> @endforeach
+                            </select>
+                        </div>
+                    </div>
+                </div>
                 <ul class="list-group list-group-flush">
                     @php 
                         $globals = [
-                            'wg_servidor' => ['label' => 'SERVIDOR REMOTO & BRIDGE', 'desc' => 'Permitir wifiexpres.com y Bridge.'],
-                            'wg_bdv' => ['label' => 'PASARELA BANCO DE VENEZUELA', 'desc' => 'Habilitar dominios e IPs de Biopago BDV.'],
-                            'wg_push' => ['label' => 'NOTIFICACIONES PUSH', 'desc' => 'Habilitar Google FCM y Apple Push.'],
-                            'portal' => ['label' => 'PORTAL CAUTIVO', 'desc' => 'Descarga de archivos login.html.'],
-                            'reboot' => ['label' => 'REINICIAR SISTEMA', 'desc' => 'Reinicia el router.']
+                            'wg_servidor' => ['label' => 'BRIDGE & SERVIDOR', 'desc' => 'Permitir wifiexpres.com y acceso al Bridge.'],
+                            'wg_bdv' => ['label' => 'BANCO VENEZUELA', 'desc' => 'Habilitar Biopago y Banvenez.'],
+                            'wg_push' => ['label' => 'PUSH NOTIFY', 'desc' => 'Habilitar Firebase y Apple Push.'],
+                            'portal' => ['label' => 'PORTAL CAUTIVO', 'desc' => 'Descarga de login.html.'],
+                            'reboot' => ['label' => 'REBOOT', 'desc' => 'Reiniciar para aplicar cambios.']
                         ];
                     @endphp
                     @foreach($globals as $key => $info)
-                        <li class="list-group-item py-3" wire:key="global-{{ $key }}">
+                        <li class="list-group-item py-3" wire:key="global-item-{{ $key }}">
                             <div class="d-flex justify-content-between align-items-center px-3">
                                 <div class="flex-grow-1">
                                     <span class="small fw-bold text-primary text-uppercase d-block">{{ $info['label'] }}</span>
-                                    <span class="text-muted d-block" style="font-size: 11px;">{{ $info['desc'] }}</span>
                                     @if(isset($taskResult['global'][$key]))
                                         <div class="mt-1 fw-bold {{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'text-success' : 'text-danger' }}" style="font-size: 11px;">
-                                            RESULTADO: {{ $taskResult['global'][$key] }}
+                                            {{ $taskResult['global'][$key] }}
                                         </div>
                                     @endif
                                 </div>
                                 <button wire:click="ejecutarTarea('global', 0, '{{ $key }}')"
-                                    wire:loading.attr="disabled" 
-                                    {{ $isProcessing ? 'disabled' : '' }}
+                                    wire:loading.attr="disabled" {{ $isProcessing ? 'disabled' : '' }}
                                     class="btn btn-sm rounded-pill px-4 shadow-sm fw-bold {{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'btn-success' : 'btn-outline-primary' }}">
                                     @if(($taskStatus['global'][$key] ?? '') == 'loading') <span class="spinner-border spinner-border-sm"></span> @else ENVIAR @endif
                                 </button>
