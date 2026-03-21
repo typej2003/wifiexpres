@@ -22,8 +22,6 @@ class ConfDetallada extends Component
     public $taskResult = []; 
     public $activeTask = null; 
     public $queue = [];
-    
-    // Esta es la variable que causaba el error, ahora definida como pública
     public $isProcessing = false; 
 
     protected $bridgeUrl = "http://188.95.113.44:3000";
@@ -57,8 +55,7 @@ class ConfDetallada extends Component
 
     public function scanearInterfaz($iface, $index)
     {
-        if ($this->isProcessing && !$this->activeTask) return; 
-
+        if ($this->isProcessing) return;
         $this->isProcessing = true;
         $this->queue = [];
         $tareas = ['bridge', 'address', 'pool', 'dhcp', 'hotspot'];
@@ -71,7 +68,6 @@ class ConfDetallada extends Component
     public function scanGlobal()
     {
         if (!$this->version_id || $this->isProcessing) return;
-        
         $this->isProcessing = true;
         $this->queue = [];
         $tareas = ['walledgarden', 'walledgardenip', 'portal', 'reboot'];
@@ -93,8 +89,12 @@ class ConfDetallada extends Component
 
     public function ejecutarTarea($iface, $index, $tarea)
     {
+        if ($this->isProcessing && !$this->activeTask && count($this->queue) == 0) {
+            $this->isProcessing = true;
+        }
+
         $this->taskStatus[$iface][$tarea] = 'loading';
-        $this->taskResult[$iface][$tarea] = 'Procesando...';
+        $this->taskResult[$iface][$tarea] = 'Enviando...';
         $this->activeTask = ['iface' => $iface, 'tarea' => $tarea, 'index' => $index];
         
         $router = Router::findOrFail($this->router_id);
@@ -116,8 +116,11 @@ class ConfDetallada extends Component
             'pool'    => "/ip pool remove [find name=\"pool-$iface\"]; /ip pool add name=\"pool-$iface\" ranges=192.168.$segmento.10-192.168.$segmento.250",
             'dhcp'    => "/ip dhcp-server remove [find interface=\"bridge-$iface\"]; /ip dhcp-server add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"srv-$iface\" disabled=no; /ip dhcp-server network remove [find address=192.168.$segmento.0/24]; /ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8",
             'hotspot' => "/ip hotspot user profile remove [find name~\"neutro|cortesia|conexion\"]; /ip hotspot user profile add name=\"neutro\" shared-users=1 session-timeout=1s; /ip hotspot user profile add name=\"cortesia 20min-0\" shared-users=1 session-timeout=20m; /ip hotspot user profile add name=\"conexiongratis\" shared-users=1 rate-limit=\"2M/2M\"; /ip hotspot profile remove [find name=\"hsprof1\"]; /ip hotspot profile add dns-name=wifi.login name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis; /ip hotspot remove [find interface=\"bridge-$iface\"]; /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no",
+            
             'walledgarden' => "/ip hotspot walled-garden remove [find]; :foreach h in={\"wifiexpres.com\",\"*.wifiexpres.com\",\"*.biopagobdv.com\",\"*.banvenez.com\",\"biopago.banvenez.com\",\"fcm.googleapis.com\",\"*.push.apple.com\",\"188.95.113.44\"} do={/ip hotspot walled-garden add dst-host=\$h}",
+            
             'walledgardenip' => "/ip hotspot walled-garden ip remove [find]; :foreach i in={\"188.95.113.44\",\"190.217.7.106\",\"190.217.7.229\",\"200.11.243.174\",\"190.202.148.187\"} do={/ip hotspot walled-garden ip add dst-address=\$i}; /ip hotspot walled-garden ip add action=accept dst-port=5228-5230 protocol=tcp; /ip hotspot walled-garden ip add action=accept dst-port=53 protocol=udp",
+
             'portal' => "/file make-directory hotspot; /ip hotspot profile set [find name=\"hsprof1\"] html-directory=hotspot; /tool fetch url=\"$downloadUrl\" dst-path=\"hotspot/login.html\" check-certificate=no",
             'reboot' => "/system reboot"
         ];
@@ -156,7 +159,7 @@ class ConfDetallada extends Component
                         if ($data === "OK") {
                             $this->finalizarTareaActual('success', 'OK');
                         } else {
-                            $this->finalizarTareaActual('error', 'Fallo: ' . $data);
+                            $this->finalizarTareaActual('error', 'Fallo');
                         }
                     } else {
                         $ifaceList = array_filter(explode('|', $data));
@@ -169,13 +172,13 @@ class ConfDetallada extends Component
                 }
 
                 if ($status === 'failed' || $status === 'error') {
-                    $this->finalizarTareaActual('error', 'Error');
+                    $this->finalizarTareaActual('error', 'Error Socket');
                     return;
                 }
             }
 
             if ($this->intentos >= 45) {
-                $this->finalizarTareaActual('error', 'Timeout');
+                $this->finalizarTareaActual('error', 'No response');
             }
 
         } catch (\Exception $e) { }
