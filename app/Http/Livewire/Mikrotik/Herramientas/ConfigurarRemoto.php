@@ -13,8 +13,8 @@ class ConfigurarRemoto extends Component
 {
     public $router_id;
     public $version_id;
-    public $soporte_user = 'soporte';
-    public $soporte_pass;
+    public $soporte_user = 'jose';
+    public $soporte_pass = 'inmusdijok';
     public $selectedAliado = null;
     public $routerStatus = [];
     public $logs = [];
