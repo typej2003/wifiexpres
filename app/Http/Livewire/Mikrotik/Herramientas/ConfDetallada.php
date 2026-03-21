@@ -102,9 +102,12 @@ class ConfDetallada extends Component
         $mac = strtoupper(trim($router->macAddress));
         $segmento = ($index + 1) * 10;
         
-        // Obtenemos el ID de la versión para la URL
-        $vUrlId = $this->version_id ?: 1;
-        $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $vUrlId;
+        $vCode = 1;
+        if($this->version_id) {
+            $versionObj = HotspotVersion::find($this->version_id);
+            $vCode = $versionObj ? $versionObj->code : 1;
+        }
+        $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $vCode;
 
         $cmds = [
             'limpiar_interfaz' => "
@@ -117,35 +120,58 @@ class ConfDetallada extends Component
                 :do { /interface bridge port remove [find where interface=\"$iface\"] } on-error={};
                 :do { /interface bridge remove [find where name=\"bridge-$iface\"] } on-error={};
             ",
-            'bridge'  => "/interface bridge add name=\"bridge-$iface\"; /interface bridge port add bridge=\"bridge-$iface\" interface=\"$iface\"",
-            'address' => "/ip address add address=192.168.$segmento.1/24 interface=\"bridge-$iface\"",
-            'pool'    => "/ip pool add name=\"pool-$iface\" ranges=192.168.$segmento.10-192.168.$segmento.250",
-            'dhcp'    => "/ip dhcp-server add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"srv-$iface\" disabled=no; /ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8",
+            'bridge'  => "
+                :if ([:len [/interface bridge find name=\"bridge-$iface\"]] = 0) do={ /interface bridge add name=\"bridge-$iface\" };
+                :if ([:len [/interface bridge port find interface=\"$iface\"]] = 0) do={ /interface bridge port add bridge=\"bridge-$iface\" interface=\"$iface\" };
+            ",
+            'address' => "
+                :if ([:len [/ip address find interface=\"bridge-$iface\"]] = 0) do={ /ip address add address=192.168.$segmento.1/24 interface=\"bridge-$iface\" };
+            ",
+            'pool'    => "
+                :if ([:len [/ip pool find name=\"pool-$iface\"]] = 0) do={ /ip pool add name=\"pool-$iface\" ranges=192.168.$segmento.10-192.168.$segmento.250 };
+            ",
+            
+            // DHCP AJUSTADO PARA ROUTER LIMPIO (hAP lite)
+            'dhcp'    => "
+                :delay 2s;
+                /ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8;
+                :delay 1s;
+                /ip dhcp-server add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"srv-$iface\" disabled=no;
+            ",
+            
             'hotspot' => "
                 :do { /ip hotspot user profile remove [find where name~\"neutro|cortesia|conexion\"] } on-error={};
                 /ip hotspot user profile add name=\"neutro\" shared-users=1 session-timeout=1s;
                 /ip hotspot user profile add name=\"cortesia 20min-0\" shared-users=1 session-timeout=20m;
                 /ip hotspot user profile add name=\"conexiongratis\" shared-users=1 rate-limit=\"2M/2M\";
-                /ip hotspot profile add dns-name=wifi.login name=\"hsprof-$iface\" login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis;
-                /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=\"hsprof-$iface\" disabled=no
+                :if ([:len [/ip hotspot profile find name=\"hsprof-$iface\"]] = 0) do={
+                    /ip hotspot profile add dns-name=wifi.login name=\"hsprof-$iface\" login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis;
+                };
+                :if ([:len [/ip hotspot find interface=\"bridge-$iface\"]] = 0) do={
+                    /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=\"hsprof-$iface\" disabled=no;
+                };
             ",
             'wg_servidor' => "/ip hotspot walled-garden remove [find dst-host=\"wifiexpres.com\" or dst-host=\"*.wifiexpres.com\" or dst-host=\"188.95.113.44\"]; /ip hotspot walled-garden add dst-host=wifiexpres.com; /ip hotspot walled-garden add dst-host=*.wifiexpres.com; /ip hotspot walled-garden add dst-host=188.95.113.44; :do { /ip hotspot walled-garden ip remove [find dst-address=188.95.113.44] } on-error={}; /ip hotspot walled-garden ip add dst-address=188.95.113.44 dst-port=3000 protocol=tcp comment=\"Acceso Bridge Nodejs\"",
             'wg_bdv' => "/ip hotspot walled-garden remove [find comment=\"Pasarela BDV\"]; /ip hotspot walled-garden add dst-host=*.biopagobdv.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden add dst-host=*.banvenez.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden add dst-host=biopago.banvenez.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip remove [find comment=\"Pasarela BDV\"]; /ip hotspot walled-garden ip add dst-address=190.217.7.106 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=190.217.7.229 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=200.11.243.174 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=190.202.148.187 action=accept comment=\"Pasarela BDV\"",
             'wg_push' => "/ip hotspot walled-garden remove [find comment=\"Notificaciones Push\"]; /ip hotspot walled-garden add dst-host=fcm.googleapis.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=fcm-xmpp.googleapis.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=mtalk.google.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=*.push.apple.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=*.push.apple.com.akadns.net action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=appleid.apple.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden ip remove [find comment=\"Notificaciones Push\"]; /ip hotspot walled-garden ip add dst-port=5228-5230 protocol=tcp action=accept comment=\"Notificaciones Push\"; /ip hotspot walled-garden ip add dst-port=5223 protocol=tcp action=accept comment=\"Notificaciones Push\"",
             
-            // PORTAL CORREGIDO: Asegura directorio, descarga y aplica perfil
             'portal' => "
                 :do { /resolve wifiexpres.com } on-error={};
-                :if ([:len [/file find name=\"hotspot\"]] = 0) do={/file add name=hotspot type=directory};
-                /ip hotspot profile set [find name~\"hsprof\"] html-directory=hotspot;
-                /tool fetch url=\"$downloadUrl\" dst-path=\"hotspot/login.html\" check-certificate=no;
+                :do { /file remove [find name=\"hotspot/login.html\"] } on-error={};
+                :do { /file remove [find name=\"login_temp.html\"] } on-error={};
+                /ip hotspot profile set [find name=\"hsprof1\" or name=\"hsprof-$iface\"] html-directory=hotspot;
+                /tool fetch url=\"$downloadUrl\" dst-path=\"login_temp.html\" check-certificate=no;
+                :delay 3s;
+                :if ([:len [/file find name=\"login_temp.html\"]] > 0) do={
+                    /file set [find name=\"login_temp.html\"] name=\"hotspot/login.html\";
+                }
             ",
             
             'reboot' => "/system reboot"
         ];
 
         $this->currentTid = "CFG" . rand(10,99) . time();
-        $script = $cmds[$tarea] . "; :delay 2s; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no";
+        $script = $cmds[$tarea] . "; :delay 1s; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no";
         
         $this->emitirAlBridge($script, $mac, $this->currentTid);
     }
