@@ -91,7 +91,7 @@
                             </select>
                         </div>
                         <div class="col-md-8 text-muted small">
-                            Añada los permisos necesarios para el funcionamiento del sistema de forma individual.
+                            Configure de forma independiente las listas blancas (Walled Garden) y el diseño del portal.
                         </div>
                     </div>
                 </div>
@@ -99,11 +99,10 @@
                 <ul class="list-group list-group-flush">
                     @php 
                         $globals = [
-                            'wg_servidor' => ['label' => 'SERVIDOR REMOTO & BRIDGE', 'desc' => 'Permitir wifiexpres.com y conexión al puerto 3000 del Bridge.'],
-                            'wg_bdv' => ['label' => 'PASARELA BANCO DE VENEZUELA', 'desc' => 'Habilitar dominios e IPs de Biopago BDV y Banvenez.'],
-                            'wg_push' => ['label' => 'NOTIFICACIONES PUSH', 'desc' => 'Habilitar Google FCM, Apple Push y puertos TCP 5223/5228-5230.'],
-                            'portal' => ['label' => 'PORTAL CAUTIVO', 'desc' => 'Descarga de archivos login.html según versión seleccionada.'],
-                            'reboot' => ['label' => 'REINICIAR SISTEMA', 'desc' => 'Reinicia el router para asegurar que todas las reglas carguen limpias.']
+                            'walledgarden' => ['label' => 'WALLED GARDEN (HOSTS)', 'desc' => 'Dominios permitidos: wifiexpres.com, bancos, etc.'],
+                            'walledgardenip' => ['label' => 'WALLED GARDEN (IPs)', 'desc' => 'Direcciones IP y Puertos de servicio permitidos.'],
+                            'portal' => ['label' => 'PORTAL CAUTIVO', 'desc' => 'Descarga de archivos login.html y recursos.'],
+                            'reboot' => ['label' => 'REINICIAR SISTEMA', 'desc' => 'Aplica cambios críticos reiniciando el equipo.']
                         ];
                     @endphp
                     @foreach($globals as $key => $info)
@@ -121,12 +120,12 @@
                                 <div class="ms-3">
                                     <button wire:click="ejecutarTarea('global', 0, '{{ $key }}')"
                                         wire:loading.attr="disabled" 
-                                        {{ $isProcessing || (!$version_id && !in_array($key,['reboot','wg_servidor','wg_bdv','wg_push'])) ? 'disabled' : '' }}
+                                        {{ $isProcessing || (!$version_id && $key != 'reboot') ? 'disabled' : '' }}
                                         class="btn btn-sm rounded-pill px-4 shadow-sm fw-bold {{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'btn-success' : 'btn-outline-primary' }}">
                                         @if(($taskStatus['global'][$key] ?? '') == 'loading')
                                             <span class="spinner-border spinner-border-sm"></span>
                                         @else
-                                            <i class="fas fa-paper-plane me-1"></i> ENVIAR
+                                            <i class="fas fa-download me-1"></i> INSTALAR
                                         @endif
                                     </button>
                                 </div>
