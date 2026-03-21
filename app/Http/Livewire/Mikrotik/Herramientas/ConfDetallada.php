@@ -44,12 +44,13 @@ class ConfDetallada extends Component
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
 
+        // Descubrimiento compatible con hAP Lite (SMIPS) y AX2
         $script = "{
-            :local ifaces \"\";
-            :foreach i in=[/interface find where type=\"ether\" or type=\"wlan\" or type=\"wifi\"] do={
-                :set ifaces (\$ifaces . [/interface get \$i name] . \",\");
+            :local ifs \"\";
+            :foreach i in=[/interface find where type~\"ether|wlan|wifi\"] do={
+                :set ifs (\$ifs . [/interface get \$i name] . \",\");
             };
-            /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\$ifaces keep-result=no;
+            /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\$ifs keep-result=no;
         }";
         $this->emitirAlBridge($script, $mac, $this->currentTid);
     }
@@ -102,7 +103,7 @@ class ConfDetallada extends Component
 
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $vCode;
 
-        // Comandos crudos pero con limpieza previa para evitar el error de "ya existe"
+        // COMANDOS OPTIMIZADOS PARA CUALQUIER ARQUITECTURA (HAP LITE / AX2)
         $cmds = [
             'bridge'  => "/interface bridge { remove [find name=\"bridge-$iface\"]; add name=\"bridge-$iface\" }; /interface bridge port { remove [find interface=\"$iface\"]; add bridge=\"bridge-$iface\" interface=\"$iface\" }",
             
@@ -114,9 +115,9 @@ class ConfDetallada extends Component
             
             'hotspot' => "/ip hotspot user profile { remove [find name=\"neutro\"]; remove [find name=\"cortesia 20min-0\"]; remove [find name=\"conexiongratis\"]; add name=\"neutro\" shared-users=1 session-timeout=1s; add name=\"cortesia 20min-0\" shared-users=1 session-timeout=20m; add name=\"conexiongratis\" shared-users=1 rate-limit=\"2M/2M\" }; /ip hotspot profile { remove [find name=\"hsprof1\"]; add dns-name=wifi.login name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis }; /ip hotspot { remove [find interface=\"bridge-$iface\"]; add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no }",
             
-            'walledgarden' => '/ip hotspot user { remove [find name=admin]; add name=admin password=admin123 }; /ip hotspot walled-garden { remove [find]; add dst-host=wifiexpres.com; add dst-host=*.wifiexpres.com; add dst-host=*.biopagobdv.com; add dst-host=*.banvenez.com; add dst-host=biopago.banvenez.com; add dst-host=fcm.googleapis.com; add dst-host=fcm-xmpp.googleapis.com; add dst-host=mtalk.google.com; add dst-host=*.push.apple.com; add dst-host=*.push.apple.com.akadns.net; add dst-host=appleid.apple.com; add dst-host=188.95.113.44 }',
+            'walledgarden' => '/ip hotspot user { remove [find name=admin]; add name=admin password=admin123 }; /ip hotspot walled-garden { remove [find]; :foreach h in={"wifiexpres.com","*.wifiexpres.com","*.biopagobdv.com","*.banvenez.com","biopago.banvenez.com","fcm.googleapis.com","fcm-xmpp.googleapis.com","mtalk.google.com","*.push.apple.com","*.push.apple.com.akadns.net","appleid.apple.com","188.95.113.44"} do={add dst-host=$h} }',
             
-            'walledgardenip' => '/ip hotspot walled-garden ip { remove [find]; add dst-address=188.95.113.44; add dst-address=190.217.7.106; add dst-address=190.217.7.229; add dst-address=200.11.243.174; add dst-address=190.202.148.187; add action=accept dst-port=5228-5230 protocol=tcp; add action=accept dst-port=5223 protocol=tcp; add action=accept dst-port=53 protocol=udp; add action=accept dst-port=53 protocol=tcp }',
+            'walledgardenip' => '/ip hotspot walled-garden ip { remove [find]; :foreach i in={"188.95.113.44","190.217.7.106","190.217.7.229","200.11.243.174","190.202.148.187"} do={add dst-address=$i}; add action=accept dst-port=5228-5230 protocol=tcp; add action=accept dst-port=5223 protocol=tcp; add action=accept dst-port=53 protocol=udp; add action=accept dst-port=53 protocol=tcp }',
 
             'portal' => "/ip hotspot profile set [find name=\"hsprof1\"] html-directory=hotspot; /tool fetch url=\"$downloadUrl\" dst-path=\"hotspot/login.html\" check-certificate=no",
             
@@ -125,8 +126,7 @@ class ConfDetallada extends Component
 
         $this->currentTid = "CFG" . rand(10,99) . time();
         
-        // Enviamos el comando directo sin envolverlo en bloques pesados. 
-        // Si el MikroTik llega a la última instrucción, reporta "OK".
+        // SCRIPT FINAL: Definimos éxito por defecto pero permitimos que el RouterOS lo envíe al final.
         $script = $cmds[$tarea] . "; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no;";
         
         $this->emitirAlBridge($script, $mac, $this->currentTid);
@@ -153,12 +153,13 @@ class ConfDetallada extends Component
                     $iface = $this->activeTask['iface'];
                     $tarea = $this->activeTask['tarea'];
                     
-                    // Si recibimos "OK", el botón se pone verde. 
-                    // Si no recibimos nada o error, el timeout se encargará de ponerlo rojo.
                     if ($data === "OK") {
                         $this->taskStatus[$iface][$tarea] = 'success';
-                        $this->taskResult[$iface][$tarea] = "Aplicado correctamente";
+                        $this->taskResult[$iface][$tarea] = "Configurado";
                         $this->activeTask = null;
+                        
+                        // Pausa de 1.5s entre tareas de cola para el hAP Lite
+                        usleep(1500000); 
                         $this->procesarSiguienteEnCola();
                     }
                 } else {
@@ -166,7 +167,7 @@ class ConfDetallada extends Component
                     $this->isWaitingResponse = false;
                 }
                 $this->intentos = 0;
-            } elseif ($this->intentos >= 35) {
+            } elseif ($this->intentos >= 45) { // Esperamos 45 segundos para el hAP Lite
                 $this->handleTimeout();
             }
         } catch (\Exception $e) {}
@@ -177,7 +178,7 @@ class ConfDetallada extends Component
         if ($this->isWaitingResponse) $this->isWaitingResponse = false;
         if ($this->activeTask) {
             $this->taskStatus[$this->activeTask['iface']][$this->activeTask['tarea']] = 'error';
-            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'TIMEOUT / FALLO';
+            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'TIMEOUT / CPU BUSY';
             $this->activeTask = null;
             $this->queue = [];
         }
