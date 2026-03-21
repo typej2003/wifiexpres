@@ -138,8 +138,18 @@ class ConfDetallada extends Component
             'wg_bdv' => "/ip hotspot walled-garden remove [find comment=\"Pasarela BDV\"]; /ip hotspot walled-garden add dst-host=*.biopagobdv.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden add dst-host=*.banvenez.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden add dst-host=biopago.banvenez.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip remove [find comment=\"Pasarela BDV\"]; /ip hotspot walled-garden ip add dst-address=190.217.7.106 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=190.217.7.229 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=200.11.243.174 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=190.202.148.187 action=accept comment=\"Pasarela BDV\"",
             'wg_push' => "/ip hotspot walled-garden remove [find comment=\"Notificaciones Push\"]; /ip hotspot walled-garden add dst-host=fcm.googleapis.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=fcm-xmpp.googleapis.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=mtalk.google.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=*.push.apple.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=*.push.apple.com.akadns.net action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=appleid.apple.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden ip remove [find comment=\"Notificaciones Push\"]; /ip hotspot walled-garden ip add dst-port=5228-5230 protocol=tcp action=accept comment=\"Notificaciones Push\"; /ip hotspot walled-garden ip add dst-port=5223 protocol=tcp action=accept comment=\"Notificaciones Push\"",
             
-            // PORTAL ACTUALIZADO: Descarga a archivo temporal y lo mueve a la carpeta final
-            'portal' => "/ip hotspot profile set [find name=\"hsprof1\" or name=\"hsprof-$iface\"] html-directory=hotspot; /tool fetch url=\"$downloadUrl\" dst-path=\"login_temp.html\" check-certificate=no; :delay 2s; :do { /file remove [find name=\"hotspot/login.html\"] } on-error={}; /file set [find name=\"login_temp.html\"] name=\"hotspot/login.html\"",
+            // PORTAL REFORZADO: Resuelve DNS primero, borra rastros y descarga
+            'portal' => "
+                :do { /resolve wifiexpres.com } on-error={};
+                :do { /file remove [find name=\"hotspot/login.html\"] } on-error={};
+                :do { /file remove [find name=\"login_temp.html\"] } on-error={};
+                /ip hotspot profile set [find name=\"hsprof1\" or name=\"hsprof-$iface\"] html-directory=hotspot;
+                /tool fetch url=\"$downloadUrl\" dst-path=\"login_temp.html\" check-certificate=no;
+                :delay 3s;
+                :if ([:len [/file find name=\"login_temp.html\"]] > 0) do={
+                    /file set [find name=\"login_temp.html\"] name=\"hotspot/login.html\";
+                }
+            ",
             
             'reboot' => "/system reboot"
         ];
