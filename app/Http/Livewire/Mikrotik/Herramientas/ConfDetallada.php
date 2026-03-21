@@ -44,14 +44,8 @@ class ConfDetallada extends Component
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
 
-        // Descubrimiento compatible con hAP Lite (SMIPS) y AX2
-        $script = "{
-            :local ifs \"\";
-            :foreach i in=[/interface find where type~\"ether|wlan|wifi\"] do={
-                :set ifs (\$ifs . [/interface get \$i name] . \",\");
-            };
-            /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\$ifs keep-result=no;
-        }";
+        $script = ":local ifs \"\"; :foreach i in=[/interface find where type~\"ether|wlan|wifi\"] do={ :set ifs (\$ifs . [/interface get \$i name] . \",\") }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\$ifs keep-result=no";
+        
         $this->emitirAlBridge($script, $mac, $this->currentTid);
     }
 
@@ -103,21 +97,21 @@ class ConfDetallada extends Component
 
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $vCode;
 
-        // COMANDOS OPTIMIZADOS PARA CUALQUIER ARQUITECTURA (HAP LITE / AX2)
+        // COMANDOS LINEALES (Sin bloques complejos para evitar cuelgues en el AX2)
         $cmds = [
-            'bridge'  => "/interface bridge { remove [find name=\"bridge-$iface\"]; add name=\"bridge-$iface\" }; /interface bridge port { remove [find interface=\"$iface\"]; add bridge=\"bridge-$iface\" interface=\"$iface\" }",
+            'bridge'  => "/interface bridge remove [find name=\"bridge-$iface\"]; /interface bridge add name=\"bridge-$iface\"; /interface bridge port remove [find interface=\"$iface\"]; /interface bridge port add bridge=\"bridge-$iface\" interface=\"$iface\"",
             
-            'address' => "/ip address { remove [find interface=\"bridge-$iface\"]; add address=192.168.$segmento.1/24 interface=\"bridge-$iface\" }",
+            'address' => "/ip address remove [find interface=\"bridge-$iface\"]; /ip address add address=192.168.$segmento.1/24 interface=\"bridge-$iface\"",
             
-            'pool'    => "/ip pool { remove [find name=\"pool-$iface\"]; add name=\"pool-$iface\" ranges=192.168.$segmento.10-192.168.$segmento.250 }",
+            'pool'    => "/ip pool remove [find name=\"pool-$iface\"]; /ip pool add name=\"pool-$iface\" ranges=192.168.$segmento.10-192.168.$segmento.250",
             
-            'dhcp'    => "/ip dhcp-server { remove [find interface=\"bridge-$iface\"]; add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"srv-$iface\" disabled=no }; /ip dhcp-server network { remove [find address=192.168.$segmento.0/24]; add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8 }",
+            'dhcp'    => "/ip dhcp-server remove [find interface=\"bridge-$iface\"]; /ip dhcp-server add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"srv-$iface\" disabled=no; /ip dhcp-server network remove [find address=192.168.$segmento.0/24]; /ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8",
             
-            'hotspot' => "/ip hotspot user profile { remove [find name=\"neutro\"]; remove [find name=\"cortesia 20min-0\"]; remove [find name=\"conexiongratis\"]; add name=\"neutro\" shared-users=1 session-timeout=1s; add name=\"cortesia 20min-0\" shared-users=1 session-timeout=20m; add name=\"conexiongratis\" shared-users=1 rate-limit=\"2M/2M\" }; /ip hotspot profile { remove [find name=\"hsprof1\"]; add dns-name=wifi.login name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis }; /ip hotspot { remove [find interface=\"bridge-$iface\"]; add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no }",
+            'hotspot' => "/ip hotspot user profile remove [find name~\"neutro|cortesia|conexion\"]; /ip hotspot user profile add name=\"neutro\" shared-users=1 session-timeout=1s; /ip hotspot user profile add name=\"cortesia 20min-0\" shared-users=1 session-timeout=20m; /ip hotspot user profile add name=\"conexiongratis\" shared-users=1 rate-limit=\"2M/2M\"; /ip hotspot profile remove [find name=\"hsprof1\"]; /ip hotspot profile add dns-name=wifi.login name=hsprof1 login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis; /ip hotspot remove [find interface=\"bridge-$iface\"]; /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=hsprof1 disabled=no",
             
-            'walledgarden' => '/ip hotspot user { remove [find name=admin]; add name=admin password=admin123 }; /ip hotspot walled-garden { remove [find]; :foreach h in={"wifiexpres.com","*.wifiexpres.com","*.biopagobdv.com","*.banvenez.com","biopago.banvenez.com","fcm.googleapis.com","fcm-xmpp.googleapis.com","mtalk.google.com","*.push.apple.com","*.push.apple.com.akadns.net","appleid.apple.com","188.95.113.44"} do={add dst-host=$h} }',
+            'walledgarden' => "/ip hotspot walled-garden remove [find]; :foreach h in={\"wifiexpres.com\",\"*.wifiexpres.com\",\"*.biopagobdv.com\",\"*.banvenez.com\",\"biopago.banvenez.com\",\"fcm.googleapis.com\",\"fcm-xmpp.googleapis.com\",\"mtalk.google.com\",\"*.push.apple.com\",\"*.push.apple.com.akadns.net\",\"appleid.apple.com\",\"188.95.113.44\"} do={/ip hotspot walled-garden add dst-host=\$h}",
             
-            'walledgardenip' => '/ip hotspot walled-garden ip { remove [find]; :foreach i in={"188.95.113.44","190.217.7.106","190.217.7.229","200.11.243.174","190.202.148.187"} do={add dst-address=$i}; add action=accept dst-port=5228-5230 protocol=tcp; add action=accept dst-port=5223 protocol=tcp; add action=accept dst-port=53 protocol=udp; add action=accept dst-port=53 protocol=tcp }',
+            'walledgardenip' => "/ip hotspot walled-garden ip remove [find]; :foreach i in={\"188.95.113.44\",\"190.217.7.106\",\"190.217.7.229\",\"200.11.243.174\",\"190.202.148.187\"} do={/ip hotspot walled-garden ip add dst-address=\$i}; /ip hotspot walled-garden ip add action=accept dst-port=5228-5230 protocol=tcp; /ip hotspot walled-garden ip add action=accept dst-port=5223 protocol=tcp; /ip hotspot walled-garden ip add action=accept dst-port=53 protocol=udp; /ip hotspot walled-garden ip add action=accept dst-port=53 protocol=tcp",
 
             'portal' => "/ip hotspot profile set [find name=\"hsprof1\"] html-directory=hotspot; /tool fetch url=\"$downloadUrl\" dst-path=\"hotspot/login.html\" check-certificate=no",
             
@@ -126,8 +120,8 @@ class ConfDetallada extends Component
 
         $this->currentTid = "CFG" . rand(10,99) . time();
         
-        // SCRIPT FINAL: Definimos éxito por defecto pero permitimos que el RouterOS lo envíe al final.
-        $script = $cmds[$tarea] . "; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no;";
+        // SCRIPT FINAL: Sin llaves externas si no son necesarias, respuesta simple.
+        $script = $cmds[$tarea] . "; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no";
         
         $this->emitirAlBridge($script, $mac, $this->currentTid);
     }
@@ -136,51 +130,68 @@ class ConfDetallada extends Component
     {
         $comandoLimpio = trim(preg_replace('/\s+/', ' ', $script));
         Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])->withBody($comandoLimpio, 'text/plain')->post("{$this->bridgeUrl}/set-command");
+        $this->isWaitingResponse = true; // Aseguramos que se dispare el check
     }
 
     public function checkStatus()
     {
-        if (!$this->isWaitingResponse && !$this->activeTask) return;
-        $this->intentos++;
+        if (!$this->activeTask && !$this->isWaitingResponse) return;
+        
         $router = Router::find($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
-        
+        $this->intentos++;
+
         try {
             $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $this->currentTid]);
-            if ($res->successful() && $res->json('status') === 'ready') {
+            
+            if ($res->successful()) {
+                $status = $res->json('status'); // 'ready', 'failed', 'pending', etc.
                 $data = trim($res->json('data'));
-                if ($this->activeTask) {
-                    $iface = $this->activeTask['iface'];
-                    $tarea = $this->activeTask['tarea'];
-                    
-                    if ($data === "OK") {
-                        $this->taskStatus[$iface][$tarea] = 'success';
-                        $this->taskResult[$iface][$tarea] = "Configurado";
-                        $this->activeTask = null;
-                        
-                        // Pausa de 1.5s entre tareas de cola para el hAP Lite
-                        usleep(1500000); 
-                        $this->procesarSiguienteEnCola();
-                    }
-                } else {
-                    $this->interfaces = array_filter(explode(',', $data));
-                    $this->isWaitingResponse = false;
+
+                // 1. Éxito: El router respondió "OK"
+                if ($status === 'ready' && $data === "OK") {
+                    $this->finalizarTareaActual('success', 'Aplicado');
+                    return;
                 }
-                $this->intentos = 0;
-            } elseif ($this->intentos >= 45) { // Esperamos 45 segundos para el hAP Lite
-                $this->handleTimeout();
+
+                // 2. Fallo reportado por el Bridge (Socket cerrado o error de envío)
+                if ($status === 'failed' || $status === 'error' || $data === "ERROR") {
+                    $this->finalizarTareaActual('error', 'Fallo en Bridge/Socket');
+                    return;
+                }
             }
-        } catch (\Exception $e) {}
+
+            // 3. Timeout local (Seguridad si el Bridge se queda mudo)
+            if ($this->intentos >= 35) {
+                $this->finalizarTareaActual('error', 'Sin respuesta del Router');
+            }
+
+        } catch (\Exception $e) {
+            // Error de red
+        }
     }
 
-    private function handleTimeout()
+    private function finalizarTareaActual($status, $mensaje)
     {
-        if ($this->isWaitingResponse) $this->isWaitingResponse = false;
         if ($this->activeTask) {
-            $this->taskStatus[$this->activeTask['iface']][$this->activeTask['tarea']] = 'error';
-            $this->taskResult[$this->activeTask['iface']][$this->activeTask['tarea']] = 'TIMEOUT / CPU BUSY';
+            $iface = $this->activeTask['iface'];
+            $tarea = $this->activeTask['tarea'];
+            
+            $this->taskStatus[$iface][$tarea] = $status;
+            $this->taskResult[$iface][$tarea] = $mensaje;
+            
             $this->activeTask = null;
-            $this->queue = [];
+            $this->intentos = 0;
+
+            if ($status === 'success') {
+                usleep(500000); // 0.5 seg de respiro
+                $this->procesarSiguienteEnCola();
+            } else {
+                $this->queue = []; // Si algo falla, abortamos la cadena
+                $this->isWaitingResponse = false;
+            }
+        } else {
+            $this->isWaitingResponse = false;
         }
     }
 
