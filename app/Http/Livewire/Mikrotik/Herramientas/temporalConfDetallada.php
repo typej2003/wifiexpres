@@ -53,24 +53,6 @@ class ConfDetallada extends Component
         $this->emitirAlBridge($script, $mac, $this->currentTid);
     }
 
-    /**
-     * MÉTODO AGREGADO: Forzar el copiado del login con la lógica de 3 pasos
-     */
-    public function forzarCopiadoLogin()
-    {
-        if (!$this->router_id || !$this->version_id || $this->isProcessing) return;
-
-        $this->isProcessing = true;
-        $this->queue = [];
-        
-        // Creamos una cola de 3 micro-tareas para asegurar los delays
-        $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => 'limpiar_files'];
-        $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => 'descargar_portal'];
-        $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => 'aplicar_portal'];
-        
-        $this->procesarSiguienteEnCola();
-    }
-
     public function scanearInterfaz($iface, $index)
     {
         if ($this->isProcessing) return;
@@ -138,25 +120,55 @@ class ConfDetallada extends Component
                 :do { /interface bridge port remove [find where interface=\"$iface\"] } on-error={};
                 :do { /interface bridge remove [find where name=\"bridge-$iface\"] } on-error={};
             ",
-            'bridge'  => ":if ([:len [/interface bridge find name=\"bridge-$iface\"]] = 0) do={ /interface bridge add name=\"bridge-$iface\" }; :if ([:len [/interface bridge port find interface=\"$iface\"]] = 0) do={ /interface bridge port add bridge=\"bridge-$iface\" interface=\"$iface\" };",
-            'address' => ":if ([:len [/ip address find interface=\"bridge-$iface\"]] = 0) do={ /ip address add address=192.168.$segmento.1/24 interface=\"bridge-$iface\" };",
-            'pool'    => ":if ([:len [/ip pool find name=\"pool-$iface\"]] = 0) do={ /ip pool add name=\"pool-$iface\" ranges=192.168.$segmento.10-192.168.$segmento.250 };",
-            'dhcp'    => ":delay 2s; /ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8; :delay 1s; /ip dhcp-server add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"srv-$iface\" disabled=no;",
-            'hotspot' => ":delay 2s; :do { /ip hotspot user profile remove [find where name~\"neutro|cortesia|conexion\"] } on-error={}; /ip hotspot user profile add name=\"neutro\" shared-users=1 session-timeout=1s; /ip hotspot user profile add name=\"cortesia 20min-0\" shared-users=1 session-timeout=20m; /ip hotspot user profile add name=\"conexiongratis\" shared-users=1 rate-limit=\"2M/2M\"; :delay 1s; :if ([:len [/ip hotspot profile find name=\"hsprof-$iface\"]] = 0) do={ /ip hotspot profile add dns-name=wifi.login name=\"hsprof-$iface\" login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis; }; :delay 1s; :if ([:len [/ip hotspot find interface=\"bridge-$iface\"]] = 0) do={ /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=\"hsprof-$iface\" disabled=no; };",
+            'bridge'  => "
+                :if ([:len [/interface bridge find name=\"bridge-$iface\"]] = 0) do={ /interface bridge add name=\"bridge-$iface\" };
+                :if ([:len [/interface bridge port find interface=\"$iface\"]] = 0) do={ /interface bridge port add bridge=\"bridge-$iface\" interface=\"$iface\" };
+            ",
+            'address' => "
+                :if ([:len [/ip address find interface=\"bridge-$iface\"]] = 0) do={ /ip address add address=192.168.$segmento.1/24 interface=\"bridge-$iface\" };
+            ",
+            'pool'    => "
+                :if ([:len [/ip pool find name=\"pool-$iface\"]] = 0) do={ /ip pool add name=\"pool-$iface\" ranges=192.168.$segmento.10-192.168.$segmento.250 };
+            ",
+            'dhcp'    => "
+                :delay 2s;
+                /ip dhcp-server network add address=192.168.$segmento.0/24 gateway=192.168.$segmento.1 dns-server=8.8.8.8;
+                :delay 1s;
+                /ip dhcp-server add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"srv-$iface\" disabled=no;
+            ",
+            'hotspot' => "
+                :delay 2s;
+                :do { /ip hotspot user profile remove [find where name~\"neutro|cortesia|conexion\"] } on-error={};
+                /ip hotspot user profile add name=\"neutro\" shared-users=1 session-timeout=1s;
+                /ip hotspot user profile add name=\"cortesia 20min-0\" shared-users=1 session-timeout=20m;
+                /ip hotspot user profile add name=\"conexiongratis\" shared-users=1 rate-limit=\"2M/2M\";
+                :delay 1s;
+                :if ([:len [/ip hotspot profile find name=\"hsprof-$iface\"]] = 0) do={
+                    /ip hotspot profile add dns-name=wifi.login name=\"hsprof-$iface\" login-by=http-chap,http-pap,trial trial-user-profile=conexiongratis;
+                };
+                :delay 1s;
+                :if ([:len [/ip hotspot find interface=\"bridge-$iface\"]] = 0) do={
+                    /ip hotspot add address-pool=\"pool-$iface\" interface=\"bridge-$iface\" name=\"hotspot-$iface\" profile=\"hsprof-$iface\" disabled=no;
+                };
+            ",
             'wg_servidor' => "/ip hotspot walled-garden remove [find dst-host=\"wifiexpres.com\" or dst-host=\"*.wifiexpres.com\" or dst-host=\"188.95.113.44\"]; /ip hotspot walled-garden add dst-host=wifiexpres.com; /ip hotspot walled-garden add dst-host=*.wifiexpres.com; /ip hotspot walled-garden add dst-host=188.95.113.44; :do { /ip hotspot walled-garden ip remove [find dst-address=188.95.113.44] } on-error={}; /ip hotspot walled-garden ip add dst-address=188.95.113.44 dst-port=3000 protocol=tcp comment=\"Acceso Bridge Nodejs\"",
             'wg_bdv' => "/ip hotspot walled-garden remove [find comment=\"Pasarela BDV\"]; /ip hotspot walled-garden add dst-host=*.biopagobdv.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden add dst-host=*.banvenez.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden add dst-host=biopago.banvenez.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip remove [find comment=\"Pasarela BDV\"]; /ip hotspot walled-garden ip add dst-address=190.217.7.106 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=190.217.7.229 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=200.11.243.174 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=190.202.148.187 action=accept comment=\"Pasarela BDV\"",
             'wg_push' => "/ip hotspot walled-garden remove [find comment=\"Notificaciones Push\"]; /ip hotspot walled-garden add dst-host=fcm.googleapis.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=fcm-xmpp.googleapis.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=mtalk.google.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=*.push.apple.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=*.push.apple.com.akadns.net action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=appleid.apple.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden ip remove [find comment=\"Notificaciones Push\"]; /ip hotspot walled-garden ip add dst-port=5228-5230 protocol=tcp action=accept comment=\"Notificaciones Push\"; /ip hotspot walled-garden ip add dst-port=5223 protocol=tcp action=accept comment=\"Notificaciones Push\"",
             
-            // TAREAS PARA FORZAR PORTAL (Basado en tu código funcional)
-            'limpiar_files'    => ':do { /file remove [find name="hotspot/login.html"] } on-error={}; :do { /file remove [find name="login_temp.html"] } on-error={}',
-            'descargar_portal' => ':delay 2s; /tool fetch url="'.$downloadUrl.'" dst-path="login_temp.html" check-certificate=no',
-            'aplicar_portal'   => ':delay 5s; :if ([:len [/file find name="login_temp.html"]] > 0) do={ /file set [find name="login_temp.html"] name="hotspot/login.html" }',
-
+            // PORTAL AJUSTADO PARA hAP lite (Memoria Lenta)
             'portal' => "
-                :do { /resolve wifiexpres.com } on-error={}; :delay 1s;
-                :do { /file remove [find name=\"hotspot/login.html\"] } on-error={}; :do { /file remove [find name=\"login_temp.html\"] } on-error={};
-                :delay 2s; /tool fetch url=\"$downloadUrl\" dst-path=\"login_temp.html\" check-certificate=no;
-                :delay 5s; :if ([:len [/file find name=\"login_temp.html\"]] > 0) do={ :delay 2s; /file set [find name=\"login_temp.html\"] name=\"hotspot/login.html\"; :delay 1s; }
+                :do { /resolve wifiexpres.com } on-error={};
+                :delay 1s;
+                :do { /file remove [find name=\"hotspot/login.html\"] } on-error={};
+                :do { /file remove [find name=\"login_temp.html\"] } on-error={};
+                :delay 2s;
+                /tool fetch url=\"$downloadUrl\" dst-path=\"login_temp.html\" check-certificate=no;
+                :delay 5s;
+                :if ([:len [/file find name=\"login_temp.html\"]] > 0) do={
+                    :delay 2s;
+                    /file set [find name=\"login_temp.html\"] name=\"hotspot/login.html\";
+                    :delay 1s;
+                }
             ",
             'reboot' => "/system reboot"
         ];
