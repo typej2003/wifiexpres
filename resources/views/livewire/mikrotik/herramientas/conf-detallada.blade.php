@@ -145,7 +145,7 @@
         <div class="row">
             <div class="col-12">
                 <button wire:click="forzarCopiadoLogin" 
-                    @if(!$router_id || !$version_id || $isConfiguring) disabled @endif
+                    @if(!$router_id || !$version_id) disabled @endif
                     class="btn btn-secondary rounded-3 fw-bold w-100 py-2 shadow-sm border-0" 
                     style="background-color: #2c3e50;">
                     <i class="bi bi-file-earmark-arrow-down-fill me-2"></i> FORZAR COPIADO DE LOGIN.HTML (VERSIÓN SELECCIONADA)
