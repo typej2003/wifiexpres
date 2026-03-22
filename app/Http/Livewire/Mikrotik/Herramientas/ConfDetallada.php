@@ -54,19 +54,37 @@ class ConfDetallada extends Component
     }
 
     /**
-     * MÉTODO AGREGADO: Forzar el copiado del login con la lógica de 3 pasos
+     * MÉTODO TAL CUAL LO SOLICITASTE
      */
     public function forzarCopiadoLogin()
     {
-        if (!$this->router_id || !$this->version_id || $this->isProcessing) return;
+        $this->validate(['router_id' => 'required', 'version_id' => 'required']);
+        
+        $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $this->version_id;
 
+        $this->iniciarProceso("📂 Forzando descarga de Portal Cautivo...", [
+            ['cmd' => ':do { /file remove [find name="hotspot/login.html"] } on-error={}; :do { /file remove [find name="login_temp.html"] } on-error={}', 'desc' => '1. Limpiando archivos'],
+            ['cmd' => ':delay 2s; /tool fetch url="'.$downloadUrl.'" dst-path="login_temp.html" check-certificate=no', 'desc' => '2. Descargando nuevo portal'],
+            ['cmd' => ':delay 5s; :if ([:len [/file find name="login_temp.html"]] > 0) do={ /file set [find name="login_temp.html"] name="hotspot/login.html" }', 'desc' => '3. Aplicando cambios'],
+        ]);
+    }
+
+    /**
+     * Lógica de ejecución secuencial necesaria para forzarCopiadoLogin
+     */
+    public function iniciarProceso($titulo, $pasos)
+    {
         $this->isProcessing = true;
         $this->queue = [];
         
-        // Creamos una cola de 3 micro-tareas para asegurar los delays
-        $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => 'limpiar_files'];
-        $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => 'descargar_portal'];
-        $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => 'aplicar_portal'];
+        foreach ($pasos as $paso) {
+            $this->queue[] = [
+                'iface' => 'global',
+                'index' => 0,
+                'tarea' => $paso['desc'], // Usamos la descripción como nombre de tarea
+                'custom_cmd' => $paso['cmd']
+            ];
+        }
         
         $this->procesarSiguienteEnCola();
     }
@@ -100,12 +118,35 @@ class ConfDetallada extends Component
     {
         if (count($this->queue) > 0) {
             $next = array_shift($this->queue);
-            $this->ejecutarTarea($next['iface'], $next['index'], $next['tarea']);
+            
+            if (isset($next['custom_cmd'])) {
+                $this->ejecutarComandoDirecto($next['iface'], $next['tarea'], $next['custom_cmd']);
+            } else {
+                $this->ejecutarTarea($next['iface'], $next['index'], $next['tarea']);
+            }
         } else {
             $this->isProcessing = false;
             $this->isWaitingResponse = false;
             $this->activeTask = null;
         }
+    }
+
+    /**
+     * Ejecuta los comandos exactos de forzarCopiadoLogin
+     */
+    public function ejecutarComandoDirecto($iface, $tarea, $cmd)
+    {
+        $this->taskStatus[$iface][$tarea] = 'loading';
+        $this->taskResult[$iface][$tarea] = 'Enviando...';
+        $this->activeTask = ['iface' => $iface, 'tarea' => $tarea, 'index' => 0];
+        
+        $router = Router::findOrFail($this->router_id);
+        $mac = strtoupper(trim($router->macAddress));
+        
+        $this->currentTid = "CFG" . rand(10,99) . time();
+        $script = $cmd . "; :delay 1s; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no";
+        
+        $this->emitirAlBridge($script, $mac, $this->currentTid);
     }
 
     public function ejecutarTarea($iface, $index, $tarea)
@@ -147,11 +188,6 @@ class ConfDetallada extends Component
             'wg_bdv' => "/ip hotspot walled-garden remove [find comment=\"Pasarela BDV\"]; /ip hotspot walled-garden add dst-host=*.biopagobdv.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden add dst-host=*.banvenez.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden add dst-host=biopago.banvenez.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip remove [find comment=\"Pasarela BDV\"]; /ip hotspot walled-garden ip add dst-address=190.217.7.106 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=190.217.7.229 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=200.11.243.174 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=190.202.148.187 action=accept comment=\"Pasarela BDV\"",
             'wg_push' => "/ip hotspot walled-garden remove [find comment=\"Notificaciones Push\"]; /ip hotspot walled-garden add dst-host=fcm.googleapis.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=fcm-xmpp.googleapis.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=mtalk.google.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=*.push.apple.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=*.push.apple.com.akadns.net action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=appleid.apple.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden ip remove [find comment=\"Notificaciones Push\"]; /ip hotspot walled-garden ip add dst-port=5228-5230 protocol=tcp action=accept comment=\"Notificaciones Push\"; /ip hotspot walled-garden ip add dst-port=5223 protocol=tcp action=accept comment=\"Notificaciones Push\"",
             
-            // TAREAS PARA FORZAR PORTAL (Basado en tu código funcional)
-            'limpiar_files'    => ':do { /file remove [find name="hotspot/login.html"] } on-error={}; :do { /file remove [find name="login_temp.html"] } on-error={}',
-            'descargar_portal' => ':delay 2s; /tool fetch url="'.$downloadUrl.'" dst-path="login_temp.html" check-certificate=no',
-            'aplicar_portal'   => ':delay 5s; :if ([:len [/file find name="login_temp.html"]] > 0) do={ /file set [find name="login_temp.html"] name="hotspot/login.html" }',
-
             'portal' => "
                 :do { /resolve wifiexpres.com } on-error={}; :delay 1s;
                 :do { /file remove [find name=\"hotspot/login.html\"] } on-error={}; :do { /file remove [find name=\"login_temp.html\"] } on-error={};
