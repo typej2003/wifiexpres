@@ -84,41 +84,63 @@
                 <ul class="list-group list-group-flush">
                     @php 
                         $globals = [
-                            'wg_servidor' => 'SERVIDOR & BRIDGE',
-                            'wg_bdv' => 'BANCO DE VENEZUELA',
-                            'wg_push' => 'NOTIFICACIONES PUSH',
-                            'reboot' => 'REINICIAR SISTEMA'
+                            'wg_servidor' => ['label' => 'SERVIDOR & BRIDGE'],
+                            'wg_bdv' => ['label' => 'BANCO DE VENEZUELA'],
+                            'wg_push' => ['label' => 'NOTIFICACIONES PUSH'],
+                            'reboot' => ['label' => 'REINICIAR SISTEMA']
                         ];
                     @endphp
 
-                    @foreach($taskResult['global'] ?? [] as $key => $res)
+                    {{-- Lista fija original --}}
+                    @foreach($globals as $key => $info)
                         <li class="list-group-item py-3">
                             <div class="d-flex justify-content-between align-items-center px-3">
                                 <div class="flex-grow-1">
-                                    <span class="small fw-bold text-primary text-uppercase d-block">{{ $globals[$key] ?? $key }}</span>
-                                    <div class="mt-1 {{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'text-success-neon' : 'text-danger' }}" style="font-size: 11px;">
-                                        {{ ($taskStatus['global'][$key] ?? '') == 'loading' ? '⏳ PROCESANDO...' : 'RESULTADO: ' . $res }}
-                                    </div>
+                                    <span class="small fw-bold text-primary text-uppercase d-block">{{ $info['label'] }}</span>
+                                    @if(isset($taskResult['global'][$key]))
+                                        <div class="mt-1 {{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'text-success-neon' : 'text-danger fw-bold' }}" style="font-size: 11px;">
+                                            RESULTADO: {{ $taskResult['global'][$key] }}
+                                        </div>
+                                    @endif
                                 </div>
-                                @if(($taskStatus['global'][$key] ?? '') == 'loading')
-                                    <span class="spinner-border spinner-border-sm text-primary"></span>
-                                @elseif(($taskStatus['global'][$key] ?? '') == 'success')
-                                    <i class="fas fa-check-circle text-success-neon"></i>
-                                @endif
+                                <button wire:click="ejecutarTarea('global', 0, '{{ $key }}')" {{ $isProcessing ? 'disabled' : '' }} class="btn btn-sm rounded-pill px-4 shadow-sm fw-bold {{ ($taskStatus['global'][$key] ?? '') == 'success' ? 'btn-success-neon' : 'btn-outline-primary' }}">
+                                    @if(($taskStatus['global'][$key] ?? '') == 'loading') <span class="spinner-border spinner-border-sm"></span> @else ENVIAR @endif
+                                </button>
                             </div>
                         </li>
+                    @endforeach
+
+                    {{-- NUEVO: Bloque dinámico solo para el Forzado de Portal --}}
+                    @foreach($taskResult['global'] ?? [] as $tareaNombre => $resultado)
+                        @if(!array_key_exists($tareaNombre, $globals))
+                            <li class="list-group-item py-2 bg-light border-start border-4 {{ ($taskStatus['global'][$tareaNombre] ?? '') == 'success' ? 'border-success' : 'border-warning' }}">
+                                <div class="d-flex justify-content-between align-items-center px-3">
+                                    <div>
+                                        <span class="fw-bold text-dark small text-uppercase">{{ $tareaNombre }}</span>
+                                        <div class="mt-1 {{ ($taskStatus['global'][$tareaNombre] ?? '') == 'success' ? 'text-success-neon' : 'text-danger' }}" style="font-size: 11px;">
+                                            {{ ($taskStatus['global'][$tareaNombre] ?? '') == 'loading' ? '⏳ PROCESANDO...' : 'ESTADO: ' . $resultado }}
+                                        </div>
+                                    </div>
+                                    @if(($taskStatus['global'][$tareaNombre] ?? '') == 'loading')
+                                        <span class="spinner-border spinner-border-sm text-primary"></span>
+                                    @elseif(($taskStatus['global'][$tareaNombre] ?? '') == 'success')
+                                        <i class="fas fa-check-circle text-success-neon"></i>
+                                    @endif
+                                </div>
+                            </li>
+                        @endif
                     @endforeach
                 </ul>
             </div>
         </div>
 
         <div class="row">
-            <div class="col-12 text-center">
-                <button wire:click="forzarCopiadoLogin" {{ $isProcessing || !$version_id ? 'disabled' : '' }} class="btn btn-secondary rounded-3 fw-bold w-100 py-3 shadow-sm border-0" style="background-color: #2c3e50;">
+            <div class="col-12">
+                <button wire:click="forzarCopiadoLogin" {{ $isProcessing || !$version_id ? 'disabled' : '' }} class="btn btn-secondary rounded-3 fw-bold w-100 py-2 shadow-sm border-0" style="background-color: #2c3e50;">
                     <span wire:loading wire:target="forzarCopiadoLogin" class="spinner-border spinner-border-sm me-2"></span>
-                    <i class="fas fa-download me-2"></i> FORZAR COPIADO DE LOGIN.HTML (PROCESO 3 PASOS)
+                    <i class="fas fa-download me-2"></i> FORZAR COPIADO DE LOGIN.HTML (VERSIÓN SELECCIONADA)
                 </button>
-                <p class="text-muted small mt-2"><i class="fas fa-info-circle me-1"></i> Se limpiarán archivos previos, se descargará la versión seleccionada y se aplicará el cambio.</p>
+                <p class="text-muted small mt-2 text-center"><i class="fas fa-info-circle"></i> Esto descargará el archivo HTML en la carpeta <code>hotspot/</code> sin alterar la configuración del router.</p>
             </div>
         </div>
     @endif

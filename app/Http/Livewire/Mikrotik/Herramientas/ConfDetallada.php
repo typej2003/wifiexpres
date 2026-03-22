@@ -54,32 +54,20 @@ class ConfDetallada extends Component
     }
 
     /**
-     * Lógica de 3 pasos para el Portal Cautivo
+     * MÉDOTO ESPECÍFICO: Forzar portal cautivo
      */
     public function forzarCopiadoLogin()
     {
         $this->validate(['router_id' => 'required', 'version_id' => 'required']);
+        $this->isProcessing = true;
         
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $this->version_id;
 
-        $this->iniciarProceso([
-            ['cmd' => ':do { /file remove [find name="hotspot/login.html"] } on-error={}; :do { /file remove [find name="login_temp.html"] } on-error={}', 'desc' => '1. LIMPIANDO ARCHIVOS'],
-            ['cmd' => ':delay 2s; /tool fetch url="'.$downloadUrl.'" dst-path="login_temp.html" check-certificate=no', 'desc' => '2. DESCARGANDO PORTAL'],
-            ['cmd' => ':delay 5s; :if ([:len [/file find name="login_temp.html"]] > 0) do={ /file set [find name="login_temp.html"] name="hotspot/login.html" }', 'desc' => '3. APLICANDO CAMBIOS'],
-        ]);
-    }
+        // Inyectamos los 3 pasos en la cola
+        $this->queue[] = ['iface' => 'global', 'tarea' => '1. Limpiando archivos', 'custom_cmd' => ':do { /file remove [find name="hotspot/login.html"] } on-error={}; :do { /file remove [find name="login_temp.html"] } on-error={}'];
+        $this->queue[] = ['iface' => 'global', 'tarea' => '2. Descargando portal', 'custom_cmd' => ':delay 2s; /tool fetch url="'.$downloadUrl.'" dst-path="login_temp.html" check-certificate=no'];
+        $this->queue[] = ['iface' => 'global', 'tarea' => '3. Aplicando cambios', 'custom_cmd' => ':delay 5s; :if ([:len [/file find name="login_temp.html"]] > 0) do={ /file set [find name="login_temp.html"] name="hotspot/login.html" }'];
 
-    public function iniciarProceso($pasos)
-    {
-        $this->isProcessing = true;
-        foreach ($pasos as $paso) {
-            $this->queue[] = [
-                'iface' => 'global',
-                'index' => 0,
-                'tarea' => $paso['desc'], 
-                'custom_cmd' => $paso['cmd']
-            ];
-        }
         $this->procesarSiguienteEnCola();
     }
 
@@ -92,13 +80,6 @@ class ConfDetallada extends Component
         $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => 'wg_servidor'];
         $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => 'wg_bdv'];
         $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => 'wg_push'];
-        
-        // Inyectamos los pasos del portal dentro de la cola global
-        $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $this->version_id;
-        $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => '1. LIMPIANDO ARCHIVOS', 'custom_cmd' => ':do { /file remove [find name="hotspot/login.html"] } on-error={}; :do { /file remove [find name="login_temp.html"] } on-error={}'];
-        $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => '2. DESCARGANDO PORTAL', 'custom_cmd' => ':delay 2s; /tool fetch url="'.$downloadUrl.'" dst-path="login_temp.html" check-certificate=no'];
-        $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => '3. APLICANDO CAMBIOS', 'custom_cmd' => ':delay 5s; :if ([:len [/file find name="login_temp.html"]] > 0) do={ /file set [find name="login_temp.html"] name="hotspot/login.html" }'];
-        
         $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => 'reboot'];
         
         $this->procesarSiguienteEnCola();
@@ -121,7 +102,7 @@ class ConfDetallada extends Component
             if (isset($next['custom_cmd'])) {
                 $this->ejecutarTareaDirecta($next['iface'], $next['tarea'], $next['custom_cmd']);
             } else {
-                $this->ejecutarTarea($next['iface'], $next['index'], $next['tarea']);
+                $this->ejecutarTarea($next['iface'], $next['index'] ?? 0, $next['tarea']);
             }
         } else {
             $this->isProcessing = false;
