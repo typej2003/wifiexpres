@@ -54,38 +54,13 @@ class ConfDetallada extends Component
     }
 
     /**
-     * MÉTODO FUNCIONAL: Forzado de login
+     * Botón independiente para forzar el portal si es necesario
      */
     public function forzarCopiadoLogin()
     {
-        $this->validate(['router_id' => 'required', 'version_id' => 'required']);
-        
-        $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $this->version_id;
-
-        $this->iniciarProceso("📂 Forzando descarga de Portal Cautivo...", [
-            ['cmd' => ':do { /file remove [find name="hotspot/login.html"] } on-error={}; :do { /file remove [find name="login_temp.html"] } on-error={}', 'desc' => '1. Limpiando archivos'],
-            ['cmd' => ':delay 2s; /tool fetch url="'.$downloadUrl.'" dst-path="login_temp.html" check-certificate=no', 'desc' => '2. Descargando nuevo portal'],
-            ['cmd' => ':delay 5s; :if ([:len [/file find name="login_temp.html"]] > 0) do={ /file set [find name="login_temp.html"] name="hotspot/login.html" }', 'desc' => '3. Aplicando cambios'],
-        ]);
-    }
-
-    /**
-     * Inicia el proceso secuencial para los pasos del portal
-     */
-    public function iniciarProceso($titulo, $pasos)
-    {
+        if (!$this->router_id || !$this->version_id || $this->isProcessing) return;
         $this->isProcessing = true;
-        // No reseteamos la cola completa para no borrar tareas pendientes (como reboot)
-        // Insertamos los pasos al inicio de la cola actual
-        foreach (array_reverse($pasos) as $paso) {
-            array_unshift($this->queue, [
-                'iface' => 'global',
-                'index' => 0,
-                'tarea' => $paso['desc'],
-                'custom_cmd' => $paso['cmd']
-            ]);
-        }
-        
+        $this->queue = [['iface' => 'global', 'index' => 0, 'tarea' => 'portal']];
         $this->procesarSiguienteEnCola();
     }
 
@@ -118,12 +93,7 @@ class ConfDetallada extends Component
     {
         if (count($this->queue) > 0) {
             $next = array_shift($this->queue);
-            
-            if (isset($next['custom_cmd'])) {
-                $this->ejecutarComandoDirecto($next['iface'], $next['tarea'], $next['custom_cmd']);
-            } else {
-                $this->ejecutarTarea($next['iface'], $next['index'], $next['tarea']);
-            }
+            $this->ejecutarTarea($next['iface'], $next['index'], $next['tarea']);
         } else {
             $this->isProcessing = false;
             $this->isWaitingResponse = false;
@@ -131,29 +101,8 @@ class ConfDetallada extends Component
         }
     }
 
-    public function ejecutarComandoDirecto($iface, $tarea, $cmd)
-    {
-        $this->taskStatus[$iface][$tarea] = 'loading';
-        $this->taskResult[$iface][$tarea] = 'Enviando...';
-        $this->activeTask = ['iface' => $iface, 'tarea' => $tarea, 'index' => 0];
-        
-        $router = Router::findOrFail($this->router_id);
-        $mac = strtoupper(trim($router->macAddress));
-        
-        $this->currentTid = "CFG" . rand(10,99) . time();
-        $script = $cmd . "; :delay 1s; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no";
-        
-        $this->emitirAlBridge($script, $mac, $this->currentTid);
-    }
-
     public function ejecutarTarea($iface, $index, $tarea)
     {
-        // INTERCEPCIÓN: Si la tarea es portal, redirigir al método funcional
-        if ($tarea === 'portal') {
-            $this->forzarCopiadoLogin();
-            return;
-        }
-
         $this->taskStatus[$iface][$tarea] = 'loading';
         $this->taskResult[$iface][$tarea] = 'Enviando...';
         $this->activeTask = ['iface' => $iface, 'tarea' => $tarea, 'index' => $index];
@@ -164,6 +113,13 @@ class ConfDetallada extends Component
         $mac = strtoupper(trim($router->macAddress));
         $segmento = ($index + 1) * 10;
         
+        $vCode = 1;
+        if($this->version_id) {
+            $versionObj = HotspotVersion::find($this->version_id);
+            $vCode = $versionObj ? $versionObj->code : 1;
+        }
+        $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $vCode;
+
         $cmds = [
             'limpiar_interfaz' => "
                 :do { /ip hotspot remove [find where interface=\"bridge-$iface\"] } on-error={};
@@ -183,6 +139,17 @@ class ConfDetallada extends Component
             'wg_servidor' => "/ip hotspot walled-garden remove [find dst-host=\"wifiexpres.com\" or dst-host=\"*.wifiexpres.com\" or dst-host=\"188.95.113.44\"]; /ip hotspot walled-garden add dst-host=wifiexpres.com; /ip hotspot walled-garden add dst-host=*.wifiexpres.com; /ip hotspot walled-garden add dst-host=188.95.113.44; :do { /ip hotspot walled-garden ip remove [find dst-address=188.95.113.44] } on-error={}; /ip hotspot walled-garden ip add dst-address=188.95.113.44 dst-port=3000 protocol=tcp comment=\"Acceso Bridge Nodejs\"",
             'wg_bdv' => "/ip hotspot walled-garden remove [find comment=\"Pasarela BDV\"]; /ip hotspot walled-garden add dst-host=*.biopagobdv.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden add dst-host=*.banvenez.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden add dst-host=biopago.banvenez.com action=allow comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip remove [find comment=\"Pasarela BDV\"]; /ip hotspot walled-garden ip add dst-address=190.217.7.106 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=190.217.7.229 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=200.11.243.174 action=accept comment=\"Pasarela BDV\"; /ip hotspot walled-garden ip add dst-address=190.202.148.187 action=accept comment=\"Pasarela BDV\"",
             'wg_push' => "/ip hotspot walled-garden remove [find comment=\"Notificaciones Push\"]; /ip hotspot walled-garden add dst-host=fcm.googleapis.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=fcm-xmpp.googleapis.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=mtalk.google.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=*.push.apple.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=*.push.apple.com.akadns.net action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden add dst-host=appleid.apple.com action=allow comment=\"Notificaciones Push\"; /ip hotspot walled-garden ip remove [find comment=\"Notificaciones Push\"]; /ip hotspot walled-garden ip add dst-port=5228-5230 protocol=tcp action=accept comment=\"Notificaciones Push\"; /ip hotspot walled-garden ip add dst-port=5223 protocol=tcp action=accept comment=\"Notificaciones Push\"",
+            
+            'portal' => "
+                :do { /file remove [find name=\"hotspot/login.html\"] } on-error={}; 
+                :do { /file remove [find name=\"login_temp.html\"] } on-error={};
+                :delay 2s; 
+                /tool fetch url=\"$downloadUrl\" dst-path=\"login_temp.html\" check-certificate=no;
+                :delay 5s; 
+                :if ([:len [/file find name=\"login_temp.html\"]] > 0) do={ 
+                    /file set [find name=\"login_temp.html\"] name=\"hotspot/login.html\" 
+                }
+            ",
             'reboot' => "/system reboot"
         ];
 
