@@ -54,42 +54,39 @@ class ConfDetallada extends Component
     }
 
     /**
-     * EJECUCIÓN DIRECTA E INDEPENDIENTE
+     * TU LÓGICA FUNCIONAL: Ejecución paso a paso
      */
     public function forzarCopiadoLogin()
     {
-        if (!$this->router_id || !$this->version_id) return;
+        $this->validate(['router_id' => 'required', 'version_id' => 'required']);
+        
+        $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $this->version_id;
 
-        // No bloqueamos con isProcessing para permitir ejecución manual directa
-        $this->activeTask = ['iface' => 'global', 'tarea' => 'portal', 'index' => 0];
-        $this->taskStatus['global']['portal'] = 'loading';
-        $this->taskResult['global']['portal'] = 'Enviando portal...';
-        
-        $router = Router::findOrFail($this->router_id);
-        $mac = strtoupper(trim($router->macAddress));
-        
-        $vCode = 1;
-        $versionObj = HotspotVersion::find($this->version_id);
-        $vCode = $versionObj ? $versionObj->code : 1;
-        
-        $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $vCode;
+        $this->iniciarProceso("📂 Forzando descarga de Portal Cautivo...", [
+            ['cmd' => ':do { /file remove [find name="hotspot/login.html"] } on-error={}; :do { /file remove [find name="login_temp.html"] } on-error={}', 'desc' => '1. Limpiando archivos'],
+            ['cmd' => ':delay 2s; /tool fetch url="'.$downloadUrl.'" dst-path="login_temp.html" check-certificate=no', 'desc' => '2. Descargando nuevo portal'],
+            ['cmd' => ':delay 5s; :if ([:len [/file find name="login_temp.html"]] > 0) do={ /file set [find name="login_temp.html"] name="hotspot/login.html" }', 'desc' => '3. Aplicando cambios'],
+        ]);
+    }
 
-        // Script funcional directo
-        $script = "
-            :do { /file remove [find name=\"hotspot/login.html\"] } on-error={}; 
-            :do { /file remove [find name=\"login_temp.html\"] } on-error={};
-            :delay 2s; 
-            /tool fetch url=\"$downloadUrl\" dst-path=\"login_temp.html\" check-certificate=no;
-            :delay 5s; 
-            :if ([:len [/file find name=\"login_temp.html\"]] > 0) do={ 
-                /file set [find name=\"login_temp.html\"] name=\"hotspot/login.html\" 
-            }
-        ";
-
-        $this->currentTid = "PORTAL" . rand(10,99) . time();
-        $finalScript = $script . "; :delay 1s; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no";
+    /**
+     * Maneja la lista de sub-pasos
+     */
+    public function iniciarProceso($titulo, $pasos)
+    {
+        $this->isProcessing = true;
+        $nuevasTareas = [];
+        foreach ($pasos as $paso) {
+            $nuevasTareas[] = [
+                'iface' => 'global',
+                'index' => 0,
+                'tarea' => $paso['desc'], // Esto se verá en la tabla
+                'custom_cmd' => $paso['cmd']
+            ];
+        }
         
-        $this->emitirAlBridge($finalScript, $mac, $this->currentTid);
+        $this->queue = array_merge($nuevasTareas, $this->queue);
+        $this->procesarSiguienteEnCola();
     }
 
     public function scanearInterfaz($iface, $index)
@@ -110,18 +107,29 @@ class ConfDetallada extends Component
         if (!$this->version_id || $this->isProcessing) return;
         $this->isProcessing = true;
         $this->queue = [];
-        $tareas = ['wg_servidor', 'wg_bdv', 'wg_push', 'portal', 'reboot'];
-        foreach ($tareas as $t) {
-            $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => $t];
-        }
-        $this->procesarSiguienteEnCola();
+        
+        // Tareas globales base
+        $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => 'wg_servidor'];
+        $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => 'wg_bdv'];
+        $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => 'wg_push'];
+        
+        // Inyectamos los 3 pasos del portal
+        $this->forzarCopiadoLogin();
+        
+        // Reboot final
+        $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => 'reboot'];
     }
 
     public function procesarSiguienteEnCola()
     {
         if (count($this->queue) > 0) {
             $next = array_shift($this->queue);
-            $this->ejecutarTarea($next['iface'], $next['index'], $next['tarea']);
+            
+            if (isset($next['custom_cmd'])) {
+                $this->ejecutarComandoDirecto($next['iface'], $next['tarea'], $next['custom_cmd']);
+            } else {
+                $this->ejecutarTarea($next['iface'], $next['index'], $next['tarea']);
+            }
         } else {
             $this->isProcessing = false;
             $this->isWaitingResponse = false;
@@ -129,18 +137,27 @@ class ConfDetallada extends Component
         }
     }
 
+    public function ejecutarComandoDirecto($iface, $tarea, $cmd)
+    {
+        $this->taskStatus[$iface][$tarea] = 'loading';
+        $this->taskResult[$iface][$tarea] = 'Enviando...';
+        $this->activeTask = ['iface' => $iface, 'tarea' => $tarea, 'index' => 0];
+        $this->isWaitingResponse = true;
+        
+        $router = Router::findOrFail($this->router_id);
+        $mac = strtoupper(trim($router->macAddress));
+        
+        $this->currentTid = "CFG" . rand(10,99) . time();
+        $script = $cmd . "; :delay 1s; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no";
+        
+        $this->emitirAlBridge($script, $mac, $this->currentTid);
+    }
+
     public function ejecutarTarea($iface, $index, $tarea)
     {
-        // Si la tarea es portal, usamos el método directo y salimos de la ejecución normal de la cola
-        if ($tarea === 'portal') {
-            $this->forzarCopiadoLogin();
-            return;
-        }
-
         $this->taskStatus[$iface][$tarea] = 'loading';
         $this->taskResult[$iface][$tarea] = 'Enviando...';
         $this->activeTask = ['iface' => $iface, 'tarea' => $tarea, 'index' => $index];
-        $this->isProcessing = true;
         $this->isWaitingResponse = true;
         
         $router = Router::findOrFail($this->router_id);
