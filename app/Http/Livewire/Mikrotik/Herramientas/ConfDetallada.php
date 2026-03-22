@@ -54,7 +54,7 @@ class ConfDetallada extends Component
     }
 
     /**
-     * TU LÓGICA FUNCIONAL: Ejecución paso a paso
+     * Lógica de 3 pasos para el Portal Cautivo
      */
     public function forzarCopiadoLogin()
     {
@@ -62,42 +62,23 @@ class ConfDetallada extends Component
         
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $this->version_id;
 
-        $this->iniciarProceso("📂 Forzando descarga de Portal Cautivo...", [
-            ['cmd' => ':do { /file remove [find name="hotspot/login.html"] } on-error={}; :do { /file remove [find name="login_temp.html"] } on-error={}', 'desc' => '1. Limpiando archivos'],
-            ['cmd' => ':delay 2s; /tool fetch url="'.$downloadUrl.'" dst-path="login_temp.html" check-certificate=no', 'desc' => '2. Descargando nuevo portal'],
-            ['cmd' => ':delay 5s; :if ([:len [/file find name="login_temp.html"]] > 0) do={ /file set [find name="login_temp.html"] name="hotspot/login.html" }', 'desc' => '3. Aplicando cambios'],
+        $this->iniciarProceso([
+            ['cmd' => ':do { /file remove [find name="hotspot/login.html"] } on-error={}; :do { /file remove [find name="login_temp.html"] } on-error={}', 'desc' => '1. LIMPIANDO ARCHIVOS'],
+            ['cmd' => ':delay 2s; /tool fetch url="'.$downloadUrl.'" dst-path="login_temp.html" check-certificate=no', 'desc' => '2. DESCARGANDO PORTAL'],
+            ['cmd' => ':delay 5s; :if ([:len [/file find name="login_temp.html"]] > 0) do={ /file set [find name="login_temp.html"] name="hotspot/login.html" }', 'desc' => '3. APLICANDO CAMBIOS'],
         ]);
     }
 
-    /**
-     * Maneja la lista de sub-pasos
-     */
-    public function iniciarProceso($titulo, $pasos)
+    public function iniciarProceso($pasos)
     {
         $this->isProcessing = true;
-        $nuevasTareas = [];
         foreach ($pasos as $paso) {
-            $nuevasTareas[] = [
+            $this->queue[] = [
                 'iface' => 'global',
                 'index' => 0,
-                'tarea' => $paso['desc'], // Esto se verá en la tabla
+                'tarea' => $paso['desc'], 
                 'custom_cmd' => $paso['cmd']
             ];
-        }
-        
-        $this->queue = array_merge($nuevasTareas, $this->queue);
-        $this->procesarSiguienteEnCola();
-    }
-
-    public function scanearInterfaz($iface, $index)
-    {
-        if ($this->isProcessing) return;
-        $this->isProcessing = true;
-        $this->queue = [];
-        
-        $tareas = ['limpiar_interfaz', 'bridge', 'address', 'pool', 'dhcp', 'hotspot'];
-        foreach ($tareas as $t) {
-            $this->queue[] = ['iface' => $iface, 'index' => $index, 'tarea' => $t];
         }
         $this->procesarSiguienteEnCola();
     }
@@ -108,25 +89,37 @@ class ConfDetallada extends Component
         $this->isProcessing = true;
         $this->queue = [];
         
-        // Tareas globales base
         $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => 'wg_servidor'];
         $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => 'wg_bdv'];
         $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => 'wg_push'];
         
-        // Inyectamos los 3 pasos del portal
-        $this->forzarCopiadoLogin();
+        // Inyectamos los pasos del portal dentro de la cola global
+        $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $this->version_id;
+        $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => '1. LIMPIANDO ARCHIVOS', 'custom_cmd' => ':do { /file remove [find name="hotspot/login.html"] } on-error={}; :do { /file remove [find name="login_temp.html"] } on-error={}'];
+        $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => '2. DESCARGANDO PORTAL', 'custom_cmd' => ':delay 2s; /tool fetch url="'.$downloadUrl.'" dst-path="login_temp.html" check-certificate=no'];
+        $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => '3. APLICANDO CAMBIOS', 'custom_cmd' => ':delay 5s; :if ([:len [/file find name="login_temp.html"]] > 0) do={ /file set [find name="login_temp.html"] name="hotspot/login.html" }'];
         
-        // Reboot final
         $this->queue[] = ['iface' => 'global', 'index' => 0, 'tarea' => 'reboot'];
+        
+        $this->procesarSiguienteEnCola();
+    }
+
+    public function scanearInterfaz($iface, $index)
+    {
+        if ($this->isProcessing) return;
+        $this->isProcessing = true;
+        $this->queue = [];
+        $tareas = ['limpiar_interfaz', 'bridge', 'address', 'pool', 'dhcp', 'hotspot'];
+        foreach ($tareas as $t) { $this->queue[] = ['iface' => $iface, 'index' => $index, 'tarea' => $t]; }
+        $this->procesarSiguienteEnCola();
     }
 
     public function procesarSiguienteEnCola()
     {
         if (count($this->queue) > 0) {
             $next = array_shift($this->queue);
-            
             if (isset($next['custom_cmd'])) {
-                $this->ejecutarComandoDirecto($next['iface'], $next['tarea'], $next['custom_cmd']);
+                $this->ejecutarTareaDirecta($next['iface'], $next['tarea'], $next['custom_cmd']);
             } else {
                 $this->ejecutarTarea($next['iface'], $next['index'], $next['tarea']);
             }
@@ -137,7 +130,7 @@ class ConfDetallada extends Component
         }
     }
 
-    public function ejecutarComandoDirecto($iface, $tarea, $cmd)
+    public function ejecutarTareaDirecta($iface, $tarea, $cmd)
     {
         $this->taskStatus[$iface][$tarea] = 'loading';
         $this->taskResult[$iface][$tarea] = 'Enviando...';
@@ -146,10 +139,8 @@ class ConfDetallada extends Component
         
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
-        
-        $this->currentTid = "CFG" . rand(10,99) . time();
+        $this->currentTid = "CMD" . rand(10,99) . time();
         $script = $cmd . "; :delay 1s; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no";
-        
         $this->emitirAlBridge($script, $mac, $this->currentTid);
     }
 
@@ -179,7 +170,6 @@ class ConfDetallada extends Component
 
         $this->currentTid = "CFG" . rand(10,99) . time();
         $script = $cmds[$tarea] . "; :delay 1s; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid={$this->currentTid}\" http-method=post http-data=\"OK\" keep-result=no";
-        
         $this->emitirAlBridge($script, $mac, $this->currentTid);
     }
 
@@ -193,7 +183,6 @@ class ConfDetallada extends Component
     public function checkStatus()
     {
         if (!$this->isWaitingResponse) return;
-        
         $router = Router::find($this->router_id);
         if (!$router) return;
         $mac = strtoupper(trim($router->macAddress));
@@ -204,7 +193,6 @@ class ConfDetallada extends Component
             if ($res->successful()) {
                 $status = $res->json('status');
                 $data = trim($res->json('data'));
-
                 if ($status === 'ready') {
                     if ($this->activeTask) {
                         $this->finalizarTareaActual($data === "OK" ? 'success' : 'error', $data === "OK" ? 'OK' : 'Error');
@@ -226,13 +214,11 @@ class ConfDetallada extends Component
             $tarea = $this->activeTask['tarea'];
             $this->taskStatus[$iface][$tarea] = $status;
             $this->taskResult[$iface][$tarea] = $mensaje;
-            
             $this->isWaitingResponse = false;
             $this->activeTask = null;
             $this->intentos = 0;
-
             if ($status === 'success') {
-                usleep(800000); 
+                usleep(500000); 
                 $this->procesarSiguienteEnCola();
             } else {
                 $this->queue = [];
