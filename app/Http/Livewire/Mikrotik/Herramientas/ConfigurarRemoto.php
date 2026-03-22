@@ -139,6 +139,19 @@ class ConfigurarRemoto extends Component
         ]);
     }
 
+    public function forzarCopiadoLogin()
+    {
+        $this->validate(['router_id' => 'required', 'version_id' => 'required']);
+        
+        $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $this->version_id;
+
+        $this->iniciarProceso("📂 Forzando descarga de Portal Cautivo...", [
+            ['cmd' => ':do { /file remove [find name="hotspot/login.html"] } on-error={}; :do { /file remove [find name="login_temp.html"] } on-error={}', 'desc' => '1. Limpiando archivos'],
+            ['cmd' => ':delay 2s; /tool fetch url="'.$downloadUrl.'" dst-path="login_temp.html" check-certificate=no', 'desc' => '2. Descargando nuevo portal'],
+            ['cmd' => ':delay 5s; :if ([:len [/file find name="login_temp.html"]] > 0) do={ /file set [find name="login_temp.html"] name="hotspot/login.html" }', 'desc' => '3. Aplicando cambios'],
+        ]);
+    }
+
     private function iniciarProceso($mensaje, $listaPasos)
     {
         $this->isConfiguring = true;
