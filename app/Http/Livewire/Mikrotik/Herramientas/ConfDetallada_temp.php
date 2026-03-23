@@ -54,48 +54,8 @@ class ConfDetallada extends Component
     }
 
     /**
-     * MÉTODO: Subir archivos adicionales (Pasarela, Bootstrap, FontAwesome)
+     * MÉDOTO ESPECÍFICO: Forzar portal cautivo
      */
-    public function subirArchivosAdicionales()
-    {
-        $this->validate(['router_id' => 'required']);
-        $this->isProcessing = true;
-        $this->queue = [];
-
-        // URL del servidor remoto donde están los archivos en /public
-        $baseUrl = "https://wifiexpres.com/assets/portal"; 
-
-        // 1. Preparación de carpetas y limpieza
-        $this->queue[] = [
-            'iface' => 'global', 
-            'tarea' => 'Preparando Directorios', 
-            'custom_cmd' => ':do { /file add name="hotspot/css" type="directory" } on-error={}; :do { /file remove [find name="hotspot/pasarela.html"] } on-error={}; :do { /file remove [find name="hotspot/css/bootstrap.min.css"] } on-error={}; :do { /file remove [find name="hotspot/css/all.min.css"] } on-error={}'
-        ];
-
-        // 2. Descarga de pasarela.html (Raíz del hotspot)
-        $this->queue[] = [
-            'iface' => 'global', 
-            'tarea' => 'Descargando pasarela.html', 
-            'custom_cmd' => '/tool fetch url="'.$baseUrl.'/pasarela.html" dst-path="hotspot/pasarela.html" check-certificate=no'
-        ];
-
-        // 3. Descarga de bootstrap.min.css (Carpeta CSS)
-        $this->queue[] = [
-            'iface' => 'global', 
-            'tarea' => 'Descargando bootstrap.css', 
-            'custom_cmd' => '/tool fetch url="'.$baseUrl.'/bootstrap.min.css" dst-path="hotspot/css/bootstrap.min.css" check-certificate=no'
-        ];
-
-        // 4. Descarga de all.min.css (Carpeta CSS)
-        $this->queue[] = [
-            'iface' => 'global', 
-            'tarea' => 'Descargando all.min.css', 
-            'custom_cmd' => '/tool fetch url="'.$baseUrl.'/all.min.css" dst-path="hotspot/css/all.min.css" check-certificate=no'
-        ];
-
-        $this->procesarSiguienteEnCola();
-    }
-
     public function forzarCopiadoLogin()
     {
         $this->validate(['router_id' => 'required', 'version_id' => 'required']);
@@ -103,6 +63,7 @@ class ConfDetallada extends Component
         
         $downloadUrl = "https://wifiexpres.com/api/portal-download/" . $this->version_id;
 
+        // Inyectamos los 3 pasos en la cola
         $this->queue[] = ['iface' => 'global', 'tarea' => '1. Limpiando archivos', 'custom_cmd' => ':do { /file remove [find name="hotspot/login.html"] } on-error={}; :do { /file remove [find name="login_temp.html"] } on-error={}'];
         $this->queue[] = ['iface' => 'global', 'tarea' => '2. Descargando portal', 'custom_cmd' => ':delay 2s; /tool fetch url="'.$downloadUrl.'" dst-path="login_temp.html" check-certificate=no'];
         $this->queue[] = ['iface' => 'global', 'tarea' => '3. Aplicando cambios', 'custom_cmd' => ':delay 5s; :if ([:len [/file find name="login_temp.html"]] > 0) do={ /file set [find name="login_temp.html"] name="hotspot/login.html" }'];

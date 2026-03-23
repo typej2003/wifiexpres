@@ -91,6 +91,7 @@
                         ];
                     @endphp
 
+                    {{-- Lista fija original --}}
                     @foreach($globals as $key => $info)
                         <li class="list-group-item py-3">
                             <div class="d-flex justify-content-between align-items-center px-3">
@@ -109,6 +110,7 @@
                         </li>
                     @endforeach
 
+                    {{-- NUEVO: Bloque dinámico solo para el Forzado de Portal --}}
                     @foreach($taskResult['global'] ?? [] as $tareaNombre => $resultado)
                         @if(!array_key_exists($tareaNombre, $globals))
                             <li class="list-group-item py-2 bg-light border-start border-4 {{ ($taskStatus['global'][$tareaNombre] ?? '') == 'success' ? 'border-success' : 'border-warning' }}">
@@ -132,23 +134,13 @@
             </div>
         </div>
 
-        <div class="row g-2">
-            <div class="col-md-6">
+        <div class="row">
+            <div class="col-12">
                 <button wire:click="forzarCopiadoLogin" {{ $isProcessing || !$version_id ? 'disabled' : '' }} class="btn btn-secondary rounded-3 fw-bold w-100 py-2 shadow-sm border-0" style="background-color: #2c3e50;">
                     <span wire:loading wire:target="forzarCopiadoLogin" class="spinner-border spinner-border-sm me-2"></span>
-                    <i class="fas fa-file-code me-2"></i> FORZAR LOGIN.HTML
+                    <i class="fas fa-download me-2"></i> FORZAR COPIADO DE LOGIN.HTML (VERSIÓN SELECCIONADA)
                 </button>
-            </div>
-            <div class="col-md-6">
-                <button wire:click="subirArchivosAdicionales" {{ $isProcessing ? 'disabled' : '' }} class="btn btn-dark rounded-3 fw-bold w-100 py-2 shadow-sm border-0" style="background-color: #34495e;">
-                    <span wire:loading wire:target="subirArchivosAdicionales" class="spinner-border spinner-border-sm me-2"></span>
-                    <i class="fas fa-file-import me-2"></i> SUBIR ASSETS (PASARELA/CSS)
-                </button>
-            </div>
-            <div class="col-12 mt-2">
-                <p class="text-muted small text-center">
-                    <i class="fas fa-info-circle"></i> Los CSS se guardarán en <code>hotspot/css/</code> y la pasarela en <code>hotspot/</code>.
-                </p>
+                <p class="text-muted small mt-2 text-center"><i class="fas fa-info-circle"></i> Esto descargará el archivo HTML en la carpeta <code>hotspot/</code> sin alterar la configuración del router.</p>
             </div>
         </div>
     @endif
