@@ -26,6 +26,16 @@ Route::get('/portal-download/{id}', function ($id) {
         ->header('Content-Type', 'text/plain'); 
 });
 
+Route::get('/hotspot-assets/{file}', function ($file) {
+    // Si el archivo es un CSS, lo buscamos en public/css
+    $subfolder = str_ends_with($file, '.css') ? 'css/' : '';
+    $path = public_path($subfolder . $file);
+
+    if (!file_exists($path)) return response()->json(['error' => 'No encontrado'], 404);
+
+    return Response::file($path);
+});
+
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });

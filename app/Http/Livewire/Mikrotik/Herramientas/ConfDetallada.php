@@ -55,6 +55,7 @@ class ConfDetallada extends Component
 
     /**
      * MÉTODO: Subir archivos adicionales (Pasarela, Bootstrap, FontAwesome)
+     * Estructura Remota: /public/pasarela.html y /public/css/...
      */
     public function subirArchivosAdicionales()
     {
@@ -62,35 +63,35 @@ class ConfDetallada extends Component
         $this->isProcessing = true;
         $this->queue = [];
 
-        // URL del servidor remoto donde están los archivos en /public
-        $baseUrl = "https://wifiexpres.com/assets/portal"; 
+        // URL base de tu servidor Laravel
+        $baseUrl = "https://wifiexpres.com"; 
 
-        // 1. Preparación de carpetas y limpieza
+        // 1. Preparación: Crear carpeta css en hotspot si no existe y limpiar archivos viejos
         $this->queue[] = [
             'iface' => 'global', 
-            'tarea' => 'Preparando Directorios', 
+            'tarea' => 'Preparando Mikrotik', 
             'custom_cmd' => ':do { /file add name="hotspot/css" type="directory" } on-error={}; :do { /file remove [find name="hotspot/pasarela.html"] } on-error={}; :do { /file remove [find name="hotspot/css/bootstrap.min.css"] } on-error={}; :do { /file remove [find name="hotspot/css/all.min.css"] } on-error={}'
         ];
 
-        // 2. Descarga de pasarela.html (Raíz del hotspot)
+        // 2. Descarga de pasarela.html (Desde /public/)
         $this->queue[] = [
             'iface' => 'global', 
             'tarea' => 'Descargando pasarela.html', 
             'custom_cmd' => '/tool fetch url="'.$baseUrl.'/pasarela.html" dst-path="hotspot/pasarela.html" check-certificate=no'
         ];
 
-        // 3. Descarga de bootstrap.min.css (Carpeta CSS)
+        // 3. Descarga de bootstrap.min.css (Desde /public/css/)
         $this->queue[] = [
             'iface' => 'global', 
             'tarea' => 'Descargando bootstrap.css', 
-            'custom_cmd' => '/tool fetch url="'.$baseUrl.'/bootstrap.min.css" dst-path="hotspot/css/bootstrap.min.css" check-certificate=no'
+            'custom_cmd' => '/tool fetch url="'.$baseUrl.'/css/bootstrap.min.css" dst-path="hotspot/css/bootstrap.min.css" check-certificate=no'
         ];
 
-        // 4. Descarga de all.min.css (Carpeta CSS)
+        // 4. Descarga de all.min.css (Desde /public/css/)
         $this->queue[] = [
             'iface' => 'global', 
             'tarea' => 'Descargando all.min.css', 
-            'custom_cmd' => '/tool fetch url="'.$baseUrl.'/all.min.css" dst-path="hotspot/css/all.min.css" check-certificate=no'
+            'custom_cmd' => '/tool fetch url="'.$baseUrl.'/css/all.min.css" dst-path="hotspot/css/all.min.css" check-certificate=no'
         ];
 
         $this->procesarSiguienteEnCola();
