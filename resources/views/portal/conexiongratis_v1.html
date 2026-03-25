@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">Conectando...</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f7f6; font-family: 'Segoe UI', sans-serif; }
+        .banner-container { width: 100%; height: 200px; background: #000; overflow: hidden; }
+        .banner-img { width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.5s; }
+        .card-registro { margin-top: -30px; border: none; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); background: #fff; }
+        .btn-connect { border-radius: 50px; padding: 12px; font-weight: bold; background: #007bff; border: none; color: #fff; }
+        #loader { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="banner-container">
+        <img src="" id="comercio_banner" class="banner-img" alt="Banner">
+    </div>
+
+    <div class="container mb-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="card card-registro p-4">
+                    <h4 class="text-center fw-bold mb-1" id="comercio_nombre">Bienvenido</h4>
+                    <p class="text-center text-muted small mb-4">Registro de Conexión Gratuita</p>
+                    
+                    <form id="freeForm">
+                        <div class="mb-3">
+                            <label class="small fw-bold">Nombre Completo</label>
+                            <input type="text" id="full_name" class="form-control shadow-none" required>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="small fw-bold">Género</label>
+                                <select id="gender" class="form-select shadow-none">
+                                    <option value="M">Masculino</option>
+                                    <option value="F">Femenino</option>
+                                    <option value="O">Otro</option>
+                                </select>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="small fw-bold">Nacimiento</label>
+                                <input type="date" id="birthday" class="form-control shadow-none" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="small fw-bold">Correo Electrónico</label>
+                            <input type="email" id="email" class="form-control shadow-none" required>
+                        </div>
+
+                        <div class="row g-2">
+                            <div class="col-5 mb-3">
+                                <label class="small fw-bold">Operadora</label>
+                                <select id="cellphonecode" class="form-select shadow-none" required>
+                                    <option value="0414">0414</option>
+                                    <option value="0424">0424</option>
+                                    <option value="0412">0412</option>
+                                    <option value="0416">0416</option>
+                                    <option value="0426">0426</option>
+                                </select>
+                            </div>
+                            <div class="col-7 mb-3">
+                                <label class="small fw-bold">Número</label>
+                                <input type="tel" id="cellphone" class="form-control shadow-none" placeholder="1234567" maxlength="7" pattern="[0-9]{7}" required>
+                            </div>
+                        </div>
+
+                        <button type="submit" id="btnSubmit" class="btn btn-primary btn-connect w-100 mt-2">
+                            CONECTAR AHORA
+                        </button>
+
+                        <div id="loader" class="text-center mt-3">
+                            <div class="spinner-border text-primary spinner-border-sm"></div>
+                            <span class="small ms-2 text-muted">Iniciando sesión...</span>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form name="sendin" action="$(link-login-only)" method="post" style="display:none">
+        <input type="hidden" name="username" />
+        <input type="hidden" name="password" />
+        <input type="hidden" name="dst" value="$(link-orig)" />
+    </form>
+
+    <script>
+        const IDENTITY = "$(identity)";
+        const MAC_CLIENTE = "$(mac)";
+        const API_V1 = "https://wifiexpres.com/api/v1";
+        const API_V2 = "https://wifiexpres.com/api/v2";
+        // Esta es la variable clave de MikroTik para el login Trial
+        const LINK_TRIAL = "$(link-login-only)?dst=$(link-orig-esc)&username=T-$(mac-esc)";
+
+        async function loadRouterData() {
+            try {
+                const response = await fetch(`${API_V1}/get-plans?identity=${IDENTITY}`);
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('page-title').innerText = data.router.identity;
+                    document.getElementById('comercio_nombre').innerText = data.router.identity;
+                    const banner = document.getElementById('comercio_banner');
+                    banner.src = data.router.comercio_banner;
+                    banner.onload = () => banner.style.opacity = "1";
+                }
+            } catch (err) {
+                console.error("Error al cargar datos del router:", err);
+            }
+        }
+
+        loadRouterData();
+
+        document.getElementById('freeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnSubmit');
+            const loader = document.getElementById('loader');
+            
+            btn.disabled = true;
+            loader.style.display = 'block';
+
+            const payload = {
+                identity: IDENTITY,
+                mac_cliente: MAC_CLIENTE,
+                full_name: document.getElementById('full_name').value,
+                gender: document.getElementById('gender').value,
+                birthday: document.getElementById('birthday').value,
+                email: document.getElementById('email').value,
+                cellphonecode: document.getElementById('cellphonecode').value,
+                cellphone: document.getElementById('cellphone').value
+            };
+
+            try {
+                const response = await fetch(`${API_V2}/free-connection`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // LOGICA DE LOGIN TRIAL:
+                    // En lugar de enviar el formulario 'sendin', redirigimos al link de trial.
+                    // MikroTik reconocerá la petición y aplicará el 'trial-user-profile'.
+                    window.location.href = LINK_TRIAL;
+                } else {
+                    alert("Error en registro: " + result.message);
+                    btn.disabled = false;
+                    loader.style.display = 'none';
+                }
+            } catch (error) {
+                console.error("Fallo de red:", error);
+                alert("No se pudo conectar con el servidor central.");
+                btn.disabled = false;
+                loader.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

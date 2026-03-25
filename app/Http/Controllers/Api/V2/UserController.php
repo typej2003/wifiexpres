@@ -76,7 +76,8 @@ class UserController extends Controller
         try {
             $username = $request->input('username');
             $password = $request->input('password');
-            $identity = $request->input('identity'); 
+            $identity = $request->input('identity');
+            $profile = $request->input('planSelected'); 
             $router = $this->findRouter($identity);
             
             if (!$router) return response()->json(['success' => false, 'message' => 'Router no encontrado'], 404);
@@ -87,9 +88,9 @@ class UserController extends Controller
             $cmdFinal = ":local m \"$mac\"; :local t \"$tidFinal\"; :local u \"$username\"; :local p \"$password\"; " .
                         ":do { " .
                         "  :if ([:len [/ip hotspot user find name=\$u]] > 0) do={ " .
-                        "    /ip hotspot user set [find name=\$u] password=\$p profile=\"neutro\"; " .
+                        "    /ip hotspot user set [find name=\$u] password=\$p profile=\"$profile\"; " .
                         "  } else={ " .
-                        "    /ip hotspot user add name=\$u password=\$p profile=\"neutro\"; " .
+                        "    /ip hotspot user add name=\$u password=\$p profile=\"$profile\"; " .
                         "  }; " .
                         "  /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; " .
                         "} on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; };";
