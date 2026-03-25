@@ -21,6 +21,7 @@
             display: flex; flex-direction: column; min-height: 100vh;
         }
 
+        /* Spinner de carga */
         #loader-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255, 255, 255, 0.9);
@@ -85,9 +86,13 @@
         .welcome-msg { font-size: 11px; letter-spacing: 1px; margin-top: 2px; text-transform: uppercase; }
 
         .hero-banner { 
-            width: 100%; height: 220px; 
-            background-position: center; background-size: cover; background-repeat: no-repeat;
-            margin-top: -10px; transition: all 0.3s ease; 
+            width: 100%; 
+            height: 220px; 
+            background-position: center;
+            background-size: cover; /* Importante para que no se deforme */
+            background-repeat: no-repeat;
+            margin-top: -10px; 
+            transition: all 0.3s ease; 
         }
 
         .content {
@@ -141,7 +146,7 @@
 
     <div id="loader-overlay">
         <div class="spinner"></div>
-        <div id="loader-text" style="font-weight: bold; color: var(--purple-main); text-align: center; padding: 0 20px;">Procesando, por favor espere...</div>
+        <div style="font-weight: bold; color: var(--purple-main);">Procesando, por favor espere...</div>
     </div>
 
     <div id="ads-modal">
@@ -253,6 +258,7 @@
         let routerMac = "$(mac)".toUpperCase(); 
         let routerIdentity = "$(identity)"; 
         
+        // Simulación para desarrollo si los valores de MikroTik no vienen
         if (routerMac.includes("$") || routerMac === "") {
             routerMac = "48:A9:8A:91:CD:AE"; 
             routerIdentity = "CangrejoAzul_Local";
@@ -263,8 +269,7 @@
         let planSelected = null, planAmount = null, isTrial = false, isStore = false, hasTrialEnabled = false;
         let tempUser = "", tempPass = "", tempEmail = "";
 
-        function toggleLoader(show, text = "Procesando, por favor espere...") {
-            document.getElementById("loader-text").innerText = text;
+        function toggleLoader(show) {
             document.getElementById("loader-overlay").style.display = show ? "flex" : "none";
         }
 
@@ -289,12 +294,16 @@
                     isStore = (r.is_store == 1);
                     hasTrialEnabled = (r.is_trial == 1);
 
+                    // --- ACTUALIZACIÓN DEL HEADER (NOMBRE DEL COMERCIO) ---
                     if (r.comercio_nombre && r.comercio_nombre.trim() !== "") {
                         let nombreOriginal = r.comercio_nombre.toUpperCase();
                         let nombreFormateado = "";
+
                         if (nombreOriginal.includes("EXPRES")) {
+                            // Si contiene EXPRES, lo ponemos en el span naranja
                             nombreFormateado = nombreOriginal.replace("EXPRES", "<span>EXPRES</span>");
                         } else {
+                            // Si es un nombre cualquiera, ponemos la última palabra en naranja para estilo
                             let palabras = nombreOriginal.split(" ");
                             if (palabras.length > 1) {
                                 let ultima = palabras.pop();
@@ -306,6 +315,7 @@
                         document.getElementById("header-logo-text").innerHTML = nombreFormateado;
                     }
 
+                    // --- LÓGICA DEL BANNER DEL COMERCIO ---
                     const bannerElement = document.getElementById("main-banner");
                     if(r.comercio_banner) {
                         bannerElement.style.backgroundImage = `url("${r.comercio_banner}")`;
@@ -313,10 +323,12 @@
                         bannerElement.style.backgroundImage = `url("banner/titulo_caracas.jpg")`;
                     }
 
+                    // Manejo del Carrusel de Publicidad
                     if(r.is_promotion == 1 && r.path_imgs && r.path_imgs.length > 0) {
                         renderCarousel(r.path_imgs);
                     }
 
+                    // Datos del Kiosko
                     document.getElementById("info-store-name").innerText = r.store || "WIFI EXPRES";
                     document.getElementById("info-store-address").innerText = r.address || "Ubicación General";
                     
@@ -333,18 +345,11 @@
 
         async function loadPlans() {
             const list = document.getElementById("list-plans");
-            console.log("Plan-Loader: Iniciando carga de planes...");
             try {
                 const res = await fetch(`${API_BASE_V1}/get-plans?identity=${encodeURIComponent(routerIdentity)}&mac=${encodeURIComponent(routerMac)}&t=${Date.now()}`);
                 const data = await res.json();
-                console.log("Plan-Loader: Datos recibidos:", data);
-                
                 list.innerHTML = ""; 
-                if(hasTrialEnabled) {
-                    console.log("Plan-Loader: Modo Trial habilitado.");
-                    document.getElementById("btn-trial-option").style.display = "block";
-                }
-
+                if(hasTrialEnabled) document.getElementById("btn-trial-option").style.display = "block";
                 data.plans.forEach(p => {
                     if (p.mikrotik_profile.toLowerCase().includes("cortesia")) return;
                     const d = document.createElement("div");
@@ -353,10 +358,7 @@
                     d.onclick = () => selectPlan(p.mikrotik_profile, p.price);
                     list.appendChild(d);
                 });
-            } catch (e) { 
-                console.error("Plan-Loader: Error crítico:", e);
-                list.innerHTML = "Error al cargar planes."; 
-            }
+            } catch (e) { list.innerHTML = "Error al cargar planes."; }
         }
 
         function togglePass(show) {
@@ -424,172 +426,81 @@
             tempUser = document.getElementById("v2-phone").value;
             tempEmail = document.getElementById("v2-email").value;
             tempPass = Math.floor(10000 + Math.random() * 90000).toString();
+            
+            // ALERT DE DEPURACIÓN (Mantiene la lógica anterior)
+            // alert("Enviando al controlador:\n" + 
+            //       "Username: " + tempUser + "\n" +
+            //       "Password: " + tempPass + "\n" +
+            //       "Identity: " + routerIdentity + "\n" +
+            //       "Email: " + tempEmail + "\n" +
+            //       "Router MAC: " + routerMac);
 
-            console.log(`V2-Flow: Iniciando PRE-ADD para ${tempUser}`);
-            toggleLoader(true, "Sincronizando con el Router...");
+            toggleLoader(true);
+            
+            try {
+                const res = await fetch(`${API_BASE_V2}/users/pre-add`, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ 
+                        username: tempUser, 
+                        password: tempPass, 
+                        email: tempEmail,
+                        router_mac: routerMac, 
+                        identity: routerIdentity,
+                        planSelected: planSelected,
+                    })
+                });
+                const result = await res.json();
+                toggleLoader(false);
 
-            // Intentaremos hasta 2 veces antes de rendirnos
-            let maxRetries = 2;
-            let success = false;
-
-            for (let i = 0; i < maxRetries; i++) {
-                try {
-                    const res = await fetch(`${API_BASE_V2}/users/pre-add`, {
-                        method: "POST", 
-                        headers: { "Content-Type": "application/json", "Accept": "application/json" },
-                        body: JSON.stringify({ 
-                            username: tempUser, password: tempPass, email: tempEmail,
-                            router_mac: routerMac, identity: routerIdentity
-                        })
-                    });
-                    const result = await res.json();
-
-                    if(result.success) {
-                        success = true;
-                        console.log("V2-Flow: Confirmado en intento " + (i + 1));
-                        break; 
-                    } else {
-                        console.warn(`V2-Flow: Intento ${i + 1} fallido (Timeout del Router).`);
-                    }
-                } catch (e) {
-                    console.error("V2-Flow: Error de red:", e);
+                if(result.success) {
+                    showScreen("screen-iframe");
+                    const urlIframe = `pasarela.html?plan=${encodeURIComponent(planSelected)}&amount=${planAmount}&identity=${encodeURIComponent(routerIdentity)}&user=${encodeURIComponent(tempUser)}&email=${encodeURIComponent(tempEmail)}`;
+                    document.getElementById("pasarela-frame").src = urlIframe;
+                } else {
+                    showError(result.message || "Error al preparar el pago.");
                 }
-                
-                // Esperar 1 segundo antes de reintentar si no fue el último intento
-                if (!success && i < maxRetries - 1) {
-                    await new Promise(r => setTimeout(r, 1000));
-                }
-            }
-
-            toggleLoader(false);
-
-            if (success) {
-                showScreen("screen-iframe");
-                const urlIframe = `pasarela.html?plan=${encodeURIComponent(planSelected)}&amount=${planAmount}&identity=${encodeURIComponent(routerIdentity)}&user=${encodeURIComponent(tempUser)}&email=${encodeURIComponent(tempEmail)}`;
-                document.getElementById("pasarela-frame").src = urlIframe;
-            } else {
-                showError("El router está ocupado o tardó demasiado. Por favor, intente una vez más.");
+            } catch (e) { 
+                toggleLoader(false);
+                showError("Error de conexión con el servidor."); 
             }
         }
 
         async function startTrialActivation() {
-            tempUser = routerMac; 
+            tempUser = routerMac; // Se mantiene la lógica de usar MAC para el Trial
             tempEmail = document.getElementById("v2-email").value;
             tempPhone = document.getElementById("v2-phone").value;
-            
-            console.log(`Trial-Flow: Solicitando acceso gratuito para ${routerMac}`);
-            toggleLoader(true, "Activando cortesía...");
-
+            toggleLoader(true);
             try {
-                const res = await fetch(`${API_BASE_V2}/users/trial-lead`, { 
-                    method: "POST", 
-                    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                const res = await fetch(`${API_BASE_V2}/users/trial`, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ 
-                        username: tempUser, email: tempEmail, phone: tempPhone,
-                        router_mac: routerMac, identity: routerIdentity,
-                        mac_cliente: routerMac 
+                        username: tempUser, 
+                        email: tempEmail, 
+                        phone: tempPhone,
+                        router_mac: routerMac, 
+                        identity: routerIdentity 
                     })
                 });
                 const result = await res.json();
-                console.log("Trial-Flow: Respuesta de activación:", result);
-
+                toggleLoader(false);
                 if(result.success) { 
-                    console.log("Trial-Flow: Éxito. Esperando sincronización del Router...");
-                    toggleLoader(true, "Sincronizando acceso... Espere un momento.");
-                    
-                    // Espera de 3 segundos antes de loguear
-                    await new Promise(r => setTimeout(r, 5000));
-                    
-                    toggleLoader(false);
                     loginSystem(tempUser, result.password || "123456"); 
                 } else { 
-                    toggleLoader(false);
-                    console.warn("Trial-Flow: Falló la activación.");
                     showError(result.message || "Prueba no disponible."); 
                 }
-            } catch (e) { 
-                console.error("Trial-Flow: Error de conexión:", e);
-                toggleLoader(false); 
-                showError("Error de conexión con el Bridge."); 
-            }
+            } catch (e) { toggleLoader(false); showError("Error de conexión."); }
         }
 
         async function activateService() {
-            let attempts = 0;
-            const maxAttempts = 3;
-            let success = false;
-
-            console.log(`Activate-Flow: Iniciando proceso de activación para ${planSelected}`);
-            toggleLoader(true, "Finalizando navegación...");
-
-            while (attempts < maxAttempts && !success) {
-                attempts++;
-                console.log(`Activate-Flow: Intento ${attempts} de ${maxAttempts}...`);
+            toggleLoader(true);
+            try {
                 
-                if (attempts > 1) {
-                    toggleLoader(true, `Reintentando activación (${attempts}/${maxAttempts})...`);
-                }
-
-                try {
-                    const res = await fetch(`${API_BASE_V2}/users/activate`, {
-                        method: "POST", 
-                        headers: { "Content-Type": "application/json", "Accept": "application/json" },
-                        body: JSON.stringify({ 
-                            username: tempUser, 
-                            profile: planSelected, 
-                            router_mac: routerMac,
-                            identity: routerIdentity 
-                        })
-                    });
-                    
-                    const result = await res.json();
-                    console.log(`Activate-Flow: Respuesta intento ${attempts}:`, result);
-                    
-                    if (result.success) {
-                        success = true;
-                        console.log("Activate-Flow: ¡Éxito! Perfil actualizado.");
-                        toggleLoader(true, "Iniciando sesión segura...");
-
-                        // Espera de seguridad para que el MikroTik procese el cambio
-                        await new Promise(r => setTimeout(r, 4000));
-
-                        toggleLoader(false);
-                        loginSystem(tempUser, tempPass);
-                        return; // Salimos de la función completamente
-                    } else {
-                        console.warn(`Activate-Flow: El intento ${attempts} falló: ${result.message}`);
-                    }
-                } catch (e) { 
-                    console.error(`Activate-Flow: Error de red en intento ${attempts}:`, e);
-                }
-
-                // Si no fue exitoso y quedan intentos, esperamos 2 segundos antes de reintentar
-                if (!success && attempts < maxAttempts) {
-                    await new Promise(r => setTimeout(r, 2000));
-                }
-            }
-
-            // Si llegamos aquí, es que agotamos los 3 intentos
-            toggleLoader(false);
-            console.error("Activate-Flow: Se agotaron los reintentos de activación.");
-            showError("No se pudo confirmar la activación después de varios intentos. Por favor, intente 'Ya tengo un ticket' con su usuario.");
-        }
-
-        async function pollBridgeStatus(mac, tid, retries = 15) {
-            for (let i = 0; i < retries; i++) {
-                try {
-                    const res = await fetch(`${API_BASE_V2}/users/check-status?mac=${mac}&tid=${tid}`);
-                    const data = await res.json();
-                    if (data.status === "OK") return "OK";
-                    if (data.status === "ERROR") return "ERROR";
-                } catch (e) { console.warn("Error consultando status..."); }
-                await new Promise(r => setTimeout(r, 1500)); 
-            }
-            return "TIMEOUT";
+                loginSystem(tempUser, tempPass);
+            } catch (e) { toggleLoader(false); showError("Error en activación."); }
         }
 
         function loginSystem(user, pass) {
-            if(!user) return showError("Error de credenciales.");
+            if(!user) return showError("Error en el nombre de usuario.");
             document.forms.sendin.username.value = user;
             document.forms.sendin.password.value = pass;
             document.forms.sendin.submit();
@@ -606,6 +517,7 @@
         function validateV2Fields() { 
             const phone = document.getElementById("v2-phone").value;
             const email = document.getElementById("v2-email").value;
+            // Se habilita si el teléfono tiene al menos 10 dígitos (ajustable según prefieras)
             document.getElementById("btn-next").disabled = (phone.length < 10 || email.length < 5); 
         }
 

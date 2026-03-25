@@ -8,7 +8,7 @@ use App\Models\User;
 use App\Models\HotspotVersion;
 use Illuminate\Support\Facades\Http;
 
-class ConfDetallada extends Component
+class ConfDetallada_temp extends Component
 {
     public $selectedAliado = null;
     public $router_id = null;
