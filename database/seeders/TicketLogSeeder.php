@@ -19,11 +19,16 @@ class TicketLogSeeder extends Seeder
             return;
         }
 
+        // Limpiamos logs antiguos para que la prueba de marzo sea exacta
+        TicketLog::truncate();
+
         // 1. Creamos 50 Usuarios de prueba en UserMikrotik
         $users = [];
         $generos = ['F', 'M'];
         $nombresF = ['Maria', 'Ana', 'Carmen', 'Elena', 'Laura', 'Rosa'];
         $nombresM = ['Jose', 'Juan', 'Pedro', 'Luis', 'Carlos', 'Miguel'];
+
+        $this->command->info("Creando 50 usuarios de prueba...");
 
         for ($i = 0; $i < 50; $i++) {
             $gender = $generos[array_rand($generos)];
@@ -48,7 +53,7 @@ class TicketLogSeeder extends Seeder
             $router = $routers->random();
             $user = collect($users)->random();
             
-            // Segmentos IP definidos en AntennaMappingSeeder
+            // Segmentos IP definidos en AntennaMappingSeeder (Zonas)
             $segmento = collect(['10', '20', '30'])->random();
             $ipSimulada = "192.168.{$segmento}." . rand(2, 254);
 
@@ -63,8 +68,7 @@ class TicketLogSeeder extends Seeder
             TicketLog::create([
                 'router_id'        => $router->id,
                 'username'         => $user->name, // Se vincula con UserMikrotik->name
-                'mac_address'      => $ipSimulada, 
-                'user_ip'          => $ipSimulada,
+                'mac_address'      => $ipSimulada, // Usamos mac_address para la IP del cliente
                 'duration_seconds' => $duracion,
                 'disconnected_at'  => $fechaLog->copy()->addSeconds($duracion),
                 'created_at'       => $fechaLog,
