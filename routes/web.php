@@ -25,6 +25,8 @@ use App\Http\Livewire\Mikrotik\Aliado\AntennaMappingManager;
 // NUEVO IMPORT
 use App\Http\Livewire\Mikrotik\Herramientas\RouterAuditor;
 
+use App\Http\Livewire\Mikrotik\Data\HourAnalysis;
+
 Route::get('/', Welcome::class)->name('welcome'); 
 Route::get('/home', [RedirectController::class, 'dashboard'])->middleware('auth');
 Route::get('/listCarrusel', ListCarrusel::class)->name('listCarrusel'); 
@@ -87,6 +89,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin/mikrotik')->group(funct
 Route::middleware(['role:admin,aliado'])->group(function () {
     Route::get('/planes-comerciales', PackageManagement::class)->name('packages.index');
     Route::get('/configurar-antenas', AntennaMappingManager::class)->name('aliado.antenas.config');
+    Route::get('/hour-analysis', HourAnalysis::class)->name('aliado.hour.analysis');
 });
 
 Route::middleware(['auth', 'role:admin'])->group(function () {
