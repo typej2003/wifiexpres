@@ -16,8 +16,6 @@ class AliadoDashboard extends Component
     public $showPlanModal = false;
     public $period = 'today';
 
-    protected $listeners = ['refreshChart' => '$refresh'];
-
     public function mount()
     {
         $user = Auth::user();
@@ -28,16 +26,18 @@ class AliadoDashboard extends Component
     public function setPeriod($value) 
     { 
         $this->period = $value; 
-        $data = $this->getChartData();
-        $this->emit('updateChartData', ['labels' => $data['labels'], 'data' => $data['data']]);
     }
 
     private function getChartData()
     {
         $user = Auth::user();
         $routerIds = Router::where('user_id', $user->id)->pluck('id');
+        $start = match($this->period) {
+            'weekly' => now()->startOfWeek(),
+            'month' => now()->startOfMonth(),
+            default => now()->startOfDay(),
+        };
 
-        $start = ($this->period == 'today') ? now()->startOfDay() : ($this->period == 'weekly' ? now()->startOfWeek() : now()->startOfMonth());
         $format = ($this->period == 'today') ? '%H:00' : '%d/%m';
 
         $query = TicketLog::whereIn('router_id', $routerIds)
@@ -47,7 +47,6 @@ class AliadoDashboard extends Component
             ->pluck('total', 'label')->toArray();
 
         $labels = []; $data = [];
-
         if ($this->period == 'today') {
             for ($i = 0; $i < 24; $i++) {
                 $h = str_pad($i, 2, '0', STR_PAD_LEFT) . ':00';
@@ -58,8 +57,19 @@ class AliadoDashboard extends Component
             $labels = array_keys($query);
             $data = array_values($query);
         }
-
         return ['labels' => $labels, 'data' => $data];
+    }
+
+    public function selectPlan($packageId)
+    {
+        $package = Package::findOrFail($packageId);
+        Auth::user()->packages()->attach($package->id, [
+            'start_date' => now(),
+            'end_date' => now()->addMonths($package->duration_months),
+            'status' => 'pending',
+            'created_at' => now(), 'updated_at' => now()
+        ]);
+        $this->showPlanModal = false;
     }
 
     public function openModal() { $this->showPlanModal = true; }

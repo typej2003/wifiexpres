@@ -1,9 +1,4 @@
 <div class="container-fluid py-4">
-    {{-- ALERTAS --}}
-    @if (session()->has('message'))
-        <div class="alert alert-success border-0 shadow-sm rounded-4 mb-4">{{ session('message') }}</div>
-    @endif
-
     {{-- HEADER --}}
     <div class="row mb-4 align-items-center">
         <div class="col-md-6">
@@ -21,46 +16,13 @@
         </div>
     </div>
 
-    {{-- TABLA DE PLANES --}}
-    <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
-        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-            <h6 class="fw-bold mb-0">Suscripciones Activas</h6>
-            <button wire:click="openModal" class="btn btn-sm btn-primary rounded-pill px-3">+ ADQUIRIR</button>
-        </div>
-        <div class="table-responsive">
-            <table class="table align-middle mb-0">
-                <thead class="bg-light small fw-bold">
-                    <tr><th>PLAN</th><th>CAPACIDAD</th><th>VENCIMIENTO</th><th class="text-end pe-4">ESTADO</th></tr>
-                </thead>
-                <tbody>
-                    @foreach($activePlans as $plan)
-                    <tr>
-                        <td class="ps-4 fw-bold">{{ $plan->name }}</td>
-                        <td>{{ $plan->limit_routers }} Router(s)</td>
-                        <td>{{ \Carbon\Carbon::parse($plan->pivot->end_date)->format('d/m/Y') }}</td>
-                        <td class="text-end pe-4"><span class="badge bg-success rounded-pill px-3">Activo</span></td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    </div>
-
     {{-- STATS --}}
     <div class="row g-4 mb-4">
-        @php
-            $stat_items = [
-                ['ROUTERS', $stats['total_routers'], 'bi-router', 'primary'],
-                ['TICKETS', $stats['total_tickets'], 'bi-ticket-perforated', 'info'],
-                ['ONLINE', $stats['tickets_activos'], 'bi-lightning-charge', 'success'],
-                ['LOGINS', $stats['conexiones_periodo'], 'bi-person-check', 'warning']
-            ];
-        @endphp
-        @foreach($stat_items as $item)
+        @foreach([['ROUTERS', $stats['total_routers'], 'primary'], ['TICKETS', $stats['total_tickets'], 'info'], ['ONLINE', $stats['tickets_activos'], 'success'], ['LOGINS', $stats['conexiones_periodo'], 'warning']] as $stat)
         <div class="col-md-3">
             <div class="card border-0 shadow-sm rounded-4 p-4 text-center">
-                <h6 class="text-muted small fw-bold">{{ $item[0] }}</h6>
-                <h2 class="fw-bold mb-0 text-{{ $item[3] }}">{{ $item[1] }}</h2>
+                <h6 class="text-muted small fw-bold">{{ $stat[0] }}</h6>
+                <h2 class="fw-bold mb-0 text-{{ $stat[2] }}">{{ $stat[1] }}</h2>
             </div>
         </div>
         @endforeach
@@ -71,8 +33,8 @@
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
                 <h6 class="fw-bold mb-4">Conexiones por Hora</h6>
-                <div style="height: 350px; position: relative;">
-                    <canvas id="aliadoTrafficChart" wire:ignore></canvas>
+                <div style="height: 350px;" wire:ignore>
+                    <canvas id="aliadoTrafficChart"></canvas>
                 </div>
             </div>
         </div>
@@ -83,7 +45,8 @@
                     <h6 class="fw-bold mb-0">Actividad Reciente</h6>
                 </div>
                 <div class="card-body p-0">
-                    <div style="max-height: 380px; overflow-y: auto;" class="custom-scroll">
+                    {{-- SECCIÓN CON SCROLL --}}
+                    <div style="max-height: 380px; overflow-y: auto;">
                         <div class="list-group list-group-flush">
                             @forelse($ultimosLogs as $log)
                                 <div class="list-group-item border-0 px-4 py-3 d-flex justify-content-between align-items-center border-bottom">
@@ -128,21 +91,18 @@
     @if($showPlanModal)
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 2050;">
         <div class="modal-dialog modal-xl modal-dialog-centered">
-            <div class="modal-content border-0 shadow-lg rounded-4">
-                <div class="modal-body p-5">
-                    <h2 class="text-center fw-bold mb-5">Planes de Monitoreo</h2>
-                    <div class="row g-4">
-                        @foreach($availablePackages as $package)
+            <div class="modal-content border-0 shadow-lg rounded-4 p-4 text-center">
+                <h2 class="fw-bold mb-4">Seleccione un Plan</h2>
+                <div class="row g-4">
+                    @foreach($availablePackages as $package)
                         <div class="col-md-4">
-                            <div class="card border-0 shadow-sm rounded-4 p-4 text-center">
+                            <div class="card border-0 shadow-sm rounded-4 p-4">
                                 <h4 class="fw-bold">{{ $package->name }}</h4>
-                                <h1 class="fw-bold text-primary my-3">${{ number_format($package->cost, 2) }}</h1>
-                                <p class="text-muted mb-4">{{ $package->limit_routers }} Routers</p>
+                                <h1 class="text-primary fw-bold my-3">${{ $package->cost }}</h1>
                                 <button wire:click="selectPlan({{ $package->id }})" class="btn btn-dark w-100 rounded-pill fw-bold">ADQUIRIR</button>
                             </div>
                         </div>
-                        @endforeach
-                    </div>
+                    @endforeach
                 </div>
             </div>
         </div>
@@ -150,23 +110,16 @@
     @endif
 </div>
 
-<style>
-    .custom-scroll::-webkit-scrollbar { width: 5px; }
-    .custom-scroll::-webkit-scrollbar-track { background: #f8f9fa; }
-    .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 10px; }
-</style>
-
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('livewire:load', function () {
         let chart;
-        const canvas = document.getElementById('aliadoTrafficChart');
+        const ctx = document.getElementById('aliadoTrafficChart').getContext('2d');
 
-        function createChart(labels, data) {
+        function drawChart(labels, data) {
             if (chart) chart.destroy();
-            
-            chart = new Chart(canvas, {
+            chart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: labels,
@@ -181,20 +134,13 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { 
-                                color: '#000000', // NEGRO PURO para asegurar visibilidad
-                                font: { size: 12, weight: 'bold' },
-                                stepSize: 1
-                            },
-                            grid: { color: '#e2e8f0' }
+                        y: { 
+                            beginAtZero: true, 
+                            ticks: { color: '#000', font: { weight: 'bold' } },
+                            grid: { color: '#eee' }
                         },
-                        x: {
-                            ticks: { 
-                                color: '#000000', // NEGRO PURO
-                                font: { size: 11, weight: 'bold' }
-                            },
+                        x: { 
+                            ticks: { color: '#000', font: { weight: 'bold' } },
                             grid: { display: false }
                         }
                     },
@@ -203,12 +149,12 @@
             });
         }
 
-        // Ejecución inicial
-        createChart(@json($chartLabels), @json($chartData));
+        // Dibujar al inicio
+        drawChart(@json($chartLabels), @json($chartData));
 
-        // Escuchar actualización de Livewire
-        window.livewire.on('updateChartData', (payload) => {
-            createChart(payload.labels, payload.data);
+        // Redibujar cuando Livewire actualice cualquier cosa
+        Livewire.hook('message.processed', (message, component) => {
+            drawChart(@json($chartLabels), @json($chartData));
         });
     });
 </script>
