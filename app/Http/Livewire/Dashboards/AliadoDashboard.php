@@ -38,22 +38,28 @@ class AliadoDashboard extends Component
     public function setPeriod($value) 
     { 
         $this->period = $value; 
+        // Importante: Emitimos el evento para que JS reciba los nuevos datos de las barras
         $this->emit('updateChart', $this->getChartData());
     }
 
+    /**
+     * Prepara los datos para el gráfico de barras: Una barra por Router
+     */
     public function getChartData()
     {
         $user = Auth::user();
         $routers = Router::where('user_id', $user->id)->get();
         $routerIds = $routers->pluck('id');
         
-        [$start, $end] = match($this->period) {
-            'weekly' => [now()->startOfWeek(), now()],
-            'month' => [now()->startOfMonth(), now()],
-            default => [now()->startOfDay(), now()],
+        // Definir rango según el filtro
+        $start = match($this->period) {
+            'weekly' => now()->startOfWeek(),
+            'month'  => now()->startOfMonth(),
+            default  => now()->startOfDay(),
         };
+        $end = now();
 
-        // Obtenemos el conteo agrupado por router
+        // Agrupamos el conteo de logs por router_id en el periodo seleccionado
         $logs = TicketLog::whereIn('router_id', $routerIds)
             ->whereBetween('created_at', [$start, $end])
             ->select('router_id', DB::raw('count(*) as total'))
@@ -62,13 +68,13 @@ class AliadoDashboard extends Component
 
         $labels = [];
         $data = [];
-        $backgrounds = [];
         $colors = ['#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#fd7e14', '#ffc107', '#198754'];
+        $bgColors = [];
 
         foreach ($routers as $index => $router) {
-            $labels[] = $router->identity; // Nombre del Router al eje X
-            $data[] = $logs[$router->id] ?? 0; // Total de conexiones
-            $backgrounds[] = $colors[$index % count($colors)]; // Color único por barra
+            $labels[] = $router->identity; // Nombre del Router abajo
+            $data[] = $logs[$router->id] ?? 0; // Cantidad de logs o 0
+            $bgColors[] = $colors[$index % count($colors)]; // Color único por barra
         }
 
         return [
@@ -77,8 +83,9 @@ class AliadoDashboard extends Component
                 [
                     'label' => 'Conexiones',
                     'data' => $data,
-                    'backgroundColor' => $backgrounds,
-                    'borderRadius' => 8,
+                    'backgroundColor' => $bgColors,
+                    'borderRadius' => 6,
+                    'borderWidth' => 0
                 ]
             ]
         ];
@@ -125,10 +132,10 @@ class AliadoDashboard extends Component
         $routers = Router::where('user_id', $user->id)->get();
         $routerIds = $routers->pluck('id');
 
-        [$start, $end] = match($this->period) {
-            'weekly' => [now()->startOfWeek(), now()],
-            'month' => [now()->startOfMonth(), now()],
-            default => [now()->startOfDay(), now()],
+        $start = match($this->period) {
+            'weekly' => now()->startOfWeek(),
+            'month'  => now()->startOfMonth(),
+            default  => now()->startOfDay(),
         };
 
         return view('livewire.dashboards.aliado-dashboard', [
@@ -141,7 +148,7 @@ class AliadoDashboard extends Component
                 'limit_routers' => $activePlans->sum('pivot.allowed_routers'),
                 'total_tickets' => Ticket::whereIn('router_id', $routerIds)->count(),
                 'tickets_activos' => TicketLog::whereIn('router_id', $routerIds)->whereNull('disconnected_at')->count(),
-                'conexiones_periodo' => TicketLog::whereIn('router_id', $routerIds)->whereBetween('created_at', [$start, $end])->count(),
+                'conexiones_periodo' => TicketLog::whereIn('router_id', $routerIds)->whereBetween('created_at', [$start, now()])->count(),
             ],
             'chartInitialData' => $this->getChartData(),
             'ultimosLogs' => TicketLog::whereIn('router_id', $routerIds)->with('router')->latest()->take(6)->get(),

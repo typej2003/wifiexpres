@@ -31,8 +31,8 @@
             <div class="col-md-6">
                 <h2 class="fw-bold text-dark mb-0">Dashboard Aliado</h2>
                 <div class="d-flex align-items-center gap-2 mt-1">
-                    <p class="text-muted mb-0 small">Rendimiento de red y suscripciones.</p>
-                    <span class="badge bg-primary-soft text-primary border border-primary rounded-pill px-3" style="font-size: 0.7rem;">
+                    <p class="text-muted mb-0 small">Rendimiento de red por equipo.</p>
+                    <span class="badge bg-light text-primary border border-primary rounded-pill px-3" style="font-size: 0.7rem;">
                         <i class="bi bi-currency-exchange me-1"></i> Tasa BCV: <strong>Bs. {{ number_format($dollarRate, 2, ',', '.') }}</strong>
                     </span>
                 </div>
@@ -112,11 +112,14 @@
             </div>
         </div>
 
-        {{-- SECCIÓN CENTRAL: GRÁFICA POR ROUTER --}}
+        {{-- SECCIÓN CENTRAL: GRÁFICA DE BARRAS POR ROUTER --}}
         <div class="row g-4 mb-4">
             <div class="col-lg-8">
-                <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
-                    <h6 class="fw-bold mb-4">Tráfico de Red por Router</h6>
+                <div class="card border-0 shadow-sm rounded-4 p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h6 class="fw-bold mb-0">Tráfico de Red por Router</h6>
+                        <span class="badge bg-light text-dark rounded-pill px-3 py-2 small">Total: {{ $stats['conexiones_periodo'] }}</span>
+                    </div>
                     <div style="height: 350px;">
                         <canvas id="aliadoTrafficChart"></canvas>
                     </div>
@@ -238,24 +241,37 @@
                     responsive: true, 
                     maintainAspectRatio: false,
                     plugins: { 
-                        legend: { display: false } // Ocultamos leyenda porque los nombres ya están en el eje X
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ' ' + context.parsed.y + ' Conexiones';
+                                }
+                            }
+                        }
                     },
                     scales: {
                         x: { 
                             grid: { display: false },
-                            ticks: { font: { weight: 'bold' } }
+                            ticks: { 
+                                font: { weight: 'bold', size: 11 },
+                                color: '#6c757d'
+                            }
                         },
                         y: { 
                             beginAtZero: true, 
                             ticks: { precision: 0 },
-                            grid: { borderDash: [5, 5] }
+                            grid: { borderDash: [5, 5], color: '#e9ecef' }
                         }
                     }
                 }
             });
         }
 
+        // Carga inicial
         render(@json($chartInitialData));
+
+        // Listener para actualizaciones de Livewire
         window.livewire.on('updateChart', data => render(data));
     });
 </script>
