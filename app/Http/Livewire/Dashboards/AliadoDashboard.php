@@ -38,54 +38,64 @@ class AliadoDashboard extends Component
     public function setPeriod($value) 
     { 
         $this->period = $value; 
-        // Importante: Emitimos el evento para que JS reciba los nuevos datos de las barras
         $this->emit('updateChart', $this->getChartData());
     }
 
-    /**
-     * Prepara los datos para el gráfico de barras: Una barra por Router
-     */
     public function getChartData()
     {
         $user = Auth::user();
-        $routers = Router::where('user_id', $user->id)->get();
-        $routerIds = $routers->pluck('id');
+        $routerIds = Router::where('user_id', $user->id)->pluck('id');
         
-        // Definir rango según el filtro
-        $start = match($this->period) {
-            'weekly' => now()->startOfWeek(),
-            'month'  => now()->startOfMonth(),
-            default  => now()->startOfDay(),
-        };
-        $end = now();
-
-        // Agrupamos el conteo de logs por router_id en el periodo seleccionado
-        $logs = TicketLog::whereIn('router_id', $routerIds)
-            ->whereBetween('created_at', [$start, $end])
-            ->select('router_id', DB::raw('count(*) as total'))
-            ->groupBy('router_id')
-            ->pluck('total', 'router_id');
-
         $labels = [];
-        $data = [];
-        $colors = ['#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#fd7e14', '#ffc107', '#198754'];
+        $datasetData = [];
         $bgColors = [];
 
-        foreach ($routers as $index => $router) {
-            $labels[] = $router->identity; // Nombre del Router abajo
-            $data[] = $logs[$router->id] ?? 0; // Cantidad de logs o 0
-            $bgColors[] = $colors[$index % count($colors)]; // Color único por barra
+        if ($this->period === 'today') {
+            // LÓGICA POR HORAS (00 a 23)
+            $start = now()->startOfDay();
+            $end = now()->endOfDay();
+
+            $logs = TicketLog::whereIn('router_id', $routerIds)
+                ->whereBetween('created_at', [$start, $end])
+                ->select(DB::raw('HOUR(created_at) as hora'), DB::raw('count(*) as total'))
+                ->groupBy('hora')
+                ->pluck('total', 'hora');
+
+            for ($i = 0; $i < 24; $i++) {
+                $labels[] = str_pad($i, 2, '0', STR_PAD_LEFT) . ':00';
+                $datasetData[] = $logs[$i] ?? 0;
+                $bgColors[] = '#0d6efd'; // Color único para todas si es por horas
+            }
+            $labelName = 'Conexiones por Hora';
+        } else {
+            // LÓGICA POR ROUTER (Semana/Mes)
+            $start = $this->period === 'weekly' ? now()->startOfWeek() : now()->startOfMonth();
+            
+            $routers = Router::where('user_id', $user->id)->get();
+            $logs = TicketLog::whereIn('router_id', $routerIds)
+                ->where('created_at', '>=', $start)
+                ->select('router_id', DB::raw('count(*) as total'))
+                ->groupBy('router_id')
+                ->pluck('total', 'router_id');
+
+            foreach ($routers as $index => $router) {
+                $labels[] = $router->identity;
+                $datasetData[] = $logs[$router->id] ?? 0;
+                $bgColors[] = ['#6610f2', '#6f42c1', '#d63384', '#fd7e14', '#ffc107'][$index % 5];
+            }
+            $labelName = 'Total por Router';
         }
 
         return [
             'labels' => $labels,
             'datasets' => [
                 [
-                    'label' => 'Conexiones',
-                    'data' => $data,
+                    'label' => $labelName,
+                    'data' => $datasetData,
                     'backgroundColor' => $bgColors,
-                    'borderRadius' => 6,
-                    'borderWidth' => 0
+                    'borderRadius' => 5,
+                    'borderWidth' => 0,
+                    'barPercentage' => 0.8
                 ]
             ]
         ];
@@ -96,12 +106,6 @@ class AliadoDashboard extends Component
         $package = Package::findOrFail($packageId);
         $user = Auth::user();
         
-        $alreadyPending = $user->packages()->where('package_id', $packageId)->wherePivot('status', 'pending')->exists();
-        if($alreadyPending) {
-            session()->flash('error', 'Ya tienes una solicitud pendiente para este plan.');
-            return;
-        }
-
         $user->packages()->attach($package->id, [
             'start_date' => now(),
             'end_date' => now()->addMonths($package->duration_months),
@@ -117,20 +121,14 @@ class AliadoDashboard extends Component
     }
 
     public function openModal() { $this->showPlanModal = true; }
-    
-    public function closeModal() 
-    { 
-        $user = Auth::user();
-        $hasPlan = $user->packages()->wherePivotIn('status', ['active', 'pending'])->exists();
-        if ($hasPlan) { $this->showPlanModal = false; }
-    }
+    public function closeModal() { $this->showPlanModal = false; }
 
     public function render()
     {
         $user = Auth::user();
-        $activePlans = $user->packages()->wherePivot('status', 'active')->wherePivot('end_date', '>=', now())->get();
         $routers = Router::where('user_id', $user->id)->get();
         $routerIds = $routers->pluck('id');
+        $activePlans = $user->packages()->wherePivot('status', 'active')->wherePivot('end_date', '>=', now())->get();
 
         $start = match($this->period) {
             'weekly' => now()->startOfWeek(),
