@@ -16,7 +16,6 @@
     @endforelse
 
     @if($activePlans->isEmpty() && $pendingPlans->isEmpty())
-        {{-- SECCIÓN ACCESO RESTRINGIDO (IGUAL A TU ORIGINAL) --}}
         <div class="row justify-content-center my-5">
             <div class="col-md-8 text-center">
                 <div class="card border-0 shadow-lg rounded-4 p-5">
@@ -113,67 +112,13 @@
             </div>
         </div>
 
-        {{-- GRÁFICA Y ACTIVIDAD --}}
-        <div class="row g-4">
-            <div class="col-lg-8">
+        {{-- GRÁFICA --}}
+        <div class="row g-4 mb-4">
+            <div class="col-12">
                 <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
-                    <h6 class="fw-bold mb-4">Tráfico de Red (Conexiones por {{ $period == 'today' ? 'Hora' : 'Día' }})</h6>
-                    <div style="height: 350px;">
+                    <h6 class="fw-bold mb-4">Tráfico de Red (Conexiones)</h6>
+                    <div style="height: 300px;" wire:ignore>
                         <canvas id="aliadoTrafficChart"></canvas>
-                    </div>
-                </div>
-
-                {{-- DETALLE DE EQUIPOS --}}
-                <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-                    <div class="card-header bg-white border-0 py-3">
-                        <h6 class="fw-bold mb-0">Detalle de Equipos</h6>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table align-middle mb-0">
-                            <thead class="bg-light small fw-bold">
-                                <tr>
-                                    <th class="ps-4">IDENTITY</th>
-                                    <th>COMERCIO</th>
-                                    <th class="text-center">ESTADO</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($routers as $r)
-                                <tr>
-                                    <td class="ps-4"><code>{{ $r->identity }}</code></td>
-                                    <td>{{ $r->comercio_nombre }}</td>
-                                    <td class="text-center">
-                                        <span class="badge {{ $r->status == 'Habilitado' ? 'bg-success' : 'bg-danger' }} rounded-pill px-3">
-                                            {{ strtoupper($r->status) }}
-                                        </span>
-                                    </td>
-                                </tr>
-                                @empty
-                                <tr><td colspan="3" class="text-center py-4 text-muted">Sin routers configurados.</td></tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-lg-4">
-                <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-                    <div class="card-header bg-white border-0 pt-4 px-4">
-                        <h5 class="fw-bold mb-0">Actividad Reciente</h5>
-                    </div>
-                    <div class="list-group list-group-flush mt-3">
-                        @forelse($ultimosLogs as $log)
-                            <div class="list-group-item border-0 px-4 py-3 small d-flex justify-content-between align-items-start">
-                                <div>
-                                    <span class="fw-bold d-block text-dark">{{ $log->username }}</span>
-                                    <span class="text-muted x-small">{{ $log->router->identity ?? 'MikroTik' }}</span>
-                                </div>
-                                <span class="text-muted" style="font-size: 0.7rem;">{{ $log->created_at->diffForHumans() }}</span>
-                            </div>
-                        @empty
-                            <div class="text-center py-5 text-muted small">Sin actividad reciente</div>
-                        @endforelse
                     </div>
                 </div>
             </div>
@@ -182,40 +127,40 @@
 
     {{-- MODAL DE PLANES --}}
     @if($showPlanModal)
-        <div class="modal fade show d-block" style="background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 2050;">
-            <div class="modal-dialog modal-xl" style="margin-top: 8rem;">
-                <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-                    <div class="modal-header bg-dark text-white p-4">
-                        <h5 class="modal-title fw-bold"><i class="bi bi-rocket-takeoff me-2"></i>Escala tu Negocio Hotspot</h5>
-                        @if($activePlans->isNotEmpty() || $pendingPlans->isNotEmpty())
-                            <button type="button" wire:click="closeModal" class="btn-close btn-close-white shadow-none"></button>
-                        @endif
-                    </div>
-                    <div class="modal-body p-4 bg-light">
-                        <div class="row g-4">
-                            @foreach($availablePackages as $package)
-                                <div class="col-md-4">
-                                    <div class="card border-0 shadow-sm rounded-4 h-100 text-center transition-card">
-                                        <div class="p-2 {{ $package->service_type == 'cortesia' ? 'bg-success' : 'bg-primary' }} text-white small fw-bold">
-                                            {{ strtoupper($package->service_type) }}
-                                        </div>
-                                        <div class="card-body p-4">
-                                            <h4 class="fw-bold">{{ $package->name }}</h4>
-                                            <div class="display-6 fw-bold my-3 text-dark">${{ number_format($package->cost, 2) }}</div>
-                                            <ul class="list-unstyled text-start small mb-4">
-                                                <li class="mb-2"><i class="bi bi-router-fill text-primary me-2"></i><strong>{{ $package->limit_routers }}</strong> Router(s)</li>
-                                                <li class="mb-2"><i class="bi bi-calendar-check text-primary me-2"></i>{{ $package->duration_months }} Mes(es) de vigencia</li>
-                                            </ul>
-                                            <button wire:click="selectPlan({{ $package->id }})" class="btn btn-dark w-100 rounded-pill fw-bold">ADQUIRIR PLAN</button>
-                                        </div>
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 2050;">
+        <div class="modal-dialog modal-xl" style="margin-top: 8rem;">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header bg-dark text-white p-4">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-rocket-takeoff me-2"></i>Escala tu Negocio Hotspot</h5>
+                    @if($activePlans->isNotEmpty() || $pendingPlans->isNotEmpty())
+                        <button type="button" wire:click="closeModal" class="btn-close btn-close-white shadow-none"></button>
+                    @endif
+                </div>
+                <div class="modal-body p-4 bg-light">
+                    <div class="row g-4">
+                        @foreach($availablePackages as $package)
+                            <div class="col-md-4">
+                                <div class="card border-0 shadow-sm rounded-4 h-100 text-center transition-card">
+                                    <div class="p-2 {{ $package->service_type == 'cortesia' ? 'bg-success' : 'bg-primary' }} text-white small fw-bold">
+                                        {{ strtoupper($package->service_type) }}
+                                    </div>
+                                    <div class="card-body p-4">
+                                        <h4 class="fw-bold">{{ $package->name }}</h4>
+                                        <div class="display-6 fw-bold my-3 text-dark">${{ number_format($package->cost, 2) }}</div>
+                                        <ul class="list-unstyled text-start small mb-4">
+                                            <li class="mb-2"><i class="bi bi-router-fill text-primary me-2"></i><strong>{{ $package->limit_routers }}</strong> Router(s)</li>
+                                            <li class="mb-2"><i class="bi bi-calendar-check text-primary me-2"></i>{{ $package->duration_months }} Mes(es) de vigencia</li>
+                                        </ul>
+                                        <button wire:click="selectPlan({{ $package->id }})" class="btn btn-dark w-100 rounded-pill fw-bold">ADQUIRIR PLAN</button>
                                     </div>
                                 </div>
-                            @endforeach
-                        </div>
+                            </div>
+                        @endforeach
                     </div>
                 </div>
             </div>
         </div>
+    </div>
     @endif
 </div>
 
@@ -235,7 +180,7 @@
         function render(labels, data) {
             if(chart) chart.destroy();
 
-            // Cálculo dinámico para escalar el eje Y a centenas o decenas
+            // Cálculo para escala automática en Y (Centenas/Decenas)
             const maxVal = Math.max(...data, 0);
             let suggestedMax = 10;
             let stepSize = 1;
@@ -249,40 +194,44 @@
             }
 
             chart = new Chart(ctx, {
-                type: 'bar', // Cambiado a barras para mejor visualización por horas
+                type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Conexiones',
+                        label: 'Logins',
                         data: data,
                         backgroundColor: '#0d6efd',
-                        borderRadius: 5,
-                        hoverBackgroundColor: '#0b5ed7'
+                        borderRadius: 5
                     }]
                 },
                 options: { 
                     responsive: true, 
                     maintainAspectRatio: false, 
-                    plugins: { 
-                        legend: { display: false },
-                        tooltip: { mode: 'index', intersect: false }
-                    },
+                    plugins: { legend: { display: false } },
                     scales: {
                         y: { 
                             beginAtZero: true, 
                             suggestedMax: suggestedMax,
-                            ticks: { stepSize: stepSize, precision: 0 },
-                            grid: { borderDash: [5, 5] }
+                            ticks: { 
+                                stepSize: stepSize,
+                                color: '#6c757d', // Color gris oscuro para visibilidad
+                                font: { weight: 'bold' }
+                            },
+                            grid: { color: '#e9ecef' }
                         },
-                        x: { grid: { display: false } }
+                        x: { 
+                            ticks: { 
+                                color: '#6c757d',
+                                font: { weight: 'bold' }
+                            },
+                            grid: { display: false }
+                        }
                     }
                 }
             });
         }
 
         render(@json($chartLabels), @json($chartData));
-        
-        // Escuchar actualizaciones de Livewire (cuando se cambia el filtro de periodo)
         window.livewire.on('updateChart', (labels, data) => render(labels, data));
     });
 </script>
