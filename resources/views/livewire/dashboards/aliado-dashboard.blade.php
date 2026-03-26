@@ -112,42 +112,72 @@
             </div>
         </div>
 
-        {{-- SECCIÓN CENTRAL: GRÁFICA DE BARRAS APILADAS --}}
-        <div class="row g-4 mb-4">
-            <div class="col-lg-8">
-                <div class="card border-0 shadow-sm rounded-4 p-4">
-                    <h6 class="fw-bold mb-4">Tráfico de Red por Router</h6>
-                    <div style="height: 350px;">
-                        <canvas id="aliadoTrafficChart"></canvas>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-4">
-                <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-                    <div class="card-header bg-white border-0 pt-4 px-4">
-                        <h5 class="fw-bold mb-0">Actividad Reciente</h5>
-                    </div>
-                    <div class="list-group list-group-flush mt-3">
-                        @forelse($ultimosLogs as $log)
-                            <div class="list-group-item border-0 px-4 py-3 small d-flex justify-content-between align-items-center">
-                                <div>
-                                    <span class="fw-bold d-block text-dark">{{ $log->username }}</span>
-                                    <span class="text-muted" style="font-size: 0.65rem;">{{ $log->router->identity ?? 'MikroTik' }}</span>
-                                </div>
-                                <div class="text-end">
-                                    <span class="badge {{ is_null($log->disconnected_at) ? 'bg-success' : 'bg-light text-muted' }} rounded-pill d-block mb-1" style="font-size: 0.6rem;">
-                                        {{ is_null($log->disconnected_at) ? 'ONLINE' : $log->duracion_formateada }}
-                                    </span>
-                                    <small class="text-muted" style="font-size: 0.65rem;">{{ $log->created_at->diffForHumans() }}</small>
-                                </div>
-                            </div>
-                        @empty
-                            <div class="text-center py-5 text-muted small">Sin actividad reciente</div>
-                        @endforelse
-                    </div>
-                </div>
-            </div>
+        {{-- SECCIÓN CENTRAL: TRÁFICO POR EQUIPO --}}
+<div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h6 class="fw-bold mb-0">Distribución de Tráfico por Router</h6>
+            <small class="text-muted">Total de conexiones en el periodo: <strong>{{ strtoupper($period) }}</strong></small>
         </div>
+        <div class="btn-group bg-light p-1 rounded-pill">
+            <button wire:click="setPeriod('today')" class="btn btn-sm rounded-pill px-3 {{ $period == 'today' ? 'btn-white shadow-sm fw-bold' : 'border-0' }}">Hoy</button>
+            <button wire:click="setPeriod('weekly')" class="btn btn-sm rounded-pill px-3 {{ $period == 'weekly' ? 'btn-white shadow-sm fw-bold' : 'border-0' }}">Semana</button>
+            <button wire:click="setPeriod('month')" class="btn btn-sm rounded-pill px-3 {{ $period == 'month' ? 'btn-white shadow-sm fw-bold' : 'border-0' }}">Mes</button>
+        </div>
+    </div>
+
+    <div style="height: 350px;">
+        <canvas id="aliadoTrafficChart"></canvas>
+    </div>
+</div>
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('livewire:load', function () {
+        let chart;
+        const ctx = document.getElementById('aliadoTrafficChart').getContext('2d');
+
+        function render(chartData) {
+            if(chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'bar', // Tipo barra para comparar equipos
+                data: chartData,
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false }, // No hace falta leyenda si el eje X tiene los nombres
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ' ' + context.parsed.y + ' conexiones';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            grid: { display: false },
+                            ticks: { font: { weight: 'bold' } }
+                        },
+                        y: { 
+                            beginAtZero: true, 
+                            ticks: { precision: 0 },
+                            grid: { borderDash: [5, 5] }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Carga inicial con los datos del controlador
+        render(@json($this->getChartData()));
+
+        window.livewire.on('updateChart', data => render(data));
+    });
+</script>
+@endpush
 
         {{-- DETALLE DE EQUIPOS --}}
         <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
