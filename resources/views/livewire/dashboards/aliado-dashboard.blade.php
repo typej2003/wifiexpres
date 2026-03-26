@@ -6,142 +6,211 @@
         </div>
     @endif
 
-    {{-- HEADER Y FILTROS --}}
-    <div class="row mb-4 align-items-center">
-        <div class="col-md-6">
-            <h2 class="fw-bold text-dark mb-0">Dashboard Aliado</h2>
-            <p class="text-muted small mb-0">Tasa BCV: <strong>Bs. {{ number_format($dollarRate, 2, ',', '.') }}</strong></p>
+    {{-- ALERTAS DE PLANES PENDIENTES --}}
+    @forelse($pendingPlans as $p)
+        <div class="alert alert-info border-0 shadow-sm rounded-4 mb-3 d-flex align-items-center">
+            <div class="spinner-border spinner-border-sm me-3"></div>
+            <span>El plan <strong>{{ $p->name }}</strong> está pendiente de activación ({{ $p->limit_routers }} routers).</span>
         </div>
-        <div class="col-md-6 text-end">
-            <div class="btn-group bg-white p-1 rounded-pill border shadow-sm">
-                <button wire:click="setPeriod('today')" class="btn btn-sm rounded-pill px-3 {{ $period == 'today' ? 'btn-dark text-white' : 'btn-white border-0' }}">Hoy</button>
-                <button wire:click="setPeriod('weekly')" class="btn btn-sm rounded-pill px-3 {{ $period == 'weekly' ? 'btn-dark text-white' : 'btn-white border-0' }}">Semana</button>
-                <button wire:click="setPeriod('month')" class="btn btn-sm rounded-pill px-3 {{ $period == 'month' ? 'btn-dark text-white' : 'btn-white border-0' }}">Mes</button>
-            </div>
-        </div>
-    </div>
+    @empty
+    @endforelse
 
-    {{-- ESTADÍSTICAS --}}
-    <div class="row g-4 mb-4">
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-4 text-center">
-                <h6 class="text-muted small fw-bold mb-2">EQUIPOS</h6>
-                <h2 class="fw-bold mb-0 text-dark">{{ $stats['total_routers'] }} / {{ $stats['limit_routers'] }}</h2>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-4 text-center">
-                <h6 class="text-muted small fw-bold mb-2">TICKETS TOTALES</h6>
-                <h2 class="fw-bold mb-0 text-primary">{{ $stats['total_tickets'] }}</h2>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-4 text-center">
-                <h6 class="text-muted small fw-bold mb-2">USUARIOS ONLINE</h6>
-                <h2 class="fw-bold mb-0 text-success">{{ $stats['tickets_activos'] }}</h2>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-4 text-center">
-                <h6 class="text-muted small fw-bold mb-2">PLANES ACTIVOS</h6>
-                <h2 class="fw-bold mb-0 text-info">{{ $activePlans->count() }}</h2>
-            </div>
-        </div>
-    </div>
-
-    {{-- SECCIÓN CENTRAL: TRÁFICO DE RED (BARRAS) --}}
-    <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h6 class="fw-bold mb-0">Tráfico de Red por Router</h6>
-            <span class="badge bg-light text-dark rounded-pill px-3 py-2 small">Eje Y: Cantidad de Conexiones</span>
-        </div>
-        <div style="height: 380px;">
-            <canvas id="aliadoTrafficChart"></canvas>
-        </div>
-    </div>
-
-    <div class="row g-4">
-        {{-- LISTADO DE ROUTERS --}}
-        <div class="col-lg-8">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-                <div class="card-header bg-white border-0 py-3">
-                    <h6 class="fw-bold mb-0">Mis Equipos MikroTik</h6>
+    @if($activePlans->isEmpty() && $pendingPlans->isEmpty())
+        <div class="row justify-content-center my-5">
+            <div class="col-md-8 text-center">
+                <div class="card border-0 shadow-lg rounded-4 p-5">
+                    <i class="bi bi-shield-lock display-1 text-primary mb-4"></i>
+                    <h2 class="fw-bold">Acceso Restringido</h2>
+                    <p class="text-muted fs-5">Para habilitar el monitoreo de sus equipos MikroTik, debe adquirir un plan comercial.</p>
+                    <button wire:click="openModal" class="btn btn-primary btn-lg rounded-pill px-5 mt-3 shadow-lg fw-bold">VER PLANES DISPONIBLES</button>
                 </div>
-                <div class="table-responsive">
-                    <table class="table align-middle mb-0">
-                        <thead class="bg-light small fw-bold">
-                            <tr>
-                                <th class="ps-4">IDENTITY</th>
-                                <th>UBICACIÓN</th>
-                                <th class="text-center">ESTADO</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($routers as $r)
-                            <tr>
-                                <td class="ps-4">
-                                    <span class="fw-bold text-primary">{{ $r->identity }}</span>
-                                    <small class="d-block text-muted">{{ $r->ip_address }}</small>
-                                </td>
-                                <td>{{ $r->comercio_nombre }}</td>
-                                <td class="text-center">
-                                    <span class="badge {{ $r->status == 'Habilitado' ? 'bg-success' : 'bg-danger' }} rounded-pill px-3">
-                                        {{ $r->status }}
+            </div>
+        </div>
+    @else
+        <div class="row mb-4 align-items-center">
+            <div class="col-md-6">
+                <h2 class="fw-bold text-dark mb-0">Dashboard Aliado</h2>
+                <div class="d-flex align-items-center gap-2 mt-1">
+                    <p class="text-muted mb-0 small">Rendimiento de red y suscripciones.</p>
+                    <span class="badge bg-primary-soft text-primary border border-primary rounded-pill px-3" style="font-size: 0.7rem;">
+                        <i class="bi bi-currency-exchange me-1"></i> Tasa BCV: <strong>Bs. {{ number_format($dollarRate, 2, ',', '.') }}</strong>
+                    </span>
+                </div>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="bg-white p-2 px-3 rounded-4 shadow-sm border d-inline-block text-start me-2">
+                    <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.6rem;">Capacidad Routers</small>
+                    <span class="fw-bold {{ $stats['total_routers'] >= $stats['limit_routers'] ? 'text-danger' : 'text-primary' }}">
+                        {{ $stats['total_routers'] }} / {{ $stats['limit_routers'] }}
+                    </span>
+                </div>
+                <div class="btn-group bg-white p-1 rounded-pill border shadow-sm">
+                    <button wire:click="setPeriod('today')" class="btn btn-sm rounded-pill px-3 {{ $period == 'today' ? 'btn-dark' : 'btn-white border-0' }}">Hoy</button>
+                    <button wire:click="setPeriod('weekly')" class="btn btn-sm rounded-pill px-3 {{ $period == 'weekly' ? 'btn-dark' : 'btn-white border-0' }}">Semana</button>
+                    <button wire:click="setPeriod('month')" class="btn btn-sm rounded-pill px-3 {{ $period == 'month' ? 'btn-dark' : 'btn-white border-0' }}">Mes</button>
+                </div>
+            </div>
+        </div>
+
+        {{-- TABLA DE PLANES --}}
+        <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+            <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0">Suscripciones Activas</h6>
+                <button wire:click="openModal" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold">+ ADQUIRIR MÁS</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead class="bg-light small fw-bold text-muted">
+                        <tr>
+                            <th class="ps-4">PLAN</th>
+                            <th>TIPO</th>
+                            <th>CAPACIDAD</th>
+                            <th>FECHA VENCIMIENTO</th>
+                            <th class="text-end pe-4">ESTADO</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($activePlans as $plan)
+                        <tr>
+                            <td class="ps-4 fw-bold">{{ $plan->name }}</td>
+                            <td><span class="badge {{ $plan->service_type == 'cortesia' ? 'bg-success' : 'bg-primary' }} rounded-pill">{{ strtoupper($plan->service_type) }}</span></td>
+                            <td class="fw-bold text-dark">{{ $plan->limit_routers }} Router(s)</td>
+                            <td>{{ optional($plan->pivot)->end_date ? \Carbon\Carbon::parse($plan->pivot->end_date)->format('d/m/Y') : 'N/A' }}</td>
+                            <td class="text-end pe-4"><span class="badge bg-success rounded-pill px-3">Activo</span></td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {{-- STATS CARDS --}}
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm rounded-4 p-4 text-center">
+                    <h6 class="text-muted small fw-bold">ROUTERS</h6>
+                    <h2 class="fw-bold mb-0 text-dark">{{ $stats['total_routers'] }}</h2>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm rounded-4 p-4 text-center">
+                    <h6 class="text-muted small fw-bold">TICKETS</h6>
+                    <h2 class="fw-bold mb-0 text-info">{{ $stats['total_tickets'] }}</h2>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm rounded-4 p-4 text-center">
+                    <h6 class="text-muted small fw-bold">ONLINE</h6>
+                    <h2 class="fw-bold mb-0 text-success">{{ $stats['tickets_activos'] }}</h2>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm rounded-4 p-4 text-center">
+                    <h6 class="text-muted small fw-bold">LOGINS ({{ strtoupper($period) }})</h6>
+                    <h2 class="fw-bold mb-0 text-warning">{{ $stats['conexiones_periodo'] }}</h2>
+                </div>
+            </div>
+        </div>
+
+        {{-- SECCIÓN CENTRAL: GRÁFICA DE BARRAS APILADAS --}}
+        <div class="row g-4 mb-4">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm rounded-4 p-4">
+                    <h6 class="fw-bold mb-4">Tráfico de Red por Router</h6>
+                    <div style="height: 350px;">
+                        <canvas id="aliadoTrafficChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+                    <div class="card-header bg-white border-0 pt-4 px-4">
+                        <h5 class="fw-bold mb-0">Actividad Reciente</h5>
+                    </div>
+                    <div class="list-group list-group-flush mt-3">
+                        @forelse($ultimosLogs as $log)
+                            <div class="list-group-item border-0 px-4 py-3 small d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="fw-bold d-block text-dark">{{ $log->username }}</span>
+                                    <span class="text-muted" style="font-size: 0.65rem;">{{ $log->router->identity ?? 'MikroTik' }}</span>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge {{ is_null($log->disconnected_at) ? 'bg-success' : 'bg-light text-muted' }} rounded-pill d-block mb-1" style="font-size: 0.6rem;">
+                                        {{ is_null($log->disconnected_at) ? 'ONLINE' : $log->duracion_formateada }}
                                     </span>
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                                    <small class="text-muted" style="font-size: 0.65rem;">{{ $log->created_at->diffForHumans() }}</small>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="text-center py-5 text-muted small">Sin actividad reciente</div>
+                        @endforelse
+                    </div>
                 </div>
             </div>
         </div>
 
-        {{-- ÚLTIMOS LOGS --}}
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-sm rounded-4 h-100 p-3">
-                <h6 class="fw-bold mb-3 px-2">Actividad Reciente</h6>
-                @foreach($ultimosLogs as $log)
-                <div class="d-flex justify-content-between align-items-center mb-3 p-2 border-bottom">
-                    <div>
-                        <span class="fw-bold d-block small">{{ $log->username }}</span>
-                        <small class="text-muted">{{ $log->router->identity }}</small>
-                    </div>
-                    <div class="text-end">
-                        <span class="badge {{ is_null($log->disconnected_at) ? 'bg-success' : 'bg-light text-muted' }} small d-block mb-1">
-                            {{ is_null($log->disconnected_at) ? 'ONLINE' : $log->duracion_formateada }}
-                        </span>
-                        <small class="text-muted" style="font-size: 0.7rem;">{{ $log->created_at->diffForHumans() }}</small>
-                    </div>
-                </div>
-                @endforeach
+        {{-- DETALLE DE EQUIPOS --}}
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+            <div class="card-header bg-white border-0 py-3">
+                <h6 class="fw-bold mb-0">Detalle de Equipos</h6>
+            </div>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead class="bg-light small fw-bold">
+                        <tr>
+                            <th class="ps-4">IDENTITY</th>
+                            <th>COMERCIO</th>
+                            <th class="text-center">ESTADO</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($routers as $r)
+                        <tr>
+                            <td class="ps-4"><code>{{ $r->identity }}</code></td>
+                            <td>{{ $r->comercio_nombre }}</td>
+                            <td class="text-center">
+                                <span class="badge {{ $r->status == 'Habilitado' ? 'bg-success' : 'bg-danger' }} rounded-pill px-3">
+                                    {{ strtoupper($r->status) }}
+                                </span>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr><td colspan="3" class="text-center py-4 text-muted">Sin routers configurados.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
         </div>
-    </div>
+    @endif
 
     {{-- MODAL DE PLANES --}}
     @if($showPlanModal)
-    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 2050;">
-        <div class="modal-dialog modal-xl modal-dialog-centered">
-            <div class="modal-content border-0 shadow rounded-4">
-                <div class="modal-header border-0 p-4">
-                    <h5 class="fw-bold mb-0">Planes de Suscripción</h5>
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 2050;">
+        <div class="modal-dialog modal-xl" style="margin-top: 5rem;">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header bg-dark text-white p-4 border-0">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-rocket-takeoff me-2"></i>Escala tu Negocio Hotspot</h5>
                     @if($activePlans->isNotEmpty() || $pendingPlans->isNotEmpty())
-                        <button type="button" wire:click="closeModal" class="btn-close shadow-none"></button>
+                        <button type="button" wire:click="closeModal" class="btn-close btn-close-white shadow-none"></button>
                     @endif
                 </div>
                 <div class="modal-body p-4 bg-light">
                     <div class="row g-4">
                         @foreach($availablePackages as $package)
                             <div class="col-md-4">
-                                <div class="card border-0 shadow-sm rounded-4 h-100 text-center p-4">
-                                    <h4 class="fw-bold">{{ $package->name }}</h4>
-                                    <div class="display-6 fw-bold my-3 text-dark">${{ number_format($package->cost, 2) }}</div>
-                                    <ul class="list-unstyled text-start mb-4">
-                                        <li><i class="bi bi-check text-success me-2"></i>{{ $package->limit_routers }} Routers</li>
-                                        <li><i class="bi bi-check text-success me-2"></i>{{ $package->duration_months }} Meses</li>
-                                    </ul>
-                                    <button wire:click="selectPlan({{ $package->id }})" class="btn btn-primary w-100 rounded-pill fw-bold">ELEGIR</button>
+                                <div class="card border-0 shadow-sm rounded-4 h-100 text-center transition-card">
+                                    <div class="p-2 {{ $package->service_type == 'cortesia' ? 'bg-success' : 'bg-primary' }} text-white small fw-bold">
+                                        {{ strtoupper($package->service_type) }}
+                                    </div>
+                                    <div class="card-body p-4">
+                                        <h4 class="fw-bold">{{ $package->name }}</h4>
+                                        <div class="display-6 fw-bold my-3 text-dark">${{ number_format($package->cost, 2) }}</div>
+                                        <ul class="list-unstyled text-start small mb-4">
+                                            <li class="mb-2"><i class="bi bi-router-fill text-primary me-2"></i><strong>{{ $package->limit_routers }}</strong> Router(s)</li>
+                                            <li class="mb-2"><i class="bi bi-calendar-check text-primary me-2"></i>{{ $package->duration_months }} Mes(es)</li>
+                                        </ul>
+                                        <button wire:click="selectPlan({{ $package->id }})" class="btn btn-dark w-100 rounded-pill fw-bold">ADQUIRIR PLAN</button>
+                                    </div>
                                 </div>
                             </div>
                         @endforeach
@@ -157,20 +226,19 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('livewire:load', function () {
-        const ctx = document.getElementById('aliadoTrafficChart').getContext('2d');
         let chart;
+        const ctx = document.getElementById('aliadoTrafficChart').getContext('2d');
 
-        function renderChart(data) {
-            if (chart) chart.destroy();
+        function render(chartData) {
+            if(chart) chart.destroy();
             chart = new Chart(ctx, {
                 type: 'bar',
-                data: data,
-                options: {
-                    responsive: true,
+                data: chartData,
+                options: { 
+                    responsive: true, 
                     maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } },
-                        tooltip: { mode: 'index', intersect: false }
+                    plugins: { 
+                        legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } }
                     },
                     scales: {
                         x: { stacked: true, grid: { display: false } },
@@ -180,8 +248,8 @@
             });
         }
 
-        renderChart(@json($chartInitialData));
-        window.livewire.on('updateChart', data => renderChart(data));
+        render(@json($chartInitialData));
+        window.livewire.on('updateChart', data => render(data));
     });
 </script>
 @endpush

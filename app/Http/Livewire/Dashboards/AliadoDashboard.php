@@ -15,7 +15,7 @@ use Carbon\Carbon;
 class AliadoDashboard extends Component
 {
     public $showPlanModal = false;
-    public $period = 'today'; // today, weekly, month
+    public $period = 'today';
 
     protected $listeners = ['refreshDashboard' => '$refresh'];
 
@@ -45,6 +45,7 @@ class AliadoDashboard extends Component
     {
         $user = Auth::user();
         $routers = Router::where('user_id', $user->id)->get();
+        $routerIds = $routers->pluck('id');
         
         [$start, $end] = match($this->period) {
             'weekly' => [now()->startOfWeek(), now()->endOfWeek()],
@@ -69,6 +70,7 @@ class AliadoDashboard extends Component
         }
 
         $datasets = [];
+        // Paleta de colores para distinguir routers
         $colors = ['#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#fd7e14', '#ffc107', '#198754'];
 
         foreach ($routers as $index => $router) {
@@ -102,6 +104,12 @@ class AliadoDashboard extends Component
         $package = Package::findOrFail($packageId);
         $user = Auth::user();
         
+        $alreadyPending = $user->packages()->where('package_id', $packageId)->wherePivot('status', 'pending')->exists();
+        if($alreadyPending) {
+            session()->flash('error', 'Ya tienes una solicitud pendiente para este plan.');
+            return;
+        }
+
         $user->packages()->attach($package->id, [
             'start_date' => now(),
             'end_date' => now()->addMonths($package->duration_months),
@@ -113,11 +121,17 @@ class AliadoDashboard extends Component
         ]);
 
         $this->showPlanModal = false;
-        session()->flash('message', '¡Solicitud enviada exitosamente!');
+        session()->flash('message', '¡Solicitud enviada! Tu plan se activará pronto.');
     }
 
     public function openModal() { $this->showPlanModal = true; }
-    public function closeModal() { $this->showPlanModal = false; }
+    
+    public function closeModal() 
+    { 
+        $user = Auth::user();
+        $hasPlan = $user->packages()->wherePivotIn('status', ['active', 'pending'])->exists();
+        if ($hasPlan) { $this->showPlanModal = false; }
+    }
 
     public function render()
     {
@@ -125,6 +139,12 @@ class AliadoDashboard extends Component
         $activePlans = $user->packages()->wherePivot('status', 'active')->wherePivot('end_date', '>=', now())->get();
         $routers = Router::where('user_id', $user->id)->get();
         $routerIds = $routers->pluck('id');
+
+        [$start, $end] = match($this->period) {
+            'weekly' => [now()->startOfWeek(), now()],
+            'month' => [now()->startOfMonth(), now()],
+            default => [now()->startOfDay(), now()],
+        };
 
         return view('livewire.dashboards.aliado-dashboard', [
             'availablePackages' => Package::where('is_active', true)->where('is_visible', true)->get(),
@@ -136,6 +156,7 @@ class AliadoDashboard extends Component
                 'limit_routers' => $activePlans->sum('pivot.allowed_routers'),
                 'total_tickets' => Ticket::whereIn('router_id', $routerIds)->count(),
                 'tickets_activos' => TicketLog::whereIn('router_id', $routerIds)->whereNull('disconnected_at')->count(),
+                'conexiones_periodo' => TicketLog::whereIn('router_id', $routerIds)->whereBetween('created_at', [$start, $end])->count(),
             ],
             'chartInitialData' => $this->getChartData(),
             'ultimosLogs' => TicketLog::whereIn('router_id', $routerIds)->with('router')->latest()->take(6)->get(),
