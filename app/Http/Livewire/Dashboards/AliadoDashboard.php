@@ -48,54 +48,39 @@ class AliadoDashboard extends Component
         $routerIds = $routers->pluck('id');
         
         [$start, $end] = match($this->period) {
-            'weekly' => [now()->startOfWeek(), now()->endOfWeek()],
-            'month' => [now()->startOfMonth(), now()->endOfMonth()],
-            default => [now()->startOfDay(), now()->endOfDay()],
+            'weekly' => [now()->startOfWeek(), now()],
+            'month' => [now()->startOfMonth(), now()],
+            default => [now()->startOfDay(), now()],
         };
 
-        $labels = [];
-        $sqlFormat = '';
-        
-        if ($this->period == 'today') {
-            $sqlFormat = '%H:00';
-            for ($i = 0; $i < 24; $i++) { $labels[] = sprintf("%02d:00", $i); }
-        } elseif ($this->period == 'weekly') {
-            $sqlFormat = '%d/%m';
-            $temp = $start->copy();
-            for ($i = 0; $i < 7; $i++) { $labels[] = $temp->format('d/m'); $temp->addDay(); }
-        } else {
-            $sqlFormat = '%d'; 
-            $daysInMonth = now()->daysInMonth;
-            for ($i = 1; $i <= $daysInMonth; $i++) { $labels[] = sprintf("%02d", $i); }
-        }
+        // Obtenemos el conteo agrupado por router
+        $logs = TicketLog::whereIn('router_id', $routerIds)
+            ->whereBetween('created_at', [$start, $end])
+            ->select('router_id', DB::raw('count(*) as total'))
+            ->groupBy('router_id')
+            ->pluck('total', 'router_id');
 
-        $datasets = [];
-        // Paleta de colores para distinguir routers
+        $labels = [];
+        $data = [];
+        $backgrounds = [];
         $colors = ['#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#fd7e14', '#ffc107', '#198754'];
 
         foreach ($routers as $index => $router) {
-            $dataQuery = TicketLog::where('router_id', $router->id)
-                ->whereBetween('created_at', [$start, $end])
-                ->select(DB::raw("DATE_FORMAT(created_at, '$sqlFormat') as time_label"), DB::raw('count(*) as total'))
-                ->groupBy('time_label')
-                ->pluck('total', 'time_label');
-
-            $datasetData = [];
-            foreach ($labels as $l) {
-                $datasetData[] = $dataQuery[$l] ?? 0;
-            }
-
-            $datasets[] = [
-                'label' => $router->identity,
-                'data' => $datasetData,
-                'backgroundColor' => $colors[$index % count($colors)],
-                'borderRadius' => 4,
-            ];
+            $labels[] = $router->identity; // Nombre del Router al eje X
+            $data[] = $logs[$router->id] ?? 0; // Total de conexiones
+            $backgrounds[] = $colors[$index % count($colors)]; // Color único por barra
         }
 
         return [
             'labels' => $labels,
-            'datasets' => $datasets
+            'datasets' => [
+                [
+                    'label' => 'Conexiones',
+                    'data' => $data,
+                    'backgroundColor' => $backgrounds,
+                    'borderRadius' => 8,
+                ]
+            ]
         ];
     }
 

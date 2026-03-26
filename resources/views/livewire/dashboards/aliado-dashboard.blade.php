@@ -112,10 +112,10 @@
             </div>
         </div>
 
-        {{-- SECCIÓN CENTRAL: GRÁFICA DE BARRAS APILADAS --}}
+        {{-- SECCIÓN CENTRAL: GRÁFICA POR ROUTER --}}
         <div class="row g-4 mb-4">
             <div class="col-lg-8">
-                <div class="card border-0 shadow-sm rounded-4 p-4">
+                <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
                     <h6 class="fw-bold mb-4">Tráfico de Red por Router</h6>
                     <div style="height: 350px;">
                         <canvas id="aliadoTrafficChart"></canvas>
@@ -238,11 +238,18 @@
                     responsive: true, 
                     maintainAspectRatio: false,
                     plugins: { 
-                        legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } }
+                        legend: { display: false } // Ocultamos leyenda porque los nombres ya están en el eje X
                     },
                     scales: {
-                        x: { stacked: true, grid: { display: false } },
-                        y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }
+                        x: { 
+                            grid: { display: false },
+                            ticks: { font: { weight: 'bold' } }
+                        },
+                        y: { 
+                            beginAtZero: true, 
+                            ticks: { precision: 0 },
+                            grid: { borderDash: [5, 5] }
+                        }
                     }
                 }
             });
