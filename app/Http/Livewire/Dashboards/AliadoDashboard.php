@@ -16,27 +16,20 @@ class AliadoDashboard extends Component
     public $showPlanModal = false;
     public $period = 'today';
 
+    protected $listeners = ['refreshChart' => '$refresh'];
+
     public function mount()
     {
-        $this->checkInitialPlan();
-    }
-
-    public function checkInitialPlan()
-    {
         $user = Auth::user();
-        $hasActive = $user->packages()->wherePivot('status', 'active')->wherePivot('end_date', '>=', now())->exists();
-        $hasPending = $user->packages()->wherePivot('status', 'pending')->exists();
-
-        if (!$hasActive && !$hasPending) {
-            $this->showPlanModal = true;
-        }
+        $hasPlan = $user->packages()->wherePivotIn('status', ['active', 'pending'])->exists();
+        if (!$hasPlan) { $this->showPlanModal = true; }
     }
 
     public function setPeriod($value) 
     { 
         $this->period = $value; 
         $data = $this->getChartData();
-        $this->emit('updateChart', $data['labels'], $data['data']);
+        $this->emit('updateChartData', ['labels' => $data['labels'], 'data' => $data['data']]);
     }
 
     private function getChartData()
@@ -44,20 +37,16 @@ class AliadoDashboard extends Component
         $user = Auth::user();
         $routerIds = Router::where('user_id', $user->id)->pluck('id');
 
-        [$start, $end] = match($this->period) {
-            'weekly' => [now()->startOfWeek(), now()],
-            'month' => [now()->startOfMonth(), now()],
-            default => [now()->startOfDay(), now()],
-        };
-
+        $start = ($this->period == 'today') ? now()->startOfDay() : ($this->period == 'weekly' ? now()->startOfWeek() : now()->startOfMonth());
         $format = ($this->period == 'today') ? '%H:00' : '%d/%m';
-        $query = TicketLog::whereIn('router_id', $routerIds)
-            ->whereBetween('created_at', [$start, $end])
-            ->select(DB::raw("DATE_FORMAT(created_at, '$format') as label"), DB::raw('count(*) as total'))
-            ->groupBy('label')->pluck('total', 'label');
 
-        $labels = [];
-        $data = [];
+        $query = TicketLog::whereIn('router_id', $routerIds)
+            ->where('created_at', '>=', $start)
+            ->select(DB::raw("DATE_FORMAT(created_at, '$format') as label"), DB::raw('count(*) as total'))
+            ->groupBy('label')
+            ->pluck('total', 'label')->toArray();
+
+        $labels = []; $data = [];
 
         if ($this->period == 'today') {
             for ($i = 0; $i < 24; $i++) {
@@ -66,30 +55,11 @@ class AliadoDashboard extends Component
                 $data[] = $query[$h] ?? 0;
             }
         } else {
-            foreach ($query as $label => $total) {
-                $labels[] = $label;
-                $data[] = $total;
-            }
+            $labels = array_keys($query);
+            $data = array_values($query);
         }
 
         return ['labels' => $labels, 'data' => $data];
-    }
-
-    public function selectPlan($packageId)
-    {
-        $package = Package::findOrFail($packageId);
-        $user = Auth::user();
-        $user->packages()->attach($package->id, [
-            'start_date' => now(),
-            'end_date' => now()->addMonths($package->duration_months),
-            'status' => 'pending',
-            'allowed_routers' => $package->limit_routers,
-            'router_quantity' => 0,
-            'created_at' => now(),
-            'updated_at' => now()
-        ]);
-        $this->showPlanModal = false;
-        session()->flash('message', '¡Solicitud enviada!');
     }
 
     public function openModal() { $this->showPlanModal = true; }
@@ -101,7 +71,6 @@ class AliadoDashboard extends Component
         $routers = Router::where('user_id', $user->id)->get();
         $routerIds = $routers->pluck('id');
         $activePlans = $user->packages()->wherePivot('status', 'active')->wherePivot('end_date', '>=', now())->get();
-        
         $chart = $this->getChartData();
 
         return view('livewire.dashboards.aliado-dashboard', [
