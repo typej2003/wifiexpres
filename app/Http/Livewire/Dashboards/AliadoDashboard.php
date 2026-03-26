@@ -33,17 +33,60 @@ class AliadoDashboard extends Component
         }
     }
 
+    public function setPeriod($value) 
+    { 
+        $this->period = $value; 
+        // IMPORTANTE: Enviamos los nuevos datos al frontend inmediatamente
+        $data = $this->getChartQueryData();
+        $this->emit('updateChart', $data['labels'], $data['data']);
+    }
+
+    // Centralizamos el cálculo para que render y setPeriod usen lo mismo
+    private function getChartQueryData()
+    {
+        $user = Auth::user();
+        $routerIds = Router::where('user_id', $user->id)->pluck('id');
+
+        [$start, $end] = match($this->period) {
+            'weekly' => [now()->startOfWeek(), now()->endOfWeek()],
+            'month' => [now()->startOfMonth(), now()->endOfMonth()],
+            default => [now()->startOfDay(), now()->endOfDay()],
+        };
+
+        $format = ($this->period == 'today') ? '%H:00' : '%d/%m';
+        $query = TicketLog::whereIn('router_id', $routerIds)
+            ->whereBetween('created_at', [$start, $end])
+            ->select(DB::raw("DATE_FORMAT(created_at, '$format') as label"), DB::raw('count(*) as total'))
+            ->groupBy('label')
+            ->pluck('total', 'label');
+
+        $labels = [];
+        $data = [];
+
+        if ($this->period == 'today') {
+            for ($i = 0; $i < 24; $i++) {
+                $h = str_pad($i, 2, '0', STR_PAD_LEFT) . ':00';
+                $labels[] = $h;
+                $data[] = $query[$h] ?? 0;
+            }
+        } else {
+            $current = $start->copy();
+            while ($current <= $end && $current <= now()) {
+                $l = $current->format('d/m');
+                $labels[] = $l;
+                $data[] = $query[$l] ?? 0;
+                $current->addDay();
+            }
+        }
+
+        return ['labels' => $labels, 'data' => $data];
+    }
+
     public function selectPlan($packageId)
     {
         $package = Package::findOrFail($packageId);
         $user = Auth::user();
         
-        $alreadyPending = $user->packages()->where('package_id', $packageId)->wherePivot('status', 'pending')->exists();
-        if($alreadyPending) {
-            session()->flash('error', 'Ya tienes una solicitud pendiente para este plan.');
-            return;
-        }
-
         $user->packages()->attach($package->id, [
             'start_date' => now(),
             'end_date' => now()->addMonths($package->duration_months),
@@ -55,66 +98,20 @@ class AliadoDashboard extends Component
         ]);
 
         $this->showPlanModal = false;
-        session()->flash('message', '¡Solicitud enviada! Tu plan se activará pronto.');
+        session()->flash('message', '¡Solicitud enviada!');
     }
 
     public function openModal() { $this->showPlanModal = true; }
-    
-    public function closeModal() 
-    { 
-        $user = Auth::user();
-        $hasPlan = $user->packages()->wherePivotIn('status', ['active', 'pending'])->exists();
-        if ($hasPlan) { $this->showPlanModal = false; }
-    }
-
-    public function setPeriod($value) 
-    { 
-        $this->period = $value; 
-        // Emitimos para que el JS sepa que los datos cambiaron
-    }
+    public function closeModal() { $this->showPlanModal = false; }
 
     public function render()
     {
         $user = Auth::user();
-        $activePlans = $user->packages()->wherePivot('status', 'active')->wherePivot('end_date', '>=', now())->get();
         $routers = Router::where('user_id', $user->id)->get();
         $routerIds = $routers->pluck('id');
+        $activePlans = $user->packages()->wherePivot('status', 'active')->wherePivot('end_date', '>=', now())->get();
 
-        [$start, $end] = match($this->period) {
-            'weekly' => [now()->startOfWeek(), now()->endOfWeek()],
-            'month' => [now()->startOfMonth(), now()->endOfMonth()],
-            default => [now()->startOfDay(), now()->endOfDay()],
-        };
-
-        // 1. Obtener datos de la DB
-        $format = ($this->period == 'today') ? '%H:00' : '%d/%m';
-        $chartQuery = TicketLog::whereIn('router_id', $routerIds)
-            ->whereBetween('created_at', [$start, $end])
-            ->select(DB::raw("DATE_FORMAT(created_at, '$format') as label"), DB::raw('count(*) as total'))
-            ->groupBy('label')
-            ->orderBy('label')
-            ->pluck('total', 'label');
-
-        // 2. Normalizar datos para que no falten horas o días (Calculo manual)
-        $labels = [];
-        $data = [];
-
-        if ($this->period == 'today') {
-            for ($i = 0; $i < 24; $i++) {
-                $h = str_pad($i, 2, '0', STR_PAD_LEFT) . ':00';
-                $labels[] = $h;
-                $data[] = $chartQuery[$h] ?? 0;
-            }
-        } else {
-            // Para semana o mes, llenamos los huecos según el rango
-            $current = $start->copy();
-            while ($current <= $end && $current <= now()) {
-                $l = $current->format('d/m');
-                $labels[] = $l;
-                $data[] = $chartQuery[$l] ?? 0;
-                $current->addDay();
-            }
-        }
+        $chart = $this->getChartQueryData();
 
         return view('livewire.dashboards.aliado-dashboard', [
             'availablePackages' => Package::where('is_active', true)->where('is_visible', true)->get(),
@@ -125,14 +122,11 @@ class AliadoDashboard extends Component
                 'total_routers' => $routers->count(),
                 'limit_routers' => $activePlans->sum('pivot.allowed_routers'),
                 'total_tickets' => Ticket::whereIn('router_id', $routerIds)->count(),
-                'tickets_activos' => TicketLog::whereIn('router_id', $routerIds)->whereNull('disconnected_at')->count(),
-                'conexiones_periodo' => TicketLog::whereIn('router_id', $routerIds)->whereBetween('created_at', [$start, $end])->count(),
+                'tickets_activos' => Ticket::whereIn('router_id', $routerIds)->where('estado', 'activo')->count(),
+                'conexiones_periodo' => array_sum($chart['data']),
             ],
-            'chartLabels' => $labels,
-            'chartData' => $data,
-            'topUsuarios' => TicketLog::whereIn('router_id', $routerIds)
-                ->select('username', DB::raw('count(*) as total_conexiones'), DB::raw('sum(duration_seconds) as tiempo_total'))
-                ->groupBy('username')->orderBy('total_conexiones', 'desc')->take(5)->get(),
+            'chartLabels' => $chart['labels'],
+            'chartData' => $chart['data'],
             'ultimosLogs' => TicketLog::whereIn('router_id', $routerIds)->latest()->take(6)->get(),
             'dollarRate' => ExchangeRateService::getBcvRate()
         ])->layout('layouts.app');
