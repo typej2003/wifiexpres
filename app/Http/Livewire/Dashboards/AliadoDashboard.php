@@ -47,57 +47,45 @@ class AliadoDashboard extends Component
         $routerIds = Router::where('user_id', $user->id)->pluck('id');
         
         $labels = [];
-        $datasetData = [];
-        $bgColors = [];
+        $data = [];
 
         if ($this->period === 'today') {
-            // LÓGICA POR HORAS (00 a 23)
-            $start = now()->startOfDay();
-            $end = now()->endOfDay();
-
+            // Agrupación por HORA para el día de hoy
             $logs = TicketLog::whereIn('router_id', $routerIds)
-                ->whereBetween('created_at', [$start, $end])
+                ->whereDate('created_at', Carbon::today())
                 ->select(DB::raw('HOUR(created_at) as hora'), DB::raw('count(*) as total'))
                 ->groupBy('hora')
                 ->pluck('total', 'hora');
 
             for ($i = 0; $i < 24; $i++) {
                 $labels[] = str_pad($i, 2, '0', STR_PAD_LEFT) . ':00';
-                $datasetData[] = $logs[$i] ?? 0;
-                $bgColors[] = '#0d6efd'; // Color único para todas si es por horas
+                $data[] = $logs[$i] ?? 0;
             }
-            $labelName = 'Conexiones por Hora';
         } else {
-            // LÓGICA POR ROUTER (Semana/Mes)
+            // Agrupación por ROUTER para Semana/Mes
             $start = $this->period === 'weekly' ? now()->startOfWeek() : now()->startOfMonth();
-            
             $routers = Router::where('user_id', $user->id)->get();
+            
             $logs = TicketLog::whereIn('router_id', $routerIds)
                 ->where('created_at', '>=', $start)
                 ->select('router_id', DB::raw('count(*) as total'))
                 ->groupBy('router_id')
                 ->pluck('total', 'router_id');
 
-            foreach ($routers as $index => $router) {
+            foreach ($routers as $router) {
                 $labels[] = $router->identity;
-                $datasetData[] = $logs[$router->id] ?? 0;
-                $bgColors[] = ['#6610f2', '#6f42c1', '#d63384', '#fd7e14', '#ffc107'][$index % 5];
+                $data[] = $logs[$router->id] ?? 0;
             }
-            $labelName = 'Total por Router';
         }
 
         return [
             'labels' => $labels,
-            'datasets' => [
-                [
-                    'label' => $labelName,
-                    'data' => $datasetData,
-                    'backgroundColor' => $bgColors,
-                    'borderRadius' => 5,
-                    'borderWidth' => 0,
-                    'barPercentage' => 0.8
-                ]
-            ]
+            'datasets' => [[
+                'label' => 'Conexiones',
+                'data' => $data,
+                'backgroundColor' => '#0d6efd',
+                'borderRadius' => 5
+            ]]
         ];
     }
 
@@ -117,7 +105,7 @@ class AliadoDashboard extends Component
         ]);
 
         $this->showPlanModal = false;
-        session()->flash('message', '¡Solicitud enviada! Tu plan se activará pronto.');
+        session()->flash('message', '¡Solicitud enviada!');
     }
 
     public function openModal() { $this->showPlanModal = true; }
