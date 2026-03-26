@@ -16,6 +16,7 @@
     @endforelse
 
     @if($activePlans->isEmpty() && $pendingPlans->isEmpty())
+        {{-- SECCIÓN ACCESO RESTRINGIDO (IGUAL A TU ORIGINAL) --}}
         <div class="row justify-content-center my-5">
             <div class="col-md-8 text-center">
                 <div class="card border-0 shadow-lg rounded-4 p-5">
@@ -27,13 +28,11 @@
             </div>
         </div>
     @else
-        {{-- HEADER CON TASA DE CAMBIO --}}
         <div class="row mb-4 align-items-center">
             <div class="col-md-6">
                 <h2 class="fw-bold text-dark mb-0">Dashboard Aliado</h2>
                 <div class="d-flex align-items-center gap-2 mt-1">
                     <p class="text-muted mb-0 small">Rendimiento de red y suscripciones.</p>
-                    {{-- INDICADOR TASA BCV --}}
                     <span class="badge bg-primary-soft text-primary border border-primary rounded-pill px-3" style="font-size: 0.7rem;">
                         <i class="bi bi-currency-exchange me-1"></i> Tasa BCV: <strong>Bs. {{ number_format($dollarRate, 2, ',', '.') }}</strong>
                     </span>
@@ -118,10 +117,13 @@
         <div class="row g-4">
             <div class="col-lg-8">
                 <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
-                    <h6 class="fw-bold mb-4">Tráfico de Red</h6>
-                    <div style="height: 300px;"><canvas id="aliadoTrafficChart"></canvas></div>
+                    <h6 class="fw-bold mb-4">Tráfico de Red (Conexiones por {{ $period == 'today' ? 'Hora' : 'Día' }})</h6>
+                    <div style="height: 350px;">
+                        <canvas id="aliadoTrafficChart"></canvas>
+                    </div>
                 </div>
 
+                {{-- DETALLE DE EQUIPOS --}}
                 <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
                     <div class="card-header bg-white border-0 py-3">
                         <h6 class="fw-bold mb-0">Detalle de Equipos</h6>
@@ -180,48 +182,41 @@
 
     {{-- MODAL DE PLANES --}}
     @if($showPlanModal)
-    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 2050;">
-        <div class="modal-dialog modal-xl" style="margin-top: 8rem;">
-            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-                <div class="modal-header bg-dark text-white p-4">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-rocket-takeoff me-2"></i>Escala tu Negocio Hotspot</h5>
-                    @if($activePlans->isNotEmpty() || $pendingPlans->isNotEmpty())
-                        <button type="button" wire:click="closeModal" class="btn-close btn-close-white shadow-none"></button>
-                    @endif
-                </div>
-                <div class="modal-body p-4 bg-light">
-                    <div class="row g-4">
-                        @foreach($availablePackages as $package)
-                            <div class="col-md-4">
-                                <div class="card border-0 shadow-sm rounded-4 h-100 text-center transition-card">
-                                    <div class="p-2 {{ $package->service_type == 'cortesia' ? 'bg-success' : 'bg-primary' }} text-white small fw-bold">
-                                        {{ strtoupper($package->service_type) }}
-                                    </div>
-                                    <div class="card-body p-4">
-                                        <h4 class="fw-bold">{{ $package->name }}</h4>
-                                        <div class="display-6 fw-bold my-3 text-dark">${{ number_format($package->cost, 2) }}</div>
-                                        <ul class="list-unstyled text-start small mb-4">
-                                            <li class="mb-2"><i class="bi bi-router-fill text-primary me-2"></i><strong>{{ $package->limit_routers }}</strong> Router(s)</li>
-                                            <li class="mb-2"><i class="bi bi-calendar-check text-primary me-2"></i>{{ $package->duration_months }} Mes(es) de vigencia</li>
-                                            <li class="mb-2"><i class="bi bi-display text-primary me-2"></i>Portal: {{ $package->hotspotVersion->name ?? 'Estándar' }}</li>
-                                        </ul>
-                                        <button wire:click="selectPlan({{ $package->id }})" class="btn btn-dark w-100 rounded-pill fw-bold">ADQUIRIR PLAN</button>
+        <div class="modal fade show d-block" style="background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 2050;">
+            <div class="modal-dialog modal-xl" style="margin-top: 8rem;">
+                <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                    <div class="modal-header bg-dark text-white p-4">
+                        <h5 class="modal-title fw-bold"><i class="bi bi-rocket-takeoff me-2"></i>Escala tu Negocio Hotspot</h5>
+                        @if($activePlans->isNotEmpty() || $pendingPlans->isNotEmpty())
+                            <button type="button" wire:click="closeModal" class="btn-close btn-close-white shadow-none"></button>
+                        @endif
+                    </div>
+                    <div class="modal-body p-4 bg-light">
+                        <div class="row g-4">
+                            @foreach($availablePackages as $package)
+                                <div class="col-md-4">
+                                    <div class="card border-0 shadow-sm rounded-4 h-100 text-center transition-card">
+                                        <div class="p-2 {{ $package->service_type == 'cortesia' ? 'bg-success' : 'bg-primary' }} text-white small fw-bold">
+                                            {{ strtoupper($package->service_type) }}
+                                        </div>
+                                        <div class="card-body p-4">
+                                            <h4 class="fw-bold">{{ $package->name }}</h4>
+                                            <div class="display-6 fw-bold my-3 text-dark">${{ number_format($package->cost, 2) }}</div>
+                                            <ul class="list-unstyled text-start small mb-4">
+                                                <li class="mb-2"><i class="bi bi-router-fill text-primary me-2"></i><strong>{{ $package->limit_routers }}</strong> Router(s)</li>
+                                                <li class="mb-2"><i class="bi bi-calendar-check text-primary me-2"></i>{{ $package->duration_months }} Mes(es) de vigencia</li>
+                                            </ul>
+                                            <button wire:click="selectPlan({{ $package->id }})" class="btn btn-dark w-100 rounded-pill fw-bold">ADQUIRIR PLAN</button>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        @endforeach
+                            @endforeach
+                        </div>
                     </div>
                 </div>
-                @if($activePlans->isNotEmpty() || $pendingPlans->isNotEmpty())
-                <div class="modal-footer bg-white border-0 p-3">
-                    <button type="button" wire:click="closeModal" class="btn btn-light rounded-pill px-4">Cerrar</button>
-                </div>
-                @endif
             </div>
         </div>
-    </div>
     @endif
-
 </div>
 
 <style>
@@ -235,34 +230,59 @@
 <script>
     document.addEventListener('livewire:load', function () {
         let chart;
+        const ctx = document.getElementById('aliadoTrafficChart').getContext('2d');
+
         function render(labels, data) {
-            const ctx = document.getElementById('aliadoTrafficChart');
-            if(!ctx) return;
             if(chart) chart.destroy();
+
+            // Cálculo dinámico para escalar el eje Y a centenas o decenas
+            const maxVal = Math.max(...data, 0);
+            let suggestedMax = 10;
+            let stepSize = 1;
+
+            if (maxVal > 100) {
+                suggestedMax = Math.ceil((maxVal + 10) / 100) * 100;
+                stepSize = 100;
+            } else if (maxVal > 10) {
+                suggestedMax = Math.ceil((maxVal + 5) / 10) * 10;
+                stepSize = 10;
+            }
+
             chart = new Chart(ctx, {
-                type: 'line',
+                type: 'bar', // Cambiado a barras para mejor visualización por horas
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Logins',
+                        label: 'Conexiones',
                         data: data,
-                        borderColor: '#0d6efd',
-                        backgroundColor: 'rgba(13, 110, 253, 0.05)',
-                        fill: true,
-                        tension: 0.4
+                        backgroundColor: '#0d6efd',
+                        borderRadius: 5,
+                        hoverBackgroundColor: '#0b5ed7'
                     }]
                 },
                 options: { 
                     responsive: true, 
                     maintainAspectRatio: false, 
-                    plugins: { legend: { display: false } },
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
                     scales: {
-                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                        y: { 
+                            beginAtZero: true, 
+                            suggestedMax: suggestedMax,
+                            ticks: { stepSize: stepSize, precision: 0 },
+                            grid: { borderDash: [5, 5] }
+                        },
+                        x: { grid: { display: false } }
                     }
                 }
             });
         }
+
         render(@json($chartLabels), @json($chartData));
+        
+        // Escuchar actualizaciones de Livewire (cuando se cambia el filtro de periodo)
         window.livewire.on('updateChart', (labels, data) => render(labels, data));
     });
 </script>
