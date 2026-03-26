@@ -15,7 +15,7 @@ use Carbon\Carbon;
 class AliadoDashboard extends Component
 {
     public $showPlanModal = false;
-    public $period = 'today'; // today, weekly, month
+    public $period = 'today'; 
 
     protected $listeners = ['refreshDashboard' => '$refresh'];
 
@@ -53,33 +53,39 @@ class AliadoDashboard extends Component
         };
 
         $labels = [];
-        $format = '';
+        $sqlFormat = '';
         
+        // Configuración de Ejes y Formatos
         if ($this->period == 'today') {
-            $format = '%H:00';
+            $sqlFormat = '%H:00';
             for ($i = 0; $i < 24; $i++) { $labels[] = sprintf("%02d:00", $i); }
         } elseif ($this->period == 'weekly') {
-            $format = '%d/%m';
+            $sqlFormat = '%d/%m';
             $temp = $start->copy();
-            while($temp <= $end) { $labels[] = $temp->format('d/m'); $temp->addDay(); }
+            for ($i = 0; $i < 7; $i++) { 
+                $labels[] = $temp->format('d/m'); 
+                $temp->addDay(); 
+            }
         } else {
-            $format = '%d'; 
+            $sqlFormat = '%d'; 
             $daysInMonth = now()->daysInMonth;
             for ($i = 1; $i <= $daysInMonth; $i++) { $labels[] = sprintf("%02d", $i); }
         }
 
         $datasets = [];
-        $colors = ['#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#fd7e14', '#ffc107', '#198754', '#20c997', '#0dcaf0'];
+        $colors = ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796', '#5a5c69'];
 
         foreach ($routers as $index => $router) {
+            // Obtenemos conteo agrupado por el formato de fecha elegido
             $dataQuery = TicketLog::where('router_id', $router->id)
                 ->whereBetween('created_at', [$start, $end])
-                ->select(DB::raw("DATE_FORMAT(created_at, '$format') as label"), DB::raw('count(*) as total'))
-                ->groupBy('label')
-                ->pluck('total', 'label');
+                ->select(DB::raw("DATE_FORMAT(created_at, '$sqlFormat') as time_label"), DB::raw('count(*) as total'))
+                ->groupBy('time_label')
+                ->pluck('total', 'time_label');
 
             $datasetData = [];
             foreach ($labels as $l) {
+                // Si no hay datos en esa hora/día, ponemos 0 para que la barra no se rompa
                 $datasetData[] = $dataQuery[$l] ?? 0;
             }
 
@@ -87,7 +93,7 @@ class AliadoDashboard extends Component
                 'label' => $router->identity,
                 'data' => $datasetData,
                 'backgroundColor' => $colors[$index % count($colors)],
-                'borderRadius' => 4,
+                'borderRadius' => 5, // Barras redondeadas arriba
             ];
         }
 
@@ -102,12 +108,6 @@ class AliadoDashboard extends Component
         $package = Package::findOrFail($packageId);
         $user = Auth::user();
         
-        $alreadyPending = $user->packages()->where('package_id', $packageId)->wherePivot('status', 'pending')->exists();
-        if($alreadyPending) {
-            session()->flash('error', 'Ya tienes una solicitud pendiente para este plan.');
-            return;
-        }
-
         $user->packages()->attach($package->id, [
             'start_date' => now(),
             'end_date' => now()->addMonths($package->duration_months),
@@ -119,17 +119,11 @@ class AliadoDashboard extends Component
         ]);
 
         $this->showPlanModal = false;
-        session()->flash('message', '¡Solicitud enviada! Tu plan se activará pronto.');
+        session()->flash('message', '¡Solicitud enviada!');
     }
 
     public function openModal() { $this->showPlanModal = true; }
-    
-    public function closeModal() 
-    { 
-        $user = Auth::user();
-        $hasPlan = $user->packages()->wherePivotIn('status', ['active', 'pending'])->exists();
-        if ($hasPlan) { $this->showPlanModal = false; }
-    }
+    public function closeModal() { $this->showPlanModal = false; }
 
     public function render()
     {
@@ -137,12 +131,6 @@ class AliadoDashboard extends Component
         $activePlans = $user->packages()->wherePivot('status', 'active')->wherePivot('end_date', '>=', now())->get();
         $routers = Router::where('user_id', $user->id)->get();
         $routerIds = $routers->pluck('id');
-
-        [$start, $end] = match($this->period) {
-            'weekly' => [now()->startOfWeek(), now()],
-            'month' => [now()->startOfMonth(), now()],
-            default => [now()->startOfDay(), now()],
-        };
 
         return view('livewire.dashboards.aliado-dashboard', [
             'availablePackages' => Package::where('is_active', true)->where('is_visible', true)->get(),
@@ -153,9 +141,9 @@ class AliadoDashboard extends Component
                 'total_routers' => $routers->count(),
                 'limit_routers' => $activePlans->sum('pivot.allowed_routers'),
                 'total_tickets' => Ticket::whereIn('router_id', $routerIds)->count(),
-                // Lógica: Si disconnected_at es null, el usuario sigue navegando (Online)
                 'tickets_activos' => TicketLog::whereIn('router_id', $routerIds)->whereNull('disconnected_at')->count(),
-                'conexiones_periodo' => TicketLog::whereIn('router_id', $routerIds)->whereBetween('created_at', [$start, $end])->count(),
+                'conexiones_periodo' => TicketLog::whereIn('router_id', $routerIds)
+                                        ->whereBetween('created_at', [now()->startOfDay(), now()->endOfDay()])->count(),
             ],
             'chartInitialData' => $this->getChartData(),
             'ultimosLogs' => TicketLog::whereIn('router_id', $routerIds)->with('router')->latest()->take(6)->get(),
