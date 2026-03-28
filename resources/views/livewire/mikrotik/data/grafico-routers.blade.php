@@ -2,7 +2,7 @@
     <div class="row mb-4">
         <div class="col-12 text-center">
             <h2 class="fw-bold text-dark">Distribución de Conexiones</h2>
-            <p class="text-muted small">Porcentaje de uso basado en tus Routers activos</p>
+            <p class="text-muted small">Uso por cada Router asignado</p>
         </div>
     </div>
 
@@ -10,14 +10,14 @@
         <div class="col-md-6 col-lg-5">
             <div class="card border-0 shadow-sm rounded-4 p-4">
                 <div class="card-body">
-                    {{-- Contenedor del Gráfico --}}
-                    <div style="position: relative; height:350px;">
+                    {{-- ID ÚNICO PARA EL CANVAS --}}
+                    <div style="position: relative; height:350px;" wire:ignore>
                         <canvas id="chartRouters"></canvas>
                     </div>
 
                     <div class="mt-4 text-center">
                         <hr class="opacity-10">
-                        <h6 class="text-muted small text-uppercase fw-bold">Total de Sesiones Registradas</h6>
+                        <h6 class="text-muted small text-uppercase fw-bold">Total de Sesiones</h6>
                         <h3 class="fw-bold text-primary">{{ number_format($totalGeneral) }}</h3>
                     </div>
                 </div>
@@ -26,61 +26,50 @@
     </div>
 </div>
 
-{{-- Cargamos Chart.js solo para esta vista --}}
+{{-- Scripts --}}
 @push('js')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    document.addEventListener('livewire:load', function () {
-        const ctx = document.getElementById('chartRouters').getContext('2d');
-        
-        const data = {
-            labels: @json($labels),
-            datasets: [{
-                data: @json($values),
-                backgroundColor: [
-                    '#0d6efd', // Primary
-                    '#212529', // Dark
-                    '#0dcaf0', // Info
-                    '#198754', // Success
-                    '#ffc107', // Warning
-                    '#6610f2', // Purple
-                    '#fd7e14'  // Orange
-                ],
-                borderWidth: 2,
-                borderColor: '#ffffff',
-                hoverOffset: 15
-            }]
-        };
+    function initChart() {
+        const el = document.getElementById('chartRouters');
+        if (!el) return;
 
+        // Limpiar gráfico previo si existe (evita errores al recargar)
+        const existingChart = Chart.getChart("chartRouters");
+        if (existingChart) {
+            existingChart.destroy();
+        }
+
+        const ctx = el.getContext('2d');
         new Chart(ctx, {
-            type: 'pie', // Tipo Torta
-            data: data,
+            type: 'pie',
+            data: {
+                labels: @json($labels),
+                datasets: [{
+                    data: @json($values),
+                    backgroundColor: ['#0d6efd', '#212529', '#0dcaf0', '#198754', '#ffc107', '#6610f2'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            usePointStyle: true,
-                            padding: 20,
-                            font: { size: 12, family: 'sans-serif' }
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                let label = context.label || '';
-                                let value = context.parsed || 0;
-                                let total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                let percentage = ((value * 100) / total).toFixed(1);
-                                return `${label}: ${value} (${percentage}%)`;
-                            }
-                        }
-                    }
+                    legend: { position: 'bottom' }
                 }
             }
         });
+    }
+
+    // Se ejecuta al cargar la página
+    document.addEventListener('DOMContentLoaded', () => {
+        initChart();
+    });
+
+    // Se ejecuta si Livewire vuelve a renderizar el componente
+    document.addEventListener('livewire:load', () => {
+        initChart();
     });
 </script>
 @endpush

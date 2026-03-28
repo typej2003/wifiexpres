@@ -135,5 +135,9 @@
         });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    @livewireScripts
+    @stack('js') {{-- ESTA LÍNEA ES VITAL --}}
+</body>
 </body>
 </html>
