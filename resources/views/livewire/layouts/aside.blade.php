@@ -250,6 +250,11 @@
                 <span class="menu-text">Dashboard</span>
             </a>
 
+            <a href="{{ route('mikrotik.grafico') }}" class="sidebar-link {{ request()->routeIs('mikrotik.grafico') ? 'active' : '' }}">
+                <i class="bi bi-speedometer2"></i> 
+                <span class="menu-text">GraficoRouters</span>
+            </a>
+
             <a href="{{ route('aliado.hour.analysis') }}" class="sidebar-link {{ request()->routeIs('aliado.hour.analysis') ? 'active' : '' }}">
                 <i class="bi bi-speedometer2"></i> 
                 <span class="menu-text">ANÁLISIS DE HORAS</span>
