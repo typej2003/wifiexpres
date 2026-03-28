@@ -241,7 +241,7 @@ class UserController extends Controller
                 'success' => true, 
                 'password' => $password,
                 'message' => 'Registro guardado exitosamente'
-            ]);
+            ])->header('Access-Control-Allow-Origin', '*');
 
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
