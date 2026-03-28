@@ -92,8 +92,8 @@ Route::prefix('v3')->group(function () {
 
 // MANEJO GLOBAL DE CORS
 Route::options('{any}', function() {
-    return response('', 200)
+    return response()->json([], 200)
         ->header('Access-Control-Allow-Origin', '*')
         ->header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS, PUT, DELETE')
-        ->header('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, X-Requested-With, Origin');
+        ->header('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, X-Requested-With');
 })->where('any', '.*');
