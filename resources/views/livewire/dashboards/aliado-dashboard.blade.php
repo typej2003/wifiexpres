@@ -33,7 +33,6 @@
                 <h2 class="fw-bold text-dark mb-0">Dashboard Aliado</h2>
                 <div class="d-flex align-items-center gap-2 mt-1">
                     <p class="text-muted mb-0 small">Rendimiento de red y suscripciones.</p>
-                    {{-- INDICADOR TASA BCV --}}
                     <span class="badge bg-primary-soft text-primary border border-primary rounded-pill px-3" style="font-size: 0.7rem;">
                         <i class="bi bi-currency-exchange me-1"></i> Tasa BCV: <strong>Bs. {{ number_format($dollarRate, 2, ',', '.') }}</strong>
                     </span>
@@ -160,7 +159,8 @@
                     <div class="card-header bg-white border-0 pt-4 px-4">
                         <h5 class="fw-bold mb-0">Actividad Reciente</h5>
                     </div>
-                    <div class="list-group list-group-flush mt-3">
+                    {{-- AJUSTE DE SCROLL --}}
+                    <div class="list-group list-group-flush mt-3" style="max-height: 500px; overflow-y: auto;">
                         @forelse($ultimosLogs as $log)
                             <div class="list-group-item border-0 px-4 py-3 small d-flex justify-content-between align-items-start">
                                 <div>
@@ -170,7 +170,7 @@
                                 <span class="text-muted" style="font-size: 0.7rem;">{{ $log->created_at->diffForHumans() }}</span>
                             </div>
                         @empty
-                            <div class="text-center py-5 text-muted small">Sin actividad reciente</div>
+                            <div class="text-center py-5 text-muted small">Sin actividad en este periodo</div>
                         @endforelse
                     </div>
                 </div>
@@ -228,6 +228,10 @@
     .bg-primary-soft { background-color: rgba(13, 110, 253, 0.1); }
     .transition-card { transition: transform 0.3s ease; }
     .transition-card:hover { transform: translateY(-5px); }
+    /* Scrollbar estilizada para los logs */
+    .list-group::-webkit-scrollbar { width: 4px; }
+    .list-group::-webkit-scrollbar-track { background: #f1f1f1; }
+    .list-group::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
 </style>
 
 @push('scripts')
@@ -263,7 +267,11 @@
             });
         }
         render(@json($chartLabels), @json($chartData));
-        window.livewire.on('updateChart', (labels, data) => render(labels, data));
+        
+        // Listener para actualizar el chart cuando Livewire cambie los datos por periodo
+        window.addEventListener('livewire:load', () => {
+            window.livewire.on('updateChart', (labels, data) => render(labels, data));
+        });
     });
 </script>
 @endpush

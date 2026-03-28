@@ -37,19 +37,17 @@ class AliadoDashboard extends Component
         $package = Package::findOrFail($packageId);
         $user = Auth::user();
         
-        // Evitar duplicados pendientes
         $alreadyPending = $user->packages()->where('package_id', $packageId)->wherePivot('status', 'pending')->exists();
         if($alreadyPending) {
             session()->flash('error', 'Ya tienes una solicitud pendiente para este plan.');
             return;
         }
 
-        // SE ASIGNA EL LÍMITE DEL PAQUETE AL CAMPO allowed_routers DE LA INTERMEDIA
         $user->packages()->attach($package->id, [
             'start_date' => now(),
             'end_date' => now()->addMonths($package->duration_months),
             'status' => 'pending',
-            'allowed_routers' => $package->limit_routers, // Valor congelado
+            'allowed_routers' => $package->limit_routers,
             'router_quantity' => 0,
             'created_at' => now(),
             'updated_at' => now()
@@ -68,7 +66,12 @@ class AliadoDashboard extends Component
         if ($hasPlan) { $this->showPlanModal = false; }
     }
 
-    public function setPeriod($value) { $this->period = $value; }
+    public function setPeriod($value) 
+    { 
+        $this->period = $value; 
+        // Emitimos evento para que el JS del chart se entere si es necesario, 
+        // aunque el render lo hace automáticamente al refrescar.
+    }
 
     public function render()
     {
@@ -96,7 +99,6 @@ class AliadoDashboard extends Component
             'routers' => $routers,
             'stats' => [
                 'total_routers' => $routers->count(),
-                // SUMA DE LOS LÍMITES CONGELADOS EN LA TABLA PIVOTE
                 'limit_routers' => $activePlans->sum('pivot.allowed_routers'),
                 'total_tickets' => Ticket::whereIn('router_id', $routerIds)->count(),
                 'tickets_activos' => Ticket::whereIn('router_id', $routerIds)->where('estado', 'activo')->count(),
@@ -107,7 +109,11 @@ class AliadoDashboard extends Component
             'topUsuarios' => TicketLog::whereIn('router_id', $routerIds)
                 ->select('username', DB::raw('count(*) as total_conexiones'), DB::raw('sum(duration_seconds) as tiempo_total'))
                 ->groupBy('username')->orderBy('total_conexiones', 'desc')->take(5)->get(),
-            'ultimosLogs' => TicketLog::whereIn('router_id', $routerIds)->latest()->take(6)->get(),
+            // SE FILTRAN LOS LOGS POR EL PERIODO SELECCIONADO Y DESCENDENTE
+            'ultimosLogs' => TicketLog::with('router')->whereIn('router_id', $routerIds)
+                ->whereBetween('created_at', [$start, $end])
+                ->latest()
+                ->get(),
             'dollarRate' => ExchangeRateService::getBcvRate()
         ])->layout('layouts.app');
     }

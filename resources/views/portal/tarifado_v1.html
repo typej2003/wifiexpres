@@ -21,7 +21,6 @@
             display: flex; flex-direction: column; min-height: 100vh;
         }
 
-        /* Spinner de carga */
         #loader-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255, 255, 255, 0.9);
@@ -89,7 +88,7 @@
             width: 100%; 
             height: 220px; 
             background-position: center;
-            background-size: cover; /* Importante para que no se deforme */
+            background-size: cover;
             background-repeat: no-repeat;
             margin-top: -10px; 
             transition: all 0.3s ease; 
@@ -105,13 +104,6 @@
         .input-group { position: relative; margin-bottom: 20px; }
         .manual-input { width: 100%; padding: 18px 15px; border: 3px solid #e0e0e0; border-radius: 15px; box-sizing: border-box; font-size: 20px; font-weight: 800; outline: none; background-color: #fafafa; }
         
-        .eye-icon {
-            position: absolute; right: 15px; top: 48px;
-            cursor: pointer; color: var(--purple-main);
-            width: 24px; height: 24px; user-select: none;
-            fill: var(--purple-main);
-        }
-
         .screen { display: none; animation: fadeIn 0.3s ease; }
         .screen.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -134,11 +126,6 @@
             text-decoration: none; 
         }
 
-        .text-link {
-            display: inline-block; margin-top: 15px; color: var(--purple-main);
-            font-weight: bold; text-decoration: underline; cursor: pointer; font-size: 14px;
-        }
-
         .bottom-bar { background-color: var(--purple-main); color: white; text-align: center; padding: 18px; font-weight: bold; border-top-left-radius: 20px; border-top-right-radius: 20px; margin-top: auto; }
     </style>
 </head>
@@ -146,7 +133,7 @@
 
     <div id="loader-overlay">
         <div class="spinner"></div>
-        <div style="font-weight: bold; color: var(--purple-main);">Procesando, por favor espere...</div>
+        <div id="loader-text" style="font-weight: bold; color: var(--purple-main);">Procesando, por favor espere...</div>
     </div>
 
     <div id="ads-modal">
@@ -170,7 +157,7 @@
     <div class="content">
         <div id="screen-plans" class="screen active">
             <h2>Selecciona tu Plan</h2>
-            <div id="btn-trial-option" class="trial-button" onclick="startTrialFlow()">🎁 Navega Gratis 20 minutos</div>
+            <div id="btn-trial-option" class="trial-button" onclick="selectFreeTrial()">🎁 Navega Gratis 20 minutos</div>
             <div id="list-plans">Cargando planes...</div>
         </div>
 
@@ -178,11 +165,11 @@
             <h2 id="form-title">Datos de Registro</h2>
             <div class="input-group">
                 <label style="display:block;color:var(--purple-main);font-weight:800;font-size:14px;margin-bottom:8px;text-transform:uppercase;">Teléfono (Móvil)</label>
-                <input type="tel" id="v2-phone" class="manual-input" placeholder="04121234567" oninput="validateV2Fields()">
+                <input type="tel" id="reg-phone" class="manual-input" placeholder="04121234567" oninput="validateV2Fields()">
             </div>
             <div class="input-group">
                 <label style="display:block;color:var(--purple-main);font-weight:800;font-size:14px;margin-bottom:8px;text-transform:uppercase;">Correo Electrónico</label>
-                <input type="email" id="v2-email" class="manual-input" placeholder="usuario@gmail.com" oninput="validateV2Fields()">
+                <input type="email" id="reg-email" class="manual-input" placeholder="usuario@gmail.com" oninput="validateV2Fields()">
             </div>
         </div>
 
@@ -191,43 +178,19 @@
             <div class="option-card" onclick='processSelectedPayment("banco")'>
                 <div class="info-box">
                     <div class="title-text">BioPago / BDV</div>
-                    <div style="font-size:14px;color:#888;">Pago Móvil / Tarjeta / Transferencia</div>
                 </div>
             </div>
-            <div id="option-kiosko" class="option-card" onclick='processSelectedPayment("kiosko")' style="display:none;">
-                <div class="info-box">
-                    <div class="title-text">Kiosko</div>
-                    <div style="font-size:14px;color:#888;">Comprar ticket físico</div>
-                </div>
-            </div>
-        </div>
-
-        <div id="screen-kiosko-info" class="screen">
-            <h2>Ubicación del Kiosko</h2>
-            <div style="background:#f8f9fa;border-radius:12px;padding:15px;border-left:5px solid var(--purple-main);font-size:15px; margin-bottom: 20px;">
-                <p><strong>Kiosko:</strong> <span id="info-store-name">Cargando...</span></p>
-                <p><strong>Ubicación:</strong> <span id="info-store-address">Cargando...</span></p>
-            </div>
-            <button class="btn-main" onclick="goToManualLogin()" style="background-color: var(--orange-accent);">INGRESAR TICKET COMPRADO</button>
         </div>
 
         <div id="screen-manual-login" class="screen">
             <h2>Tu Ticket de Acceso</h2>
             <div class="input-group">
                 <label style="display:block;color:var(--purple-main);font-weight:800;font-size:14px;margin-bottom:8px;text-transform:uppercase;">Usuario / Ticket</label>
-                <input type="text" id="manual-user" class="manual-input" placeholder="Ej: 10001" oninput="validateManualFields()">
+                <input type="text" id="manual-user" class="manual-input" oninput="validateManualFields()">
             </div>
             <div class="input-group">
                 <label style="display:block;color:var(--purple-main);font-weight:800;font-size:14px;margin-bottom:8px;text-transform:uppercase;">Contraseña</label>
-                <input type="password" id="manual-pass" class="manual-input" placeholder="••••••••" oninput="validateManualFields()">
-                <svg class="eye-icon" id="eye-open" onclick="togglePass(true)" viewBox="0 0 16 16">
-                  <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.069-.127.143-.204.223a13.133 13.133 0 0 1-1.66 2.043C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
-                  <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
-                </svg>
-                <svg class="eye-icon" id="eye-closed" onclick="togglePass(false)" viewBox="0 0 16 16" style="display:none;">
-                    <path d="M10.79 12.912l-1.614-1.615C8.794 11.419 8.413 11.5 8 11.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8c.159-.19.336-.376.53-.557L0 5.754l1.246-1.246 14.754 14.754-1.246 1.246-3.964-3.964zM3.937 5.503l1.597 1.597C5.183 7.394 5 7.688 5 8c0 1.657 1.343 3 3 3 .312 0 .606-.183.896-.534l1.511 1.511c-.722.33-1.52.523-2.407.523-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8c.312-.375.66-.732 1.037-1.07l1.728-1.427zM14.828 8c-.058.069-.127.143-.204.223L12.98 6.58c.01-.192.02-.385.02-.58 0-2.12-1.168-3.879-2.457-5.168A13.133 13.133 0 0 0 8 3.5c-.67 0-1.306.117-1.892.318L4.852 2.562C5.823 2.188 6.878 2 8 2c5 0 8 5.5 8 5.5-.155.285-.325.56-.511.812l-1.332-1.332c.164-.171.32-.351.465-.54z"/>
-                    <path d="M8 5.5c.335 0 .654.076.94.212L7.212 7.44A2.5 2.5 0 0 1 8 5.5z"/>
-                </svg>
+                <input type="password" id="manual-pass" class="manual-input" oninput="validateManualFields()">
             </div>
         </div>
 
@@ -241,8 +204,7 @@
 
     <div class="footer-actions">
         <button id="btn-next" class="btn-main" style="display:none;" disabled onclick="handleNext()">Continuar</button>
-        <span class="text-link" id="link-to-kiosko" onclick="showScreen('screen-kiosko-info')" style="display:none;">¿Dónde comprar un ticket?</span>
-        <button id="btn-manual-toggle" class="btn-link" style="display:none;" onclick="goToManualLogin()">Ya tengo un ticket</button>
+        <button id="btn-manual-toggle" class="btn-link" style="display:none;" onclick="showScreen('screen-manual-login')">Ya tengo un ticket</button>
         <button id="btn-back" class="btn-link" style="display:none;" onclick="goBack()">Volver</button>
     </div>
 
@@ -251,42 +213,39 @@
     <form name="sendin" action="/login" method="post" style="display:none">
         <input type="hidden" name="username" />
         <input type="hidden" name="password" />
-        <input type="hidden" name="dst" value="http://www.google.com" />
     </form>
 
     <script>
-        let routerMac = "$(mac)".toUpperCase(); 
-        let routerIdentity = "$(identity)"; 
-        
-        // Simulación para desarrollo si los valores de MikroTik no vienen
-        if (routerMac.includes("$") || routerMac === "") {
-            routerMac = "48:A9:8A:91:CD:AE"; 
-            routerIdentity = "CangrejoAzul_Local";
+        const IDENTITY = "$(identity)";
+        const MAC_CLIENTE = "$(mac)";
+        const API_V1 = "https://wifiexpres.com/api/v1";
+        const API_V2 = "https://wifiexpres.com/api/v2";
+        const LINK_TRIAL = "$(link-login-only)?dst=$(link-orig-esc)&username=T-$(mac-esc)";
+
+        let isTrialFlow = false;
+        let planSelected = null, planAmount = null, isStore = false, hasTrialEnabled = false;
+
+        function toggleLoader(show, text = "Procesando...") { 
+            document.getElementById("loader-text").innerText = text;
+            document.getElementById("loader-overlay").style.display = show ? "flex" : "none"; 
         }
 
-        const API_BASE_V1 = "https://wifiexpres.com/api/v1"; 
-        const API_BASE_V2 = "https://wifiexpres.com/api/v2"; 
-        let planSelected = null, planAmount = null, isTrial = false, isStore = false, hasTrialEnabled = false;
-        let tempUser = "", tempPass = "", tempEmail = "";
-
-        function toggleLoader(show) {
-            document.getElementById("loader-overlay").style.display = show ? "flex" : "none";
-        }
-
-        function showError(msg) {
-            const errDiv = document.getElementById("error-display");
-            errDiv.innerText = msg; errDiv.style.display = "block";
+        function showError(msg) { 
+            const err = document.getElementById("error-display"); 
+            err.innerText = msg; err.style.display = "block"; 
             window.scrollTo({ top: 0, behavior: 'smooth' });
-            setTimeout(() => { errDiv.style.display = "none"; }, 8000);
+            setTimeout(()=> err.style.display="none", 6000); 
         }
 
         window.addEventListener("message", (event) => {
-            if (event.data && event.data.status === "pago_exitoso") { activateService(); }
+            if (event.data && event.data.status === "pago_exitoso") { 
+                loginSystem(document.getElementById('reg-phone').value, tempPassGlobal); 
+            }
         });
 
         async function initPortal() {
             try {
-                const res = await fetch(`${API_BASE_V1}/get-plans?identity=${encodeURIComponent(routerIdentity)}&mac=${encodeURIComponent(routerMac)}&t=${Date.now()}`);
+                const res = await fetch(`${API_V1}/get-plans?identity=${encodeURIComponent(IDENTITY)}&mac=${encodeURIComponent(MAC_CLIENTE)}`);
                 const data = await res.json();
                 
                 if(data.success && data.router) {
@@ -294,227 +253,133 @@
                     isStore = (r.is_store == 1);
                     hasTrialEnabled = (r.is_trial == 1);
 
-                    // --- ACTUALIZACIÓN DEL HEADER (NOMBRE DEL COMERCIO) ---
-                    if (r.comercio_nombre && r.comercio_nombre.trim() !== "") {
+                    if (r.comercio_nombre) {
                         let nombreOriginal = r.comercio_nombre.toUpperCase();
-                        let nombreFormateado = "";
-
-                        if (nombreOriginal.includes("EXPRES")) {
-                            // Si contiene EXPRES, lo ponemos en el span naranja
-                            nombreFormateado = nombreOriginal.replace("EXPRES", "<span>EXPRES</span>");
-                        } else {
-                            // Si es un nombre cualquiera, ponemos la última palabra en naranja para estilo
-                            let palabras = nombreOriginal.split(" ");
-                            if (palabras.length > 1) {
-                                let ultima = palabras.pop();
-                                nombreFormateado = palabras.join(" ") + ` <span>${ultima}</span>`;
-                            } else {
-                                nombreFormateado = `<span>${nombreOriginal}</span>`;
-                            }
-                        }
+                        let nombreFormateado = nombreOriginal.replace("EXPRES", "<span>EXPRES</span>");
                         document.getElementById("header-logo-text").innerHTML = nombreFormateado;
                     }
 
-                    // --- LÓGICA DEL BANNER DEL COMERCIO ---
-                    const bannerElement = document.getElementById("main-banner");
-                    if(r.comercio_banner) {
-                        bannerElement.style.backgroundImage = `url("${r.comercio_banner}")`;
-                    } else {
-                        bannerElement.style.backgroundImage = `url("banner/titulo_caracas.jpg")`;
-                    }
-
-                    // Manejo del Carrusel de Publicidad
+                    const banner = document.getElementById("main-banner");
+                    banner.style.backgroundImage = r.comercio_banner ? `url("${r.comercio_banner}")` : `url("banner/titulo_caracas.jpg")`;
+                    
                     if(r.is_promotion == 1 && r.path_imgs && r.path_imgs.length > 0) {
                         renderCarousel(r.path_imgs);
                     }
 
-                    // Datos del Kiosko
-                    document.getElementById("info-store-name").innerText = r.store || "WIFI EXPRES";
-                    document.getElementById("info-store-address").innerText = r.address || "Ubicación General";
-                    
-                    if(isStore) {
-                        document.getElementById("btn-manual-toggle").style.display = "inline-block";
-                    }
+                    if(isStore) document.getElementById("btn-manual-toggle").style.display = "inline-block";
                 }
                 loadPlans();
-            } catch (e) { 
-                console.error("Error inicializando portal:", e);
-                loadPlans(); 
-            }
+            } catch (e) { loadPlans(); }
         }
 
         async function loadPlans() {
             const list = document.getElementById("list-plans");
             try {
-                const res = await fetch(`${API_BASE_V1}/get-plans?identity=${encodeURIComponent(routerIdentity)}&mac=${encodeURIComponent(routerMac)}&t=${Date.now()}`);
+                const res = await fetch(`${API_V1}/get-plans?identity=${encodeURIComponent(IDENTITY)}&mac=${encodeURIComponent(MAC_CLIENTE)}`);
                 const data = await res.json();
                 list.innerHTML = ""; 
                 if(hasTrialEnabled) document.getElementById("btn-trial-option").style.display = "block";
+                
                 data.plans.forEach(p => {
-                    if (p.mikrotik_profile.toLowerCase().includes("cortesia")) return;
+                    const prof = p.mikrotik_profile.toLowerCase();
+                    if (prof.includes("cortesia") || prof.includes("gratis") || prof.includes("trial") || prof.includes("neutro")) return;
+                    
                     const d = document.createElement("div");
                     d.className = "option-card";
-                    d.innerHTML = `<div class="info-box"><div class="title-text">${p.name.split("-")[0]} - Bs. ${p.price}</div></div>`;
-                    d.onclick = () => selectPlan(p.mikrotik_profile, p.price);
+                    d.innerHTML = `<div class="title-text">${p.name.split("-")[0]} - Bs. ${p.price}</div>`;
+                    d.onclick = () => { isTrialFlow = false; planSelected = p.mikrotik_profile; planAmount = p.price; showScreen("screen-user-form"); };
                     list.appendChild(d);
                 });
             } catch (e) { list.innerHTML = "Error al cargar planes."; }
         }
 
-        function togglePass(show) {
-            const p = document.getElementById("manual-pass");
-            const open = document.getElementById("eye-open");
-            const closed = document.getElementById("eye-closed");
-            if (show) { p.type = "text"; open.style.display = "none"; closed.style.display = "block"; } 
-            else { p.type = "password"; open.style.display = "block"; closed.style.display = "none"; }
-        }
-
-        function selectPlan(profile, price) {
-            planSelected = profile; planAmount = price;
-            isTrial = false;
+        function selectFreeTrial() {
+            isTrialFlow = true;
+            planAmount = 0;
             showScreen("screen-user-form");
-        }
-
-        function handleNext() { 
-            const active = document.querySelector(".screen.active").id;
-            if (active === "screen-user-form") {
-                if (isTrial) { startTrialActivation(); } 
-                else { showScreen("screen-payment-methods"); }
-            } else if (active === "screen-manual-login") {
-                submitManualLogin();
-            }
         }
 
         function showScreen(id) {
             document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
             document.getElementById(id).classList.add("active");
             document.getElementById("btn-back").style.display = (id === "screen-plans") ? "none" : "inline-block";
-            document.getElementById("btn-manual-toggle").style.display = (id === "screen-plans" && isStore) ? "inline-block" : "none";
-            document.getElementById("link-to-kiosko").style.display = (id === "screen-manual-login" && isStore) ? "inline-block" : "none";
-
-            if (id === "screen-user-form") {
-                document.getElementById("btn-next").style.display = "block";
-                document.getElementById("btn-next").innerText = isTrial ? "NAVEGA YA" : "SIGUIENTE";
+            document.getElementById("btn-next").style.display = (id === "screen-user-form" || id === "screen-manual-login") ? "block" : "none";
+            
+            if(id === "screen-user-form") {
+                document.getElementById("btn-next").innerText = isTrialFlow ? "CONECTAR AHORA" : "CONTINUAR";
                 validateV2Fields();
-            } else if (id === "screen-manual-login") {
-                document.getElementById("btn-next").style.display = "block";
-                document.getElementById("btn-next").innerText = "CONECTAR TICKET";
-                validateManualFields();
-            } else {
-                document.getElementById("btn-next").style.display = "none";
             }
         }
 
-        function goBack() {
+        function handleNext() {
             const active = document.querySelector(".screen.active").id;
-            if (active === "screen-kiosko-info") showScreen("screen-plans");
-            else if (active === "screen-user-form") showScreen("screen-plans");
-            else if (active === "screen-payment-methods") showScreen("screen-user-form");
-            else if (active === "screen-manual-login") showScreen("screen-plans");
-            else location.reload();
-        }
-
-        function goToManualLogin() { showScreen("screen-manual-login"); }
-        function startTrialFlow() { isTrial = true; showScreen("screen-user-form"); }
-
-        function processSelectedPayment(method) { 
-            if(method === "banco") { startV2Flow(); } 
-            else if(method === "kiosko") { showScreen("screen-kiosko-info"); }
-        }
-
-        async function startV2Flow() {
-            tempUser = document.getElementById("v2-phone").value;
-            tempEmail = document.getElementById("v2-email").value;
-            tempPass = Math.floor(10000 + Math.random() * 90000).toString();
-            
-            // ALERT DE DEPURACIÓN (Mantiene la lógica anterior)
-            // alert("Enviando al controlador:\n" + 
-            //       "Username: " + tempUser + "\n" +
-            //       "Password: " + tempPass + "\n" +
-            //       "Identity: " + routerIdentity + "\n" +
-            //       "Email: " + tempEmail + "\n" +
-            //       "Router MAC: " + routerMac);
-
-            toggleLoader(true);
-            
-            try {
-                const res = await fetch(`${API_BASE_V2}/users/pre-add`, {
-                    method: "POST", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ 
-                        username: tempUser, 
-                        password: tempPass, 
-                        email: tempEmail,
-                        router_mac: routerMac, 
-                        identity: routerIdentity
-                    })
-                });
-                const result = await res.json();
-                toggleLoader(false);
-
-                if(result.success) {
-                    showScreen("screen-iframe");
-                    const urlIframe = `pasarela.html?plan=${encodeURIComponent(planSelected)}&amount=${planAmount}&identity=${encodeURIComponent(routerIdentity)}&user=${encodeURIComponent(tempUser)}&email=${encodeURIComponent(tempEmail)}`;
-                    document.getElementById("pasarela-frame").src = urlIframe;
-                } else {
-                    showError(result.message || "Error al preparar el pago.");
-                }
-            } catch (e) { 
-                toggleLoader(false);
-                showError("Error de conexión con el servidor."); 
+            if (active === "screen-user-form") {
+                if (isTrialFlow) submitFreeTrial();
+                else showScreen("screen-payment-methods");
+            } else if (active === "screen-manual-login") {
+                loginSystem(document.getElementById("manual-user").value, document.getElementById("manual-pass").value);
             }
         }
 
-        async function startTrialActivation() {
-            tempUser = routerMac; // Se mantiene la lógica de usar MAC para el Trial
-            tempEmail = document.getElementById("v2-email").value;
-            tempPhone = document.getElementById("v2-phone").value;
-            toggleLoader(true);
+        let tempPassGlobal = "";
+        async function processSelectedPayment(method) {
+            if(method === "banco") {
+                const phone = document.getElementById('reg-phone').value;
+                const email = document.getElementById('reg-email').value;
+                tempPassGlobal = Math.floor(10000 + Math.random() * 90000).toString();
+
+                toggleLoader(true, "Iniciando pago...");
+                try {
+                    const res = await fetch(`${API_V2}/users/pre-add`, {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ 
+                            username: phone, password: tempPassGlobal, email: email,
+                            router_mac: MAC_CLIENTE, identity: IDENTITY, planSelected: planSelected
+                        })
+                    });
+                    const result = await res.json();
+                    toggleLoader(false);
+                    if(result.success) {
+                        showScreen("screen-iframe");
+                        const urlIframe = `pasarela.html?plan=${encodeURIComponent(planSelected)}&amount=${planAmount}&identity=${encodeURIComponent(IDENTITY)}&user=${encodeURIComponent(phone)}&email=${encodeURIComponent(email)}`;
+                        document.getElementById("pasarela-frame").src = urlIframe;
+                    } else {
+                        showError(result.message || "Error al procesar registro.");
+                    }
+                } catch (e) { toggleLoader(false); showError("Error de conexión."); }
+            }
+        }
+
+        async function submitFreeTrial() {
+            const phone = document.getElementById('reg-phone').value;
+            const email = document.getElementById('reg-email').value;
+            
+            toggleLoader(true, "Iniciando sesión...");
+            
+            const payload = {
+                identity: IDENTITY, mac_cliente: MAC_CLIENTE,
+                full_name: "Usuario Cortesia", gender: "O", birthday: "2000-01-01",
+                email: email, cellphonecode: phone.substring(0,4), cellphone: phone.substring(4)
+            };
+
             try {
-                const res = await fetch(`${API_BASE_V2}/users/trial`, {
-                    method: "POST", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ 
-                        username: tempUser, 
-                        email: tempEmail, 
-                        phone: tempPhone,
-                        router_mac: routerMac, 
-                        identity: routerIdentity 
-                    })
+                const res = await fetch(`${API_V2}/free-connection`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
                 });
                 const result = await res.json();
-                toggleLoader(false);
-                if(result.success) { 
-                    loginSystem(tempUser, result.password || "123456"); 
+                if (result.success) { 
+                    window.location.href = LINK_TRIAL; 
                 } else { 
-                    showError(result.message || "Prueba no disponible."); 
+                    toggleLoader(false); showError(result.message); 
                 }
-            } catch (e) { toggleLoader(false); showError("Error de conexión."); }
+            } catch (e) { toggleLoader(false); showError("Error de red"); }
         }
 
-        async function activateService() {
-            toggleLoader(true);
-            try {
-                await fetch(`${API_BASE_V2}/users/activate`, {
-                    method: "POST", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ 
-                        username: tempUser, 
-                        profile: planSelected, 
-                        router_mac: routerMac,
-                        identity: routerIdentity 
-                    })
-                });
-                loginSystem(tempUser, tempPass);
-            } catch (e) { toggleLoader(false); showError("Error en activación."); }
-        }
-
-        function loginSystem(user, pass) {
-            if(!user) return showError("Error en el nombre de usuario.");
-            document.forms.sendin.username.value = user;
-            document.forms.sendin.password.value = pass;
+        function loginSystem(u, p) {
+            document.forms.sendin.username.value = u;
+            document.forms.sendin.password.value = p;
             document.forms.sendin.submit();
-        }
-
-        function submitManualLogin() {
-            loginSystem(document.getElementById("manual-user").value, document.getElementById("manual-pass").value);
         }
 
         function validateManualFields() { 
@@ -522,9 +387,8 @@
         }
 
         function validateV2Fields() { 
-            const phone = document.getElementById("v2-phone").value;
-            const email = document.getElementById("v2-email").value;
-            // Se habilita si el teléfono tiene al menos 10 dígitos (ajustable según prefieras)
+            const phone = document.getElementById("reg-phone").value;
+            const email = document.getElementById("reg-email").value;
             document.getElementById("btn-next").disabled = (phone.length < 10 || email.length < 5); 
         }
 
@@ -544,6 +408,8 @@
                 if(t <= 0) { clearInterval(timer); document.getElementById("close-ads").style.display = "flex"; }
             }, 1000);
         }
+
+        function goBack() { showScreen("screen-plans"); }
 
         window.onload = initPortal;
     </script>
