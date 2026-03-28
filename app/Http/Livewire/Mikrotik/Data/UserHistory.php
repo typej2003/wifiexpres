@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Livewire\Mikrotik;
+namespace App\Http\Livewire\Mikrotik\Data;
 
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -8,7 +8,7 @@ use App\Models\TicketLog;
 use App\Models\Router;
 use Illuminate\Support\Facades\Auth;
 
-class DataUserHistory extends Component
+class UserHistory extends Component
 {
     use WithPagination;
 
