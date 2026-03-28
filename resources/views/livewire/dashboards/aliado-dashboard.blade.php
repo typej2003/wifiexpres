@@ -164,7 +164,9 @@
                         @forelse($ultimosLogs as $log)
                             <div class="list-group-item border-0 px-4 py-3 small d-flex justify-content-between align-items-start">
                                 <div>
-                                    <span class="fw-bold d-block text-dark">{{ $log->username }}</span>
+                                    <span class="fw-bold d-block text-dark">
+                                        <a href="/mikrotik/user-history/{{$log->username}}">{{ $log->username }}</a>
+                                    </span>
                                     <span class="text-muted x-small">{{ $log->router->identity ?? 'MikroTik' }}</span>
                                 </div>
                                 <span class="text-muted" style="font-size: 0.7rem;">{{ $log->created_at->diffForHumans() }}</span>
