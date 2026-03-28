@@ -54,7 +54,7 @@ class UserHistory extends Component
             ];
         }
 
-        return view('livewire.mikrotik.data-user-history', [
+        return view('livewire.mikrotik.data.user-history', [
             'logs' => $query->paginate(20),
             'misRouters' => Router::where('user_id', $user->id)->get(),
             'userStats' => $userStats
