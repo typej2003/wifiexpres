@@ -25,7 +25,7 @@ class UserController extends Controller
     /**
      * 3. REGISTRO DE CORTESÍA (TRIAL)
      */
-    public function trialLead(Request $request)
+    public function trialLead1(Request $request)
     {
         try {
             $name        = $request->input('name');
@@ -66,6 +66,46 @@ class UserController extends Controller
         } catch (Exception $e) { 
             Log::error("Error en trialLead: " . $e->getMessage());
             return response()->json(['success' => false], 500); 
+        }
+    }
+
+    public function trialLead(Request $request)
+    {
+        try {
+            // Capturamos los datos que vienen del fetch en login.html
+            // Nota: El JS envía 'username', 'email', 'phone', 'identity' y 'router_mac'
+            $macCliente = strtoupper($request->input('username')); 
+            $identity   = $request->input('identity');
+            $email      = $request->input('email');
+            $phone      = $request->input('phone');
+            
+            $password   = "123456"; 
+            $profile    = "cortesia 20min-0"; 
+
+            // 1. Buscamos el router por su identidad
+            $router = \App\Models\Router::where('identity', $identity)->first();
+
+            if (!$router) {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'Router no encontrado'
+                ], 404)->header('Access-Control-Allow-Origin', '*');
+            }
+
+            // 3. Retornamos éxito inmediato con CORS habilitado
+            // Esto permite que el JS en login.html ejecute loginSystem() sin errores
+            return response()->json([
+                'success'  => true, 
+                'password' => $password,
+                'message'  => 'Cortesía autorizada correctamente'
+            ])->header('Access-Control-Allow-Origin', '*');
+
+        } catch (\Exception $e) {
+            \Log::error("Error en trialLead: " . $e->getMessage());
+            return response()->json([
+                'success' => false, 
+                'message' => 'Error interno al procesar la cortesía'
+            ], 500)->header('Access-Control-Allow-Origin', '*');
         }
     }
 
