@@ -7,6 +7,7 @@ use Livewire\WithPagination;
 use App\Models\TicketLog;
 use App\Models\Router;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class UserHistory extends Component
 {
@@ -14,6 +15,8 @@ class UserHistory extends Component
 
     public $search = '';
     public $selectedRouter = '';
+    public $fromDate;
+    public $toDate;
     protected $paginationTheme = 'bootstrap';
 
     // El mount recibe el username opcional desde la URL
@@ -22,10 +25,16 @@ class UserHistory extends Component
         if ($username) {
             $this->search = $username;
         }
+
+        // Por defecto: primer día del mes hasta hoy
+        $this->fromDate = Carbon::now()->startOfMonth()->format('Y-m-d');
+        $this->toDate = Carbon::now()->format('Y-m-d');
     }
 
     public function updatingSearch() { $this->resetPage(); }
     public function updatingSelectedRouter() { $this->resetPage(); }
+    public function updatingFromDate() { $this->resetPage(); }
+    public function updatingToDate() { $this->resetPage(); }
 
     public function render()
     {
@@ -42,6 +51,12 @@ class UserHistory extends Component
             })
             ->when($this->selectedRouter, function($q) {
                 $q->where('router_id', $this->selectedRouter);
+            })
+            ->when($this->fromDate, function($q) {
+                $q->whereDate('created_at', '>=', $this->fromDate);
+            })
+            ->when($this->toDate, function($q) {
+                $q->whereDate('created_at', '<=', $this->toDate);
             })
             ->latest();
 

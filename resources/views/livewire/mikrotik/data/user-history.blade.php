@@ -20,6 +20,36 @@
         </div>
     </div>
 
+    {{-- FILTRO DE FECHAS --}}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4 p-3">
+                <div class="row align-items-center g-3">
+                    <div class="col-md-auto">
+                        <span class="small fw-bold text-muted text-uppercase"><i class="bi bi-filter me-1"></i> Rango de Fechas:</span>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light border-0"><small>Desde</small></span>
+                            <input type="date" wire:model="fromDate" class="form-control border-0 bg-light shadow-none">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light border-0"><small>Hasta</small></span>
+                            <input type="date" wire:model="toDate" class="form-control border-0 bg-light shadow-none">
+                        </div>
+                    </div>
+                    <div class="col-md text-end">
+                        <span class="badge bg-primary-soft text-primary rounded-pill px-3">
+                            Filtrando: {{ \Carbon\Carbon::parse($fromDate)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($toDate)->format('d/m/Y') }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     @if($userStats && $search)
     <div class="row g-4 mb-4">
         <div class="col-md-4">
@@ -118,4 +148,11 @@
     .bg-primary-soft { background-color: rgba(13, 110, 253, 0.1); }
     .bg-success-soft { background-color: rgba(25, 135, 84, 0.1); }
     .bg-warning-soft { background-color: rgba(255, 193, 7, 0.1); }
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        cursor: pointer;
+        opacity: 0.6;
+    }
+    input[type="date"]::-webkit-calendar-picker-indicator:hover {
+        opacity: 1;
+    }
 </style>
