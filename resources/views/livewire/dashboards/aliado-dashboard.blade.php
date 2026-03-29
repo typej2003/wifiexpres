@@ -321,3 +321,66 @@
     });
 </script>
 @endpush
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('livewire:load', function () {
+        let lineChart, donutChart;
+
+        function startCharts() {
+            // Datos desde PHP (Livewire)
+            const lLabels = @json($lineLabels);
+            const lData = @json($lineValues);
+            const dLabels = @json($donutLabels);
+            const dData = @json($donutValues);
+
+            // 1. Gráfico de Líneas
+            const ctxL = document.getElementById('aliadoTrafficChart');
+            if (ctxL) {
+                if (lineChart) lineChart.destroy();
+                lineChart = new Chart(ctxL, {
+                    type: 'line',
+                    data: {
+                        labels: lLabels,
+                        datasets: [{
+                            label: 'Logins',
+                            data: lData,
+                            borderColor: '#0d6efd',
+                            backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+
+            // 2. Gráfico de Dona
+            const ctxD = document.getElementById('routerDistributionChart');
+            if (ctxD) {
+                if (donutChart) donutChart.destroy();
+                donutChart = new Chart(ctxD, {
+                    type: 'doughnut',
+                    data: {
+                        labels: dLabels,
+                        datasets: [{
+                            data: dData,
+                            backgroundColor: ['#0d6efd', '#212529', '#0dcaf0', '#198754', '#ffc107', '#6610f2'],
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+        }
+
+        // Ejecutar al cargar
+        setTimeout(startCharts, 100);
+
+        // Escuchar cuando cambies el periodo (Hoy/Mes)
+        window.livewire.on('updateCharts', () => {
+            setTimeout(startCharts, 100);
+        });
+    });
+</script>
+@endpush
