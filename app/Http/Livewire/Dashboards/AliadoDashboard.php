@@ -69,8 +69,6 @@ class AliadoDashboard extends Component
     public function setPeriod($value) 
     { 
         $this->period = $value; 
-        // Emitimos evento para que el JS del chart se entere si es necesario, 
-        // aunque el render lo hace automáticamente al refrescar.
     }
 
     public function render()
@@ -92,6 +90,20 @@ class AliadoDashboard extends Component
             ->select(DB::raw("DATE_FORMAT(created_at, '$format') as label"), DB::raw('count(*) as total'))
             ->groupBy('label')->orderBy('label')->get();
 
+        // LOGICA DEL PRIMER CODIGO ENVIADO (DISTRIBUCION POR ROUTER)
+        $dataPie = TicketLog::whereIn('router_id', $routerIds)
+            ->select('router_id', DB::raw('count(*) as total'))
+            ->groupBy('router_id')
+            ->with('router:id,identity')
+            ->get();
+
+        $labelsPie = [];
+        $valuesPie = [];
+        foreach ($dataPie as $item) {
+            $labelsPie[] = $item->router->identity ?? 'Router #' . $item->router_id;
+            $valuesPie[] = $item->total;
+        }
+
         return view('livewire.dashboards.aliado-dashboard', [
             'availablePackages' => Package::where('is_active', true)->where('is_visible', true)->get(),
             'activePlans' => $activePlans,
@@ -106,10 +118,14 @@ class AliadoDashboard extends Component
             ],
             'chartLabels' => $chartQuery->pluck('label'),
             'chartData' => $chartQuery->pluck('total'),
+            // DATOS PARA EL GRAFICO PIE
+            'labelsPie' => $labelsPie,
+            'valuesPie' => $valuesPie,
+            'totalGeneralPie' => array_sum($valuesPie),
+
             'topUsuarios' => TicketLog::whereIn('router_id', $routerIds)
                 ->select('username', DB::raw('count(*) as total_conexiones'), DB::raw('sum(duration_seconds) as tiempo_total'))
                 ->groupBy('username')->orderBy('total_conexiones', 'desc')->take(5)->get(),
-            // SE FILTRAN LOS LOGS POR EL PERIODO SELECCIONADO Y DESCENDENTE
             'ultimosLogs' => TicketLog::with('router')->whereIn('router_id', $routerIds)
                 ->whereBetween('created_at', [$start, $end])
                 ->latest()
