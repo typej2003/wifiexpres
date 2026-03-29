@@ -30,9 +30,6 @@
                                 </option>
                             @endforeach
                         </select>
-                        @if($router_id && !($routerStatus[$router_id] ?? false))
-                            <span class="text-danger small mt-1"><i class="fas fa-exclamation-triangle"></i> El router seleccionado está OFFLINE.</span>
-                        @endif
                     </div>
 
                     <div class="mb-4">
@@ -43,7 +40,6 @@
                                 <option value="{{ $v->id }}">{{ $v->name }}</option>
                             @endforeach
                         </select>
-                        @error('version_id') <span class="text-danger small">Debe seleccionar una versión.</span> @enderror
                     </div>
 
                     <div class="d-grid gap-3">

@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Http;
 class CrearDirectorios extends Component
 {
     public $router_id;
-    public $version_id; // ID de la versión del portal a instalar
+    public $version_id; 
     public $selectedAliado = null;
     public $routerStatus = []; 
     public $logs = [];
@@ -32,14 +32,12 @@ class CrearDirectorios extends Component
         $this->refreshStatus();
     }
 
-    public function refreshStatus()
-    {
+    public function refreshStatus() {
         try {
             $response = Http::timeout(5)->get("{$this->bridgeUrl}/api/routers-online");
             if ($response->successful()) {
                 $onlineRouters = $response->json();
                 $activeMacs = collect($onlineRouters)->map(fn($item) => strtoupper(trim($item['mac'])))->toArray();
-                
                 $routers = Router::all();
                 $this->routerStatus = [];
                 foreach ($routers as $r) {
@@ -47,36 +45,37 @@ class CrearDirectorios extends Component
                     $this->routerStatus[$r->id] = in_array($macLimpia, $activeMacs);
                 }
             }
-        } catch (\Exception $e) { 
-            $this->routerStatus = []; 
-        }
+        } catch (\Exception $e) { $this->routerStatus = []; }
     }
 
+    /**
+     * RESET HTML: Solo descarga los archivos .html
+     */
     public function resetHotspot() {
-        $this->validate([
-            'router_id' => 'required',
-            'version_id' => 'required'
-        ]);
+        $this->validate(['router_id' => 'required', 'version_id' => 'required']);
 
-        $this->iniciarProceso("re-estableciendo HTML Hotspot", [
+        $this->iniciarProceso("re-estableciendo archivos HTML", [
             ['cmd' => ':if ([:len [/file find name="hotspot"]] = 0) do={ /file add name="hotspot" type="directory" }', 'desc' => 'Verificando carpeta /hotspot'],
-            ['cmd' => ':if ([:len [/file find name="hotspot/css"]] = 0) do={ /file add name="hotspot/css" type="directory" }', 'desc' => 'Verificando carpeta /hotspot/css'],
-            ['cmd' => '/tool fetch url="'.$this->apiUrl.'/portal-download/'.$this->version_id.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => 'Resetting login.html'],
-            ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/pasarela.html" dst-path="hotspot/pasarela.html" check-certificate=no', 'desc' => 'Resetting pasarela.html']
+            ['cmd' => '/tool fetch url="'.$this->apiUrl.'/portal-download/'.$this->version_id.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => 'Actualizando login.html'],
+            ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/pasarela.html" dst-path="hotspot/pasarela.html" check-certificate=no', 'desc' => 'Actualizando pasarela.html']
         ]);
     }
 
+    /**
+     * INSTALACIÓN AUTOMÁTICA: Instala TODO (Carpetas, HTML y CSS)
+     */
     public function ejecutarTodo() {
-        $this->validate([
-            'router_id' => 'required',
-            'version_id' => 'required'
-        ]);
+        $this->validate(['router_id' => 'required', 'version_id' => 'required']);
 
-        $this->iniciarProceso("🚀 Instalación Automática Completa", [
+        $this->iniciarProceso("🚀 Instalación Completa (HTML + CSS)", [
             ['cmd' => ':if ([:len [/file find name="hotspot"]] = 0) do={ /file add name="hotspot" type="directory" }', 'desc' => 'Creando /hotspot'],
             ['cmd' => ':if ([:len [/file find name="hotspot/css"]] = 0) do={ /file add name="hotspot/css" type="directory" }', 'desc' => 'Creando /hotspot/css'],
+            
+            // Archivos HTML
             ['cmd' => '/tool fetch url="'.$this->apiUrl.'/portal-download/'.$this->version_id.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => 'Instalando login.html'],
             ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/pasarela.html" dst-path="hotspot/pasarela.html" check-certificate=no', 'desc' => 'Instalando pasarela.html'],
+            
+            // Archivos CSS (Desde public/css vía api hotspot-assets)
             ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/bootstrap.min.css" dst-path="hotspot/css/bootstrap.min.css" check-certificate=no', 'desc' => 'Instalando bootstrap.min.css'],
             ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/all.min.css" dst-path="hotspot/css/all.min.css" check-certificate=no', 'desc' => 'Instalando all.min.css']
         ]);
@@ -87,7 +86,6 @@ class CrearDirectorios extends Component
             $this->logs[] = "❌ ERROR: El router seleccionado está OFFLINE.";
             return;
         }
-
         $this->isConfiguring = true;
         $this->progreso = 0;
         $this->currentStepIndex = 0;
@@ -100,13 +98,11 @@ class CrearDirectorios extends Component
         if ($this->currentStepIndex >= count($this->pasos)) {
             $this->finalizar(); return;
         }
-
         $paso = $this->pasos[$this->currentStepIndex];
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
         $this->currentTid = "TID" . time() . rand(10, 99);
         $this->intentos = 0;
-
         $this->logs[] = "📡 " . $paso['desc'];
 
         $script = "{ :local r \"OK\"; :do { ".$paso['cmd']." } on-error={ :set r \"ERR\" }; /tool fetch url=\"$this->bridgeUrl/post-result?mac=$mac&tid=$this->currentTid&data=\$r\" keep-result=no }";
@@ -128,7 +124,6 @@ class CrearDirectorios extends Component
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
         $this->intentos++;
-
         try {
             $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $this->currentTid]);
             if ($res->successful() && $res->json('status') === 'ready') {
