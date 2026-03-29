@@ -277,5 +277,6 @@
 
     document.addEventListener('DOMContentLoaded', initChart);
     document.addEventListener('livewire:load', initChart);
+    document.addEventListener('livewire:update', initChart); // <--- Agrega esta línea si no la tienes
 </script>
 @endpush

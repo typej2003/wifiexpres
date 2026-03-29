@@ -78,14 +78,17 @@ class AliadoDashboard extends Component
         $routers = Router::where('user_id', $user->id)->get();
         $routerIds = $routers->pluck('id');
 
+        // Definimos el rango de fechas según el filtro seleccionado
         [$start, $end] = match($this->period) {
             'weekly' => [now()->startOfWeek(), now()],
             'month' => [now()->startOfMonth(), now()],
             default => [now()->startOfDay(), now()],
         };
 
-        // LÓGICA DE LA GRÁFICA DE ROUTERS (LO QUE INTEGRAMOS)
+        // LÓGICA DE LA GRÁFICA FILTRADA POR FECHA
+        // Agregamos el whereBetween para que la torta cambie según el periodo
         $dataPie = TicketLog::whereIn('router_id', $routerIds)
+            ->whereBetween('created_at', [$start, $end]) // <--- Filtro aplicado
             ->select('router_id', DB::raw('count(*) as total'))
             ->groupBy('router_id')
             ->with('router:id,identity')
@@ -114,6 +117,7 @@ class AliadoDashboard extends Component
             'values' => $values,
             'totalGeneral' => array_sum($values),
             'topUsuarios' => TicketLog::whereIn('router_id', $routerIds)
+                ->whereBetween('created_at', [$start, $end]) // También filtramos el top de usuarios
                 ->select('username', DB::raw('count(*) as total_conexiones'), DB::raw('sum(duration_seconds) as tiempo_total'))
                 ->groupBy('username')->orderBy('total_conexiones', 'desc')->take(5)->get(),
             'ultimosLogs' => TicketLog::with('router')->whereIn('router_id', $routerIds)
