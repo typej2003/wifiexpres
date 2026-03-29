@@ -242,24 +242,32 @@
     .list-group::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
 </style>
 
+{{-- El resto de tu HTML se mantiene igual --}}
+
 @push('js')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    let myChart;
+
     function initChart() {
         const el = document.getElementById('chartRouters');
         if (!el) return;
 
-        const existingChart = Chart.getChart("chartRouters");
-        if (existingChart) {
-            existingChart.destroy();
+        // Si ya existe una instancia de la gráfica, la destruimos para evitar duplicados
+        if (myChart) {
+            myChart.destroy();
         }
 
-        new Chart(el.getContext('2d'), {
+        // Obtenemos los datos directamente desde las propiedades públicas de Livewire
+        const labels = @json($labels);
+        const values = @json($values);
+
+        myChart = new Chart(el.getContext('2d'), {
             type: 'pie',
             data: {
-                labels: @json($labels),
+                labels: labels,
                 datasets: [{
-                    data: @json($values),
+                    data: values,
                     backgroundColor: ['#0d6efd', '#212529', '#0dcaf0', '#198754', '#ffc107', '#6610f2'],
                     borderWidth: 2,
                     borderColor: '#ffffff'
@@ -268,6 +276,9 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: {
+                    duration: 500
+                },
                 plugins: {
                     legend: { position: 'bottom' }
                 }
@@ -275,8 +286,18 @@
         });
     }
 
+    // Inicialización al cargar la página
     document.addEventListener('DOMContentLoaded', initChart);
+
+    // Escuchar el evento personalizado desde el servidor para actualizar
+    window.addEventListener('refreshChart', event => {
+        // Un pequeño timeout asegura que Livewire ya haya actualizado las variables en el DOM
+        setTimeout(() => {
+            initChart();
+        }, 50);
+    });
+
+    // Compatibilidad adicional con Livewire
     document.addEventListener('livewire:load', initChart);
-    document.addEventListener('livewire:update', initChart); // <--- Agrega esta línea si no la tienes
 </script>
 @endpush
