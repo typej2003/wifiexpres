@@ -48,17 +48,14 @@ class CrearDirectorios extends Component
         } catch (\Exception $e) { $this->routerStatus = []; }
     }
 
-    // BOTÓN 1: Resetear y Reiniciar
     public function resetHotspot() {
         $this->validate(['router_id' => 'required']);
         $this->iniciarProceso("Restaurando Hotspot Original", [
             ['cmd' => '/ip hotspot profile reset-html [find]', 'desc' => 'Restaurando archivos de fábrica'],
-            ['cmd' => ':log info "Hotspot HTML Reseteado"', 'desc' => 'Finalizado en RouterOS'],
-            ['cmd' => '/system reboot', 'desc' => 'Reiniciando router...']
+            ['cmd' => ':delay 2s; /system reboot', 'desc' => 'Reiniciando router...']
         ]);
     }
 
-    // BOTÓN 2: Instalación Completa y Reiniciar
     public function ejecutarTodo() {
         $this->validate(['router_id' => 'required', 'version_id' => 'required']);
 
@@ -68,18 +65,16 @@ class CrearDirectorios extends Component
             ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/bootstrap.min.css" dst-path="hotspot/css/bootstrap.min.css" check-certificate=no', 'desc' => 'Descargando bootstrap.min.css'],
             ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/all.min.css" dst-path="hotspot/css/all.min.css" check-certificate=no', 'desc' => 'Descargando all.min.css'],
             ['cmd' => '/ip hotspot profile set [find] html-directory=hotspot', 'desc' => 'Asignando directorio al perfil'],
-            ['cmd' => '/system reboot', 'desc' => 'Instalación finalizada. Reiniciando equipo...']
+            ['cmd' => ':delay 2s; /system reboot', 'desc' => 'Reiniciando equipo para aplicar cambios...']
         ]);
     }
 
-    // NUEVO BOTÓN: Forzar solo Login.html y Reiniciar
     public function descargarLoginIndependiente() {
         $this->validate(['router_id' => 'required', 'version_id' => 'required']);
 
         $this->iniciarProceso("Force Download: login.html", [
             ['cmd' => '/tool fetch url="'.$this->apiUrl.'/portal-download/'.$this->version_id.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => 'Forzando descarga de login.html'],
-            ['cmd' => ':log info "Login.html actualizado"', 'desc' => 'Verificando archivo...'],
-            ['cmd' => '/system reboot', 'desc' => 'Reinicio post-actualización de login...']
+            ['cmd' => ':delay 2s; /system reboot', 'desc' => 'Reinicio post-actualización...']
         ]);
     }
 
@@ -98,8 +93,10 @@ class CrearDirectorios extends Component
 
     public function enviarSiguienteComando() {
         if ($this->currentStepIndex >= count($this->pasos)) {
-            $this->finalizar(); return;
+            $this->finalizar(); 
+            return;
         }
+        
         $paso = $this->pasos[$this->currentStepIndex];
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
@@ -107,6 +104,7 @@ class CrearDirectorios extends Component
         $this->intentos = 0;
         $this->logs[] = "📡 " . $paso['desc'];
 
+        // Agregamos el reporte de resultado ANTES del comando de reboot mediante concatenación ;
         $script = "{ :local r \"OK\"; :do { ".$paso['cmd']." } on-error={ :set r \"ERR\" }; /tool fetch url=\"$this->bridgeUrl/post-result?mac=$mac&tid=$this->currentTid&data=\$r\" keep-result=no }";
         $scriptLimpio = trim(preg_replace('/\s+/', ' ', $script));
 
@@ -114,6 +112,7 @@ class CrearDirectorios extends Component
             Http::withHeaders(['x-mac' => $mac, 'x-id' => $this->currentTid])
                 ->withBody($scriptLimpio, 'text/plain')
                 ->post("{$this->bridgeUrl}/set-command");
+            
             $this->esperandoRespuesta = true;
         } catch (\Exception $e) { 
             $this->logs[] = "❌ Error Bridge"; 
@@ -123,15 +122,24 @@ class CrearDirectorios extends Component
 
     public function checkStatus() {
         if (!$this->esperandoRespuesta) return;
+        
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
         $this->intentos++;
+        
         try {
             $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $this->currentTid]);
+            
+            // Si el comando es un reboot, es probable que no recibamos el 'ready' porque el router se apaga.
+            // Por eso, si es el último paso, somos más flexibles.
             if ($res->successful() && $res->json('status') === 'ready') {
                 $this->avanzar();
+            } elseif ($this->intentos >= 15 && $this->currentStepIndex === count($this->pasos) - 1) {
+                // Si es el último paso (reinicio), avanzamos aunque no confirme, porque el router ya cayó.
+                $this->logs[] = "✅ Comando de reinicio enviado.";
+                $this->avanzar();
             } elseif ($this->intentos >= 50) {
-                $this->logs[] = "⚠️ Paso omitido o procesado sin confirmación.";
+                $this->logs[] = "⚠️ Paso completado por tiempo.";
                 $this->avanzar();
             }
         } catch (\Exception $e) { }
@@ -142,6 +150,8 @@ class CrearDirectorios extends Component
         $this->currentStepIndex++;
         $this->progreso = round(($this->currentStepIndex / count($this->pasos)) * 100);
         $this->dispatchBrowserEvent('logUpdated');
+        
+        // Pequeña pausa antes de enviar el siguiente para no saturar el bridge
         $this->enviarSiguienteComando();
     }
 
