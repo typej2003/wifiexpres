@@ -19,14 +19,12 @@ class UserHistory extends Component
     public $toDate;
     protected $paginationTheme = 'bootstrap';
 
-    // El mount recibe el username opcional desde la URL
     public function mount($username = null)
     {
         if ($username) {
             $this->search = $username;
         }
 
-        // Por defecto: primer día del mes hasta hoy
         $this->fromDate = Carbon::now()->startOfMonth()->format('Y-m-d');
         $this->toDate = Carbon::now()->format('Y-m-d');
     }
@@ -35,6 +33,19 @@ class UserHistory extends Component
     public function updatingSelectedRouter() { $this->resetPage(); }
     public function updatingFromDate() { $this->resetPage(); }
     public function updatingToDate() { $this->resetPage(); }
+
+    // Genera la descarga del PDF mediante una redirección a una ruta de controlador
+    public function exportPDF()
+    {
+        $params = [
+            'search' => $this->search,
+            'router' => $this->selectedRouter,
+            'from' => $this->fromDate,
+            'to' => $this->toDate,
+        ];
+
+        return redirect()->route('admin.history.pdf', $params);
+    }
 
     public function render()
     {

@@ -20,13 +20,13 @@
         </div>
     </div>
 
-    {{-- FILTRO DE FECHAS --}}
+    {{-- FILTRO DE FECHAS Y EXPORTACIÓN --}}
     <div class="row mb-4">
         <div class="col-12">
             <div class="card border-0 shadow-sm rounded-4 p-3">
                 <div class="row align-items-center g-3">
                     <div class="col-md-auto">
-                        <span class="small fw-bold text-muted text-uppercase"><i class="bi bi-filter me-1"></i> Rango de Fechas:</span>
+                        <span class="small fw-bold text-muted text-uppercase"><i class="bi bi-filter me-1"></i> Filtros:</span>
                     </div>
                     <div class="col-md-3">
                         <div class="input-group input-group-sm">
@@ -41,9 +41,14 @@
                         </div>
                     </div>
                     <div class="col-md text-end">
-                        <span class="badge bg-primary-soft text-primary rounded-pill px-3">
-                            Filtrando: {{ \Carbon\Carbon::parse($fromDate)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($toDate)->format('d/m/Y') }}
-                        </span>
+                        <button wire:click="exportPDF" wire:loading.attr="disabled" class="btn btn-danger rounded-pill px-4 btn-sm shadow-sm">
+                            <span wire:loading.remove wire:target="exportPDF">
+                                <i class="bi bi-file-earmark-pdf-fill me-1"></i> Exportar PDF
+                            </span>
+                            <span wire:loading wire:target="exportPDF">
+                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Generando...
+                            </span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -85,7 +90,7 @@
                         <th>Ubicación Física</th>
                         <th>Inicio de Sesión</th>
                         <th>Duración</th>
-                        <th class="pe-4 text-end">IP del Usuario</th>
+                        <th class="pe-4 text-end">MAC Address</th>
                     </tr>
                 </thead>
                 <tbody class="border-top-0">
@@ -148,11 +153,4 @@
     .bg-primary-soft { background-color: rgba(13, 110, 253, 0.1); }
     .bg-success-soft { background-color: rgba(25, 135, 84, 0.1); }
     .bg-warning-soft { background-color: rgba(255, 193, 7, 0.1); }
-    input[type="date"]::-webkit-calendar-picker-indicator {
-        cursor: pointer;
-        opacity: 0.6;
-    }
-    input[type="date"]::-webkit-calendar-picker-indicator:hover {
-        opacity: 1;
-    }
 </style>
