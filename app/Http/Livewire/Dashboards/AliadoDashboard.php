@@ -15,8 +15,7 @@ class AliadoDashboard extends Component
     public function setPeriod($value)
     {
         $this->period = $value;
-        // Emitimos evento para que el JS sepa que los datos cambiaron
-        $this->emit('chartDataUpdated');
+        $this->emit('updateChart');
     }
 
     public function render()
@@ -26,20 +25,20 @@ class AliadoDashboard extends Component
 
         [$start, $end] = match($this->period) {
             'weekly' => [now()->startOfWeek(), now()],
-            'month' => [now()->startOfMonth(), now()],
-            default => [now()->startOfDay(), now()],
+            'month'  => [now()->startOfMonth(), now()],
+            default  => [now()->startOfDay(), now()],
         };
 
-        // Datos para la Torta
-        $pieQuery = TicketLog::with('router')
-            ->whereIn('router_id', $routerIds)
+        $data = TicketLog::whereIn('router_id', $routerIds)
             ->whereBetween('created_at', [$start, $end])
             ->select('router_id', DB::raw('count(*) as total'))
-            ->groupBy('router_id')->get();
+            ->groupBy('router_id')
+            ->with('router:id,identity')
+            ->get();
 
         return view('livewire.dashboards.aliado-dashboard', [
-            'pieLabels' => $pieQuery->map(fn($i) => $i->router->identity ?? 'MikroTik'),
-            'pieValues' => $pieQuery->pluck('total'),
+            'labels' => $data->map(fn($i) => $i->router->identity ?? 'MikroTik'),
+            'values' => $data->pluck('total'),
         ])->layout('layouts.app');
     }
 }
