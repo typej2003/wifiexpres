@@ -48,43 +48,38 @@ class CrearDirectorios extends Component
         } catch (\Exception $e) { $this->routerStatus = []; }
     }
 
-    /**
-     * RESET HTML: Ejecuta el comando nativo de MikroTik para restaurar el portal original
-     */
     public function resetHotspot() {
         $this->validate(['router_id' => 'required']);
-
-        $this->iniciarProceso("Restaurando Hotspot Original (Default)", [
-            ['cmd' => '/ip hotspot profile reset-html [find]', 'desc' => 'Restaurando archivos HTML de fábrica'],
-            ['cmd' => ':log info "Hotspot HTML Reseteado a default"', 'desc' => 'Operación completada en RouterOS']
+        $this->iniciarProceso("Restaurando Hotspot Original", [
+            ['cmd' => '/ip hotspot profile reset-html [find]', 'desc' => 'Restaurando archivos de fábrica'],
+            ['cmd' => ':log info "Hotspot HTML Reseteado"', 'desc' => 'Finalizado en RouterOS']
         ]);
     }
 
-    /**
-     * INSTALACIÓN AUTOMÁTICA: Tu Portal Personalizado (DB + CSS)
-     */
     public function ejecutarTodo() {
         $this->validate(['router_id' => 'required', 'version_id' => 'required']);
 
-        $this->iniciarProceso("🚀 Instalando Portal WifiExpres", [
+        $this->iniciarProceso("🚀 Instalación Completa", [
+            // 1. Preparación de carpetas
             ['cmd' => ':if ([:len [/file find name="hotspot"]] = 0) do={ /file add name="hotspot" type="directory" }', 'desc' => 'Verificando carpeta /hotspot'],
             ['cmd' => ':if ([:len [/file find name="hotspot/css"]] = 0) do={ /file add name="hotspot/css" type="directory" }', 'desc' => 'Verificando carpeta /hotspot/css'],
             
-            // Descarga de login.html desde la Base de Datos
-            ['cmd' => '/tool fetch url="'.$this->apiUrl.'/portal-download/'.$this->version_id.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => 'Instalando login.html desde DB'],
-            
-            // Descarga de pasarela.html desde public/
+            // 2. Descarga de HTMLs
+            ['cmd' => '/tool fetch url="'.$this->apiUrl.'/portal-download/'.$this->version_id.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => 'Instalando login.html'],
             ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/pasarela.html" dst-path="hotspot/pasarela.html" check-certificate=no', 'desc' => 'Instalando pasarela.html'],
             
-            // Descarga de CSS desde public/css/
-            ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/bootstrap.min.css" dst-path="hotspot/css/bootstrap.min.css" check-certificate=no', 'desc' => 'Instalando bootstrap.min.css'],
-            ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/all.min.css" dst-path="hotspot/css/all.min.css" check-certificate=no', 'desc' => 'Instalando all.min.css']
+            // 3. Descarga de CSS (Corregido: Usamos la ruta exacta que procesa tu API)
+            ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/bootstrap.min.css" dst-path="hotspot/css/bootstrap.min.css" check-certificate=no', 'desc' => 'Descargando bootstrap.min.css'],
+            ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/all.min.css" dst-path="hotspot/css/all.min.css" check-certificate=no', 'desc' => 'Descargando all.min.css'],
+            
+            // 4. Configuración final
+            ['cmd' => '/ip hotspot profile set [find] html-directory=hotspot', 'desc' => 'Asignando directorio al perfil'],
         ]);
     }
 
     private function iniciarProceso($mensaje, $listaPasos) {
         if (!($this->routerStatus[$this->router_id] ?? false)) {
-            $this->logs[] = "❌ ERROR: El router seleccionado está OFFLINE.";
+            $this->logs[] = "❌ ERROR: Router OFFLINE.";
             return;
         }
         $this->isConfiguring = true;
@@ -129,8 +124,8 @@ class CrearDirectorios extends Component
             $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $this->currentTid]);
             if ($res->successful() && $res->json('status') === 'ready') {
                 $this->avanzar();
-            } elseif ($this->intentos >= 35) {
-                $this->logs[] = "⚠️ Timeout. Saltando...";
+            } elseif ($this->intentos >= 45) { // Subimos el timeout para archivos pesados
+                $this->logs[] = "⚠️ Tiempo agotado en este paso.";
                 $this->avanzar();
             }
         } catch (\Exception $e) { }
