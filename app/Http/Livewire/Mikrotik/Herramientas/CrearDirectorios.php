@@ -49,33 +49,34 @@ class CrearDirectorios extends Component
     }
 
     /**
-     * RESET HTML: Solo descarga los archivos .html
+     * RESET HTML: Ejecuta el comando nativo de MikroTik para restaurar el portal original
      */
     public function resetHotspot() {
-        $this->validate(['router_id' => 'required', 'version_id' => 'required']);
+        $this->validate(['router_id' => 'required']);
 
-        $this->iniciarProceso("re-estableciendo archivos HTML", [
-            ['cmd' => ':if ([:len [/file find name="hotspot"]] = 0) do={ /file add name="hotspot" type="directory" }', 'desc' => 'Verificando carpeta /hotspot'],
-            ['cmd' => '/tool fetch url="'.$this->apiUrl.'/portal-download/'.$this->version_id.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => 'Actualizando login.html'],
-            ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/pasarela.html" dst-path="hotspot/pasarela.html" check-certificate=no', 'desc' => 'Actualizando pasarela.html']
+        $this->iniciarProceso("Restaurando Hotspot Original (Default)", [
+            ['cmd' => '/ip hotspot profile reset-html [find]', 'desc' => 'Restaurando archivos HTML de fábrica'],
+            ['cmd' => ':log info "Hotspot HTML Reseteado a default"', 'desc' => 'Operación completada en RouterOS']
         ]);
     }
 
     /**
-     * INSTALACIÓN AUTOMÁTICA: Instala TODO (Carpetas, HTML y CSS)
+     * INSTALACIÓN AUTOMÁTICA: Tu Portal Personalizado (DB + CSS)
      */
     public function ejecutarTodo() {
         $this->validate(['router_id' => 'required', 'version_id' => 'required']);
 
-        $this->iniciarProceso("🚀 Instalación Completa (HTML + CSS)", [
-            ['cmd' => ':if ([:len [/file find name="hotspot"]] = 0) do={ /file add name="hotspot" type="directory" }', 'desc' => 'Creando /hotspot'],
-            ['cmd' => ':if ([:len [/file find name="hotspot/css"]] = 0) do={ /file add name="hotspot/css" type="directory" }', 'desc' => 'Creando /hotspot/css'],
+        $this->iniciarProceso("🚀 Instalando Portal WifiExpres", [
+            ['cmd' => ':if ([:len [/file find name="hotspot"]] = 0) do={ /file add name="hotspot" type="directory" }', 'desc' => 'Verificando carpeta /hotspot'],
+            ['cmd' => ':if ([:len [/file find name="hotspot/css"]] = 0) do={ /file add name="hotspot/css" type="directory" }', 'desc' => 'Verificando carpeta /hotspot/css'],
             
-            // Archivos HTML
-            ['cmd' => '/tool fetch url="'.$this->apiUrl.'/portal-download/'.$this->version_id.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => 'Instalando login.html'],
+            // Descarga de login.html desde la Base de Datos
+            ['cmd' => '/tool fetch url="'.$this->apiUrl.'/portal-download/'.$this->version_id.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => 'Instalando login.html desde DB'],
+            
+            // Descarga de pasarela.html desde public/
             ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/pasarela.html" dst-path="hotspot/pasarela.html" check-certificate=no', 'desc' => 'Instalando pasarela.html'],
             
-            // Archivos CSS (Desde public/css vía api hotspot-assets)
+            // Descarga de CSS desde public/css/
             ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/bootstrap.min.css" dst-path="hotspot/css/bootstrap.min.css" check-certificate=no', 'desc' => 'Instalando bootstrap.min.css'],
             ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/all.min.css" dst-path="hotspot/css/all.min.css" check-certificate=no', 'desc' => 'Instalando all.min.css']
         ]);
@@ -129,7 +130,7 @@ class CrearDirectorios extends Component
             if ($res->successful() && $res->json('status') === 'ready') {
                 $this->avanzar();
             } elseif ($this->intentos >= 35) {
-                $this->logs[] = "⚠️ Timeout en paso actual. Saltando...";
+                $this->logs[] = "⚠️ Timeout. Saltando...";
                 $this->avanzar();
             }
         } catch (\Exception $e) { }

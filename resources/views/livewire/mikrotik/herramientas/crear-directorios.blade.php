@@ -33,9 +33,9 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="small text-white-50 text-uppercase fw-bold">Versión de Portal (HTML)</label>
+                        <label class="small text-white-50 text-uppercase fw-bold">Versión de Portal (Solo para Instalación)</label>
                         <select wire:model="version_id" class="form-select bg-dark text-white border-info shadow-sm" @if($isConfiguring) disabled @endif>
-                            <option value="">Seleccione Versión a instalar...</option>
+                            <option value="">Seleccione Versión...</option>
                             @foreach($versiones as $v)
                                 <option value="{{ $v->id }}">{{ $v->name }}</option>
                             @endforeach
@@ -43,13 +43,13 @@
                     </div>
 
                     <div class="d-grid gap-3">
-                        <button wire:click="resetHotspot" wire:loading.attr="disabled" 
-                            @if(!$router_id || !$version_id || !($routerStatus[$router_id] ?? false) || $isConfiguring) disabled @endif
-                            class="btn btn-warning fw-bold shadow-sm">
-                            <i class="fas fa-sync-alt me-2"></i> RESET HTML HOTSPOT
+                        <button wire:click="resetHotspot" 
+                            @if(!$router_id || !($routerStatus[$router_id] ?? false) || $isConfiguring) disabled @endif
+                            class="btn btn-outline-warning fw-bold shadow-sm">
+                            <i class="fas fa-undo-alt me-2"></i> RESET HTML (DE FÁBRICA)
                         </button>
 
-                        <button wire:click="ejecutarTodo" wire:loading.attr="disabled" 
+                        <button wire:click="ejecutarTodo" 
                             @if(!$router_id || !$version_id || !($routerStatus[$router_id] ?? false) || $isConfiguring) disabled @endif
                             class="btn btn-info fw-bold py-3 shadow">
                             <i class="fas fa-magic me-2"></i> INSTALACIÓN AUTOMÁTICA
@@ -82,12 +82,3 @@
         </div>
     </div>
 </div>
-
-<script>
-    document.addEventListener('livewire:load', function () {
-        window.addEventListener('logUpdated', event => {
-            const container = document.getElementById('logs-container');
-            if (container) { container.scrollTop = container.scrollHeight; }
-        });
-    });
-</script>
