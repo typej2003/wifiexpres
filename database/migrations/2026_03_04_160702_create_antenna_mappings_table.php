@@ -19,7 +19,8 @@ class CreateAntennaMappingsTable extends Migration
             $table->string('ip_address'); 
             $table->string('location_name');
             $table->string('description')->nullable();
-            $table->timestamps();
+            $table->dateTime('created_at')->nullable();
+            $table->dateTime('updated_at')->nullable();
         });
     }
 

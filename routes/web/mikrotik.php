@@ -29,6 +29,7 @@ use App\Http\Livewire\Mikrotik\Herramientas\VisorLogs;
 use App\Http\Livewire\Mikrotik\Herramientas\ConfigurarRemoto;
 use App\Http\Livewire\Mikrotik\Herramientas\ConfRemotoLite;
 use App\Http\Livewire\Mikrotik\Herramientas\ConfDetallada;
+use App\Http\Livewire\Mikrotik\Herramientas\CrearDirectorios;
 
 use Illuminate\Support\Facades\Response;
 
@@ -69,8 +70,6 @@ Route::get('/listEventos', ListEventos::class)->name('listEventos')->middleware(
 Route::get('/timeOut', TimeOut::class)->name('timeOut')->middleware('auth');
 
 Route::get('/hotspot-users/{nrorouter}/{name}', HotspotUsers::class)->name('hotspot-users')->middleware('auth');
-
-
 
 // Operaciones para la pasarela del mikrotik
 Route::get('/pagosatisfactorioMikrotik/{id}', function ( $id ) {
@@ -158,5 +157,8 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('/mikrotik/herramientas/configurarremotolite', ConfRemotoLite::class)->name('mikrotik.remotolite');
 
     Route::get('/mikrotik/herramientas/confdetallada', ConfDetallada::class)->name('mikrotik.confdetallada');
+
+    // Dentro de tu grupo de rutas protegidas
+    Route::get('/mikrotik/herramientas/crear-directorios', CrearDirectorios::class)->name('mikrotik.crear-directorios');
 
 });
