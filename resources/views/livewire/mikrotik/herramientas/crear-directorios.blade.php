@@ -19,7 +19,7 @@
                         </select>
                     </div>
 
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label class="small text-white-50 text-uppercase fw-bold">Router MikroTik</label>
                         <select wire:model="router_id" class="form-select bg-dark text-white border-secondary shadow-sm" @if($isConfiguring) disabled @endif>
                             <option value="">Seleccione Router...</option>
@@ -31,19 +31,30 @@
                             @endforeach
                         </select>
                         @if($router_id && !($routerStatus[$router_id] ?? false))
-                            <span class="text-danger small mt-1"><i class="fas fa-exclamation-triangle"></i> El router seleccionado se desconectó.</span>
+                            <span class="text-danger small mt-1"><i class="fas fa-exclamation-triangle"></i> El router seleccionado está OFFLINE.</span>
                         @endif
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="small text-white-50 text-uppercase fw-bold">Versión de Portal (HTML)</label>
+                        <select wire:model="version_id" class="form-select bg-dark text-white border-info shadow-sm" @if($isConfiguring) disabled @endif>
+                            <option value="">Seleccione Versión a instalar...</option>
+                            @foreach($versiones as $v)
+                                <option value="{{ $v->id }}">{{ $v->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('version_id') <span class="text-danger small">Debe seleccionar una versión.</span> @enderror
                     </div>
 
                     <div class="d-grid gap-3">
                         <button wire:click="resetHotspot" wire:loading.attr="disabled" 
-                            @if(!$router_id || !($routerStatus[$router_id] ?? false) || $isConfiguring) disabled @endif
+                            @if(!$router_id || !$version_id || !($routerStatus[$router_id] ?? false) || $isConfiguring) disabled @endif
                             class="btn btn-warning fw-bold shadow-sm">
                             <i class="fas fa-sync-alt me-2"></i> RESET HTML HOTSPOT
                         </button>
 
                         <button wire:click="ejecutarTodo" wire:loading.attr="disabled" 
-                            @if(!$router_id || !($routerStatus[$router_id] ?? false) || $isConfiguring) disabled @endif
+                            @if(!$router_id || !$version_id || !($routerStatus[$router_id] ?? false) || $isConfiguring) disabled @endif
                             class="btn btn-info fw-bold py-3 shadow">
                             <i class="fas fa-magic me-2"></i> INSTALACIÓN AUTOMÁTICA
                         </button>
