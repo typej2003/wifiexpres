@@ -205,8 +205,9 @@
                 <span class="menu-text">Monitor de usuarios</span>
             </a>
 
-            <a href="{{ route('mikrotik.crear-directorios') }}" class="btn btn-primary">
-                <i class="fas fa-folder-plus"></i> Gestionar Directorios
+            <a href="{{ route('mikrotik.crear-directorios') }}" class="sidebar-link">
+                <i class="fas fa-folder-plus"></i>  
+                <span class="menu-text">Gestionar Directorios</span>
             </a>
 
             <a href="{{ route('mikrotik.remoto') }}" class="sidebar-link {{ request()->routeIs('mikrotik.remoto') ? 'active' : '' }}">
