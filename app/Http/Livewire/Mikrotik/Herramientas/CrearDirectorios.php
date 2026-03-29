@@ -48,6 +48,7 @@ class CrearDirectorios extends Component
         } catch (\Exception $e) { $this->routerStatus = []; }
     }
 
+    // BOTÓN 1: Resetear y Reiniciar
     public function resetHotspot() {
         $this->validate(['router_id' => 'required']);
         $this->iniciarProceso("Restaurando Hotspot Original", [
@@ -57,21 +58,28 @@ class CrearDirectorios extends Component
         ]);
     }
 
+    // BOTÓN 2: Instalación Completa y Reiniciar
     public function ejecutarTodo() {
         $this->validate(['router_id' => 'required', 'version_id' => 'required']);
 
         $this->iniciarProceso("🚀 Instalación Completa", [
-            // 1. Descarga de HTMLs (Ruta directa a carpetas existentes)
             ['cmd' => '/tool fetch url="'.$this->apiUrl.'/portal-download/'.$this->version_id.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => 'Instalando login.html'],
             ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/pasarela.html" dst-path="hotspot/pasarela.html" check-certificate=no', 'desc' => 'Instalando pasarela.html'],
-            
-            // 2. Descarga de CSS
             ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/bootstrap.min.css" dst-path="hotspot/css/bootstrap.min.css" check-certificate=no', 'desc' => 'Descargando bootstrap.min.css'],
             ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/all.min.css" dst-path="hotspot/css/all.min.css" check-certificate=no', 'desc' => 'Descargando all.min.css'],
-            
-            // 3. Configuración final y Reinicio
             ['cmd' => '/ip hotspot profile set [find] html-directory=hotspot', 'desc' => 'Asignando directorio al perfil'],
-            ['cmd' => '/system reboot', 'desc' => 'Configuración aplicada. Reiniciando equipo...']
+            ['cmd' => '/system reboot', 'desc' => 'Instalación finalizada. Reiniciando equipo...']
+        ]);
+    }
+
+    // NUEVO BOTÓN: Forzar solo Login.html y Reiniciar
+    public function descargarLoginIndependiente() {
+        $this->validate(['router_id' => 'required', 'version_id' => 'required']);
+
+        $this->iniciarProceso("Force Download: login.html", [
+            ['cmd' => '/tool fetch url="'.$this->apiUrl.'/portal-download/'.$this->version_id.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => 'Forzando descarga de login.html'],
+            ['cmd' => ':log info "Login.html actualizado"', 'desc' => 'Verificando archivo...'],
+            ['cmd' => '/system reboot', 'desc' => 'Reinicio post-actualización de login...']
         ]);
     }
 
@@ -122,8 +130,8 @@ class CrearDirectorios extends Component
             $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $this->currentTid]);
             if ($res->successful() && $res->json('status') === 'ready') {
                 $this->avanzar();
-            } elseif ($this->intentos >= 50) { // Tiempo de espera prudente para descargas
-                $this->logs[] = "⚠️ Paso omitido por tiempo o respuesta pendiente.";
+            } elseif ($this->intentos >= 50) {
+                $this->logs[] = "⚠️ Paso omitido o procesado sin confirmación.";
                 $this->avanzar();
             }
         } catch (\Exception $e) { }

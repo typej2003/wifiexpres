@@ -54,6 +54,10 @@
                             class="btn btn-info fw-bold py-3 shadow">
                             <i class="fas fa-cloud-download-alt me-2"></i> INSTALACIÓN AUTOMÁTICA
                         </button>
+
+                        <button wire:click="descargarLoginIndependiente" class="btn btn-warning" wire:loading.attr="disabled">
+                            <i class="fas fa-file-download"></i> Forzar Login.html
+                        </button>
                     </div>
                 </div>
             </div>
