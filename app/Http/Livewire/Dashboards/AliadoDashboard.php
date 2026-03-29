@@ -69,8 +69,36 @@ class AliadoDashboard extends Component
     public function setPeriod($value) 
     { 
         $this->period = $value; 
-        // Emitimos un evento para que el JS sepa que debe redibujar la gráfica
-        $this->dispatchBrowserEvent('refreshChart');
+        
+        // Recalculamos los datos para enviarlos en el evento inmediatamente
+        $user = Auth::user();
+        $routerIds = Router::where('user_id', $user->id)->pluck('id');
+
+        [$start, $end] = match($this->period) {
+            'weekly' => [now()->startOfWeek(), now()],
+            'month' => [now()->startOfMonth(), now()],
+            default => [now()->startOfDay(), now()],
+        };
+
+        $dataPie = TicketLog::whereIn('router_id', $routerIds)
+            ->whereBetween('created_at', [$start, $end])
+            ->select('router_id', DB::raw('count(*) as total'))
+            ->groupBy('router_id')
+            ->with('router:id,identity')
+            ->get();
+
+        $labels = [];
+        $values = [];
+        foreach ($dataPie as $item) {
+            $labels[] = $item->router->identity ?? 'Router #' . $item->router_id;
+            $values[] = $item->total;
+        }
+
+        // Enviamos los datos reales al JS
+        $this->dispatchBrowserEvent('refreshChart', [
+            'labels' => $labels,
+            'values' => $values
+        ]);
     }
 
     public function render()

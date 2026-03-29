@@ -242,25 +242,18 @@
     .list-group::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
 </style>
 
-{{-- El resto de tu HTML se mantiene igual --}}
-
 @push('js')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     let myChart;
 
-    function initChart() {
+    function renderPieChart(labels, values) {
         const el = document.getElementById('chartRouters');
         if (!el) return;
 
-        // Si ya existe una instancia de la gráfica, la destruimos para evitar duplicados
         if (myChart) {
             myChart.destroy();
         }
-
-        // Obtenemos los datos directamente desde las propiedades públicas de Livewire
-        const labels = @json($labels);
-        const values = @json($values);
 
         myChart = new Chart(el.getContext('2d'), {
             type: 'pie',
@@ -276,9 +269,7 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                animation: {
-                    duration: 500
-                },
+                animation: { duration: 500 },
                 plugins: {
                     legend: { position: 'bottom' }
                 }
@@ -286,18 +277,19 @@
         });
     }
 
-    // Inicialización al cargar la página
-    document.addEventListener('DOMContentLoaded', initChart);
-
-    // Escuchar el evento personalizado desde el servidor para actualizar
-    window.addEventListener('refreshChart', event => {
-        // Un pequeño timeout asegura que Livewire ya haya actualizado las variables en el DOM
-        setTimeout(() => {
-            initChart();
-        }, 50);
+    // Inicialización al cargar Livewire
+    document.addEventListener('livewire:load', function () {
+        renderPieChart(@json($labels), @json($values));
     });
 
-    // Compatibilidad adicional con Livewire
-    document.addEventListener('livewire:load', initChart);
+    // Escuchar el evento de refresco con los nuevos datos
+    window.addEventListener('refreshChart', event => {
+        // Si el evento trae datos en 'detail', los usamos. 
+        // Si no (por si se llama desde otro lado), usamos los del DOM inicial.
+        const labels = event.detail.labels ? event.detail.labels : @json($labels);
+        const values = event.detail.values ? event.detail.values : @json($values);
+        
+        renderPieChart(labels, values);
+    });
 </script>
 @endpush
