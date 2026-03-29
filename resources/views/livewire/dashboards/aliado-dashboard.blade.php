@@ -1,3 +1,4 @@
+{{-- TODO el contenido debe estar dentro de este ÚNICO div principal --}}
 <div class="container-fluid py-4">
 
     @if (session()->has('message'))
@@ -34,7 +35,7 @@
                 <div class="d-flex align-items-center gap-2 mt-1">
                     <p class="text-muted mb-0 small">Rendimiento de red y suscripciones.</p>
                     <span class="badge bg-primary-soft text-primary border border-primary rounded-pill px-3" style="font-size: 0.7rem;">
-                        <i class="bi bi-currency-exchange me-1"></i> Tasa BCV: <strong>Bs. {{ number_format($dollarRate, 2, ',', '.') }}</strong>
+                        <i class="bi bi-currency-exchange me-1"></i> Tasa BCV: <strong>Bs. {{ number_format($dollarRate ?? 0, 2, ',', '.') }}</strong>
                     </span>
                 </div>
             </div>
@@ -128,6 +129,7 @@
                     </div>
                 </div>
 
+                {{-- DETALLE DE EQUIPOS --}}
                 <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
                     <div class="card-header bg-white border-0 py-3">
                         <h6 class="fw-bold mb-0">Detalle de Equipos</h6>
@@ -170,15 +172,13 @@
                         @forelse($ultimosLogs as $log)
                             <div class="list-group-item border-0 px-4 py-3 small d-flex justify-content-between align-items-start">
                                 <div>
-                                    <span class="fw-bold d-block text-dark">
-                                        <a href="/mikrotik/user-history/{{$log->username}}">{{ $log->username }}</a>
-                                    </span>
+                                    <span class="fw-bold d-block text-dark">{{ $log->username }}</span>
                                     <span class="text-muted x-small">{{ $log->router->identity ?? 'MikroTik' }}</span>
                                 </div>
                                 <span class="text-muted" style="font-size: 0.7rem;">{{ $log->created_at->diffForHumans() }}</span>
                             </div>
                         @empty
-                            <div class="text-center py-5 text-muted small">Sin actividad en este periodo</div>
+                            <div class="text-center py-5 text-muted small">Sin actividad</div>
                         @endforelse
                     </div>
                 </div>
@@ -186,7 +186,7 @@
         </div>
     @endif
 
-    {{-- MODAL DE PLANES --}}
+    {{-- MODAL DENTRO DEL DIV RAÍZ --}}
     @if($showPlanModal)
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 2050;">
         <div class="modal-dialog modal-xl" style="margin-top: 8rem;">
@@ -220,21 +220,24 @@
     </div>
     @endif
 
-</div>
+    {{-- ESTILOS DENTRO DEL DIV RAÍZ --}}
+    <style>
+        .bg-primary-soft { background-color: rgba(13, 110, 253, 0.1); }
+        .transition-card { transition: transform 0.3s ease; }
+        .transition-card:hover { transform: translateY(-5px); }
+        .list-group::-webkit-scrollbar { width: 4px; }
+        .list-group::-webkit-scrollbar-track { background: #f1f1f1; }
+        .list-group::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+    </style>
 
-<style>
-    .bg-primary-soft { background-color: rgba(13, 110, 253, 0.1); }
-    .transition-card { transition: transform 0.3s ease; }
-    .transition-card:hover { transform: translateY(-5px); }
-    .list-group::-webkit-scrollbar { width: 4px; }
-    .list-group::-webkit-scrollbar-track { background: #f1f1f1; }
-    .list-group::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
-</style>
+</div> {{-- FIN DEL ÚNICO DIV RAÍZ --}}
 
+{{-- Scripts fuera del div raíz usando Push --}}
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    function initChart() {
+    // Usamos una función con nombre único para evitar SyntaxErrors
+    function initAliadoChart() {
         const el = document.getElementById('chartRouters');
         if (!el) return;
 
@@ -266,10 +269,10 @@
     }
 
     document.addEventListener('livewire:load', () => {
-        initChart();
-        // Escuchamos el evento de cambio de periodo
+        initAliadoChart();
+        
         Livewire.on('chartUpdated', () => {
-            setTimeout(() => { initChart(); }, 100);
+            setTimeout(() => { initAliadoChart(); }, 100);
         });
     });
 </script>
