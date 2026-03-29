@@ -22,7 +22,8 @@ class CrearDirectorios extends Component
     public $currentTid = null;
     public $currentStepIndex = 0;
     public $pasos = [];
-    public $intentos = 0;
+    public $intentos = 0; // Intentos de polling (espera de respuesta)
+    public $reintentosPaso = 0; // Intentos de reenvío del comando (máximo 2)
 
     protected $bridgeUrl = "http://188.95.113.44:3000";
     protected $apiUrl = "https://wifiexpres.com/api";
@@ -86,6 +87,7 @@ class CrearDirectorios extends Component
         $this->isConfiguring = true;
         $this->progreso = 0;
         $this->currentStepIndex = 0;
+        $this->reintentosPaso = 0;
         $this->pasos = $listaPasos;
         $this->logs = ["🛠️ " . strtoupper($mensaje)];
         $this->enviarSiguienteComando();
@@ -102,9 +104,11 @@ class CrearDirectorios extends Component
         $mac = strtoupper(trim($router->macAddress));
         $this->currentTid = "TID" . time() . rand(10, 99);
         $this->intentos = 0;
-        $this->logs[] = "📡 " . $paso['desc'];
+        
+        $statusMsg = ($this->reintentosPaso > 0) ? "🔄 (Reintento {$this->reintentosPaso}/2) " : "📡 ";
+        $this->logs[] = $statusMsg . $paso['desc'];
 
-        // Agregamos el reporte de resultado ANTES del comando de reboot mediante concatenación ;
+        // Script con captura de error y reporte al bridge
         $script = "{ :local r \"OK\"; :do { ".$paso['cmd']." } on-error={ :set r \"ERR\" }; /tool fetch url=\"$this->bridgeUrl/post-result?mac=$mac&tid=$this->currentTid&data=\$r\" keep-result=no }";
         $scriptLimpio = trim(preg_replace('/\s+/', ' ', $script));
 
@@ -115,8 +119,8 @@ class CrearDirectorios extends Component
             
             $this->esperandoRespuesta = true;
         } catch (\Exception $e) { 
-            $this->logs[] = "❌ Error Bridge"; 
-            $this->finalizar(); 
+            $this->logs[] = "❌ Fallo de conexión con Bridge."; 
+            $this->gestionarFallo();
         }
     }
 
@@ -130,28 +134,51 @@ class CrearDirectorios extends Component
         try {
             $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $this->currentTid]);
             
-            // Si el comando es un reboot, es probable que no recibamos el 'ready' porque el router se apaga.
-            // Por eso, si es el último paso, somos más flexibles.
-            if ($res->successful() && $res->json('status') === 'ready') {
-                $this->avanzar();
-            } elseif ($this->intentos >= 15 && $this->currentStepIndex === count($this->pasos) - 1) {
-                // Si es el último paso (reinicio), avanzamos aunque no confirme, porque el router ya cayó.
-                $this->logs[] = "✅ Comando de reinicio enviado.";
-                $this->avanzar();
-            } elseif ($this->intentos >= 50) {
-                $this->logs[] = "⚠️ Paso completado por tiempo.";
-                $this->avanzar();
+            if ($res->successful()) {
+                $status = $res->json('status');
+                $data = $res->json('data'); // Captura el "OK" o "ERR" enviado por MikroTik
+
+                if ($status === 'ready') {
+                    if ($data === 'OK') {
+                        $this->reintentosPaso = 0; // Resetear reintentos al tener éxito
+                        $this->avanzar();
+                    } else {
+                        $this->logs[] = "⚠️ Router reportó error en comando.";
+                        $this->gestionarFallo();
+                    }
+                }
+            }
+
+            // Manejo de Timeouts o si el router se reinició (último paso)
+            if ($this->intentos >= 40) { 
+                if ($this->currentStepIndex === count($this->pasos) - 1) {
+                    $this->logs[] = "✅ Reinicio confirmado por timeout.";
+                    $this->avanzar();
+                } else {
+                    $this->logs[] = "🕒 Tiempo de espera agotado.";
+                    $this->gestionarFallo();
+                }
             }
         } catch (\Exception $e) { }
+    }
+
+    private function gestionarFallo() {
+        $this->esperandoRespuesta = false;
+        if ($this->reintentosPaso < 2) {
+            $this->reintentosPaso++;
+            $this->enviarSiguienteComando();
+        } else {
+            $this->logs[] = "❌ Comando fallido tras 2 reintentos. Abortando.";
+            $this->finalizar();
+        }
     }
 
     private function avanzar() {
         $this->esperandoRespuesta = false;
         $this->currentStepIndex++;
+        $this->reintentosPaso = 0;
         $this->progreso = round(($this->currentStepIndex / count($this->pasos)) * 100);
         $this->dispatchBrowserEvent('logUpdated');
-        
-        // Pequeña pausa antes de enviar el siguiente para no saturar el bridge
         $this->enviarSiguienteComando();
     }
 
