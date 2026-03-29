@@ -116,18 +116,9 @@
         {{-- GRÁFICA Y ACTIVIDAD --}}
         <div class="row g-4">
             <div class="col-lg-8">
-                {{-- GRÁFICA TRÁFICO GENERAL --}}
                 <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
-                    <h6 class="fw-bold mb-4">Tráfico de Red (General)</h6>
+                    <h6 class="fw-bold mb-4">Tráfico de Red</h6>
                     <div style="height: 300px;"><canvas id="aliadoTrafficChart"></canvas></div>
-                </div>
-
-                {{-- NUEVA GRÁFICA: DISTRIBUCIÓN POR ROUTER --}}
-                <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
-                    <h6 class="fw-bold mb-4">Distribución de Logins por Router</h6>
-                    <div style="height: 300px;" wire:ignore>
-                        <canvas id="routerLogsChart"></canvas>
-                    </div>
                 </div>
 
                 <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
@@ -168,6 +159,7 @@
                     <div class="card-header bg-white border-0 pt-4 px-4">
                         <h5 class="fw-bold mb-0">Actividad Reciente</h5>
                     </div>
+                    {{-- AJUSTE DE SCROLL --}}
                     <div class="list-group list-group-flush mt-3" style="max-height: 500px; overflow-y: auto;">
                         @forelse($ultimosLogs as $log)
                             <div class="list-group-item border-0 px-4 py-3 small d-flex justify-content-between align-items-start">
@@ -238,6 +230,7 @@
     .bg-primary-soft { background-color: rgba(13, 110, 253, 0.1); }
     .transition-card { transition: transform 0.3s ease; }
     .transition-card:hover { transform: translateY(-5px); }
+    /* Scrollbar estilizada para los logs */
     .list-group::-webkit-scrollbar { width: 4px; }
     .list-group::-webkit-scrollbar-track { background: #f1f1f1; }
     .list-group::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
@@ -247,14 +240,12 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('livewire:load', function () {
-        let lineChart;
-        let doughnutChart;
-
-        function renderLine(labels, data) {
+        let chart;
+        function render(labels, data) {
             const ctx = document.getElementById('aliadoTrafficChart');
             if(!ctx) return;
-            if(lineChart) lineChart.destroy();
-            lineChart = new Chart(ctx, {
+            if(chart) chart.destroy();
+            chart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: labels,
@@ -271,45 +262,17 @@
                     responsive: true, 
                     maintainAspectRatio: false, 
                     plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                    }
                 }
             });
         }
-
-        function renderDoughnut(labels, data) {
-            const ctx = document.getElementById('routerLogsChart');
-            if(!ctx) return;
-            if(doughnutChart) doughnutChart.destroy();
-            doughnutChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: data,
-                        backgroundColor: ['#0d6efd', '#212529', '#0dcaf0', '#198754', '#ffc107', '#6610f2'],
-                        borderWidth: 2,
-                        borderColor: '#ffffff'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } }
-                    },
-                    cutout: '70%'
-                }
-            });
-        }
-
-        // Render inicial
-        renderLine(@json($chartLabels), @json($chartData));
-        renderDoughnut(@json($routerLabels), @json($routerData));
+        render(@json($chartLabels), @json($chartData));
         
-        // Listener para actualizaciones (asegúrate de emitir este evento desde el controlador al cambiar el periodo)
-        window.livewire.on('updateChart', (labels, data, rLabels, rData) => {
-            renderLine(labels, data);
-            if(rLabels && rData) renderDoughnut(rLabels, rData);
+        // Listener para actualizar el chart cuando Livewire cambie los datos por periodo
+        window.addEventListener('livewire:load', () => {
+            window.livewire.on('updateChart', (labels, data) => render(labels, data));
         });
     });
 </script>
