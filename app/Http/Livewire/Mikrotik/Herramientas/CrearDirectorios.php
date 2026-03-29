@@ -12,7 +12,6 @@ class CrearDirectorios extends Component
 {
     public $router_id;
     public $selectedAliado = null;
-    public $routerStatus = [];
     public $logs = [];
     public $isConfiguring = false;
     public $progreso = 0;
@@ -28,35 +27,22 @@ class CrearDirectorios extends Component
         if (Auth::user()->role !== 'admin') abort(403);
     }
 
-    // Proceso automático Completo
+    // NUEVA FUNCIÓN: Reset HTML (Crea carpetas + Descarga HTML base)
+    public function resetHotspot() {
+        $this->iniciarProceso("re-estableciendo HTML Hotspot", [
+            ['cmd' => ':if ([:len [/file find name="hotspot"]] = 0) do={ /file add name="hotspot" type="directory" }', 'desc' => 'Verificando carpeta /hotspot'],
+            ['cmd' => ':if ([:len [/file find name="hotspot/css"]] = 0) do={ /file add name="hotspot/css" type="directory" }', 'desc' => 'Verificando carpeta /hotspot/css'],
+            ['cmd' => '/tool fetch url="https://wifiexpres.com/api/portal-download/default" dst-path="hotspot/login.html" check-certificate=no', 'desc' => 'Resetting login.html'],
+            ['cmd' => '/tool fetch url="https://wifiexpres.com/api/pasarela-download" dst-path="hotspot/pasarela.html" check-certificate=no', 'desc' => 'Resetting pasarela.html']
+        ]);
+    }
+
     public function ejecutarTodo() {
-        $this->iniciarProceso("🚀 Instalación Automática de Estructura", [
-            ['cmd' => ':if ([:len [/file find name="hotspot"]] = 0) do={ /file add name="hotspot" type="directory" }', 'desc' => 'Creando carpeta /hotspot'],
-            ['cmd' => ':if ([:len [/file find name="hotspot/css"]] = 0) do={ /file add name="hotspot/css" type="directory" }', 'desc' => 'Creando carpeta /hotspot/css'],
-            ['cmd' => '/tool fetch url="https://wifiexpres.com/api/portal-download/default" dst-path="hotspot/login.html" check-certificate=no', 'desc' => 'Descargando login.html'],
-            ['cmd' => '/tool fetch url="https://wifiexpres.com/api/pasarela-download" dst-path="hotspot/pasarela.html" check-certificate=no', 'desc' => 'Descargando pasarela.html'],
-            ['cmd' => '/tool fetch url="https://wifiexpres.com/css/bootstrap.min.css" dst-path="hotspot/css/bootstrap.min.css" check-certificate=no', 'desc' => 'Instalando bootstrap.min.css'],
-            ['cmd' => '/tool fetch url="https://wifiexpres.com/css/all.min.css" dst-path="hotspot/css/all.min.css" check-certificate=no', 'desc' => 'Instalando all.min.css']
-        ]);
-    }
-
-    // Métodos individuales
-    public function crearCarpetas() {
-        $this->iniciarProceso("📁 Creando Directorios", [
+        $this->iniciarProceso("🚀 Instalación Automática Completa", [
             ['cmd' => ':if ([:len [/file find name="hotspot"]] = 0) do={ /file add name="hotspot" type="directory" }', 'desc' => 'Creando /hotspot'],
-            ['cmd' => ':if ([:len [/file find name="hotspot/css"]] = 0) do={ /file add name="hotspot/css" type="directory" }', 'desc' => 'Creando /hotspot/css']
-        ]);
-    }
-
-    public function instalarArchivos() {
-        $this->iniciarProceso("📄 Instalando Archivos Base", [
-            ['cmd' => '/tool fetch url="https://wifiexpres.com/api/portal-download/default" dst-path="hotspot/login.html" check-certificate=no', 'desc' => 'Descargando login.html'],
-            ['cmd' => '/tool fetch url="https://wifiexpres.com/api/pasarela-download" dst-path="hotspot/pasarela.html" check-certificate=no', 'desc' => 'Descargando pasarela.html']
-        ]);
-    }
-
-    public function instalarCSS() {
-        $this->iniciarProceso("🎨 Instalando Estilos CSS", [
+            ['cmd' => ':if ([:len [/file find name="hotspot/css"]] = 0) do={ /file add name="hotspot/css" type="directory" }', 'desc' => 'Creando /hotspot/css'],
+            ['cmd' => '/tool fetch url="https://wifiexpres.com/api/portal-download/default" dst-path="hotspot/login.html" check-certificate=no', 'desc' => 'Instalando login.html'],
+            ['cmd' => '/tool fetch url="https://wifiexpres.com/api/pasarela-download" dst-path="hotspot/pasarela.html" check-certificate=no', 'desc' => 'Instalando pasarela.html'],
             ['cmd' => '/tool fetch url="https://wifiexpres.com/css/bootstrap.min.css" dst-path="hotspot/css/bootstrap.min.css" check-certificate=no', 'desc' => 'Instalando bootstrap.min.css'],
             ['cmd' => '/tool fetch url="https://wifiexpres.com/css/all.min.css" dst-path="hotspot/css/all.min.css" check-certificate=no', 'desc' => 'Instalando all.min.css']
         ]);
@@ -68,7 +54,7 @@ class CrearDirectorios extends Component
         $this->progreso = 0;
         $this->currentStepIndex = 0;
         $this->pasos = $listaPasos;
-        $this->logs = [$mensaje];
+        $this->logs = ["🛠️ " . strtoupper($mensaje)];
         $this->enviarSiguienteComando();
     }
 
@@ -83,7 +69,7 @@ class CrearDirectorios extends Component
         $this->currentTid = "TID" . time() . rand(10, 99);
         $this->intentos = 0;
 
-        $this->logs[] = "⏳ " . $paso['desc'];
+        $this->logs[] = "📡 " . $paso['desc'];
 
         $script = "{ :local r \"OK\"; :do { ".$paso['cmd']." } on-error={ :set r \"ERR\" }; /tool fetch url=\"$this->bridgeUrl/post-result?mac=$mac&tid=$this->currentTid&data=\$r\" keep-result=no }";
         $scriptLimpio = trim(preg_replace('/\s+/', ' ', $script));
@@ -105,11 +91,10 @@ class CrearDirectorios extends Component
         try {
             $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $this->currentTid]);
             if ($res->successful() && $res->json('status') === 'ready') {
-                $this->logs[] = "✅ Completado";
                 $this->avanzar();
-            } elseif ($this->intentos >= 30) {
-                $this->logs[] = "⚠️ Reintentando paso...";
-                $this->enviarSiguienteComando();
+            } elseif ($this->intentos >= 35) {
+                $this->logs[] = "⚠️ Timeout en paso actual. Saltando...";
+                $this->avanzar();
             }
         } catch (\Exception $e) { }
     }
@@ -125,13 +110,13 @@ class CrearDirectorios extends Component
         $this->isConfiguring = false;
         $this->esperandoRespuesta = false;
         $this->progreso = 100;
-        $this->logs[] = "🏁 Proceso Terminado.";
+        $this->logs[] = "🏁 OPERACIÓN FINALIZADA.";
     }
 
     public function render() {
         return view('livewire.mikrotik.herramientas.crear-directorios', [
             'routers' => Router::when($this->selectedAliado, fn($q) => $q->where('user_id', $this->selectedAliado))->get(),
             'aliados' => User::where('role', 'aliado')->get()
-        ]);
+        ])->layout('layouts.app');
     }
 }
