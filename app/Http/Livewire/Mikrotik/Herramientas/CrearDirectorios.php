@@ -52,7 +52,8 @@ class CrearDirectorios extends Component
         $this->validate(['router_id' => 'required']);
         $this->iniciarProceso("Restaurando Hotspot Original", [
             ['cmd' => '/ip hotspot profile reset-html [find]', 'desc' => 'Restaurando archivos de fábrica'],
-            ['cmd' => ':log info "Hotspot HTML Reseteado"', 'desc' => 'Finalizado en RouterOS']
+            ['cmd' => ':log info "Hotspot HTML Reseteado"', 'desc' => 'Finalizado en RouterOS'],
+            ['cmd' => '/system reboot', 'desc' => 'Reiniciando router...']
         ]);
     }
 
@@ -60,20 +61,17 @@ class CrearDirectorios extends Component
         $this->validate(['router_id' => 'required', 'version_id' => 'required']);
 
         $this->iniciarProceso("🚀 Instalación Completa", [
-            // 1. Preparación de carpetas
-            ['cmd' => ':if ([:len [/file find name="hotspot"]] = 0) do={ /file add name="hotspot" type="directory" }', 'desc' => 'Verificando carpeta /hotspot'],
-            ['cmd' => ':if ([:len [/file find name="hotspot/css"]] = 0) do={ /file add name="hotspot/css" type="directory" }', 'desc' => 'Verificando carpeta /hotspot/css'],
-            
-            // 2. Descarga de HTMLs
+            // 1. Descarga de HTMLs (Ruta directa a carpetas existentes)
             ['cmd' => '/tool fetch url="'.$this->apiUrl.'/portal-download/'.$this->version_id.'" dst-path="hotspot/login.html" check-certificate=no', 'desc' => 'Instalando login.html'],
             ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/pasarela.html" dst-path="hotspot/pasarela.html" check-certificate=no', 'desc' => 'Instalando pasarela.html'],
             
-            // 3. Descarga de CSS (Corregido: Usamos la ruta exacta que procesa tu API)
+            // 2. Descarga de CSS
             ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/bootstrap.min.css" dst-path="hotspot/css/bootstrap.min.css" check-certificate=no', 'desc' => 'Descargando bootstrap.min.css'],
             ['cmd' => '/tool fetch url="'.$this->apiUrl.'/hotspot-assets/all.min.css" dst-path="hotspot/css/all.min.css" check-certificate=no', 'desc' => 'Descargando all.min.css'],
             
-            // 4. Configuración final
+            // 3. Configuración final y Reinicio
             ['cmd' => '/ip hotspot profile set [find] html-directory=hotspot', 'desc' => 'Asignando directorio al perfil'],
+            ['cmd' => '/system reboot', 'desc' => 'Configuración aplicada. Reiniciando equipo...']
         ]);
     }
 
@@ -124,8 +122,8 @@ class CrearDirectorios extends Component
             $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $this->currentTid]);
             if ($res->successful() && $res->json('status') === 'ready') {
                 $this->avanzar();
-            } elseif ($this->intentos >= 45) { // Subimos el timeout para archivos pesados
-                $this->logs[] = "⚠️ Tiempo agotado en este paso.";
+            } elseif ($this->intentos >= 50) { // Tiempo de espera prudente para descargas
+                $this->logs[] = "⚠️ Paso omitido por tiempo o respuesta pendiente.";
                 $this->avanzar();
             }
         } catch (\Exception $e) { }
