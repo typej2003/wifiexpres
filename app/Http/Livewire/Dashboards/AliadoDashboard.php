@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Livewire\Mikrotik\Data;
+namespace App\Http\Livewire\Dashboards;
 
 use Livewire\Component;
 use App\Models\TicketLog;
@@ -8,7 +8,7 @@ use App\Models\Router;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-class GraficoRouters extends Component
+class AliadoDashboard extends Component
 {
     public function render()
     {
@@ -34,7 +34,7 @@ class GraficoRouters extends Component
             $values[] = $item->total;
         }
 
-        return view('livewire.mikrotik.data.grafico-routers', [
+        return view('livewire.dashboards.aliado-dashboard', [
             'labels' => $labels,
             'values' => $values,
             'totalGeneral' => array_sum($values)
