@@ -69,48 +69,8 @@ class AliadoDashboard extends Component
     public function setPeriod($value) 
     { 
         $this->period = $value; 
-        
-        // Obtenemos datos frescos para emitir el evento de actualización de ambos charts
-        $data = $this->getChartData();
-        $this->emit('updateCharts', $data['lineLabels'], $data['lineValues'], $data['donutLabels'], $data['donutValues']);
-    }
-
-    /**
-     * Centraliza la lógica de datos para las gráficas
-     */
-    private function getChartData()
-    {
-        $user = Auth::user();
-        $routers = Router::where('user_id', $user->id)->get();
-        $routerIds = $routers->pluck('id');
-
-        [$start, $end] = match($this->period) {
-            'weekly' => [now()->startOfWeek(), now()],
-            'month' => [now()->startOfMonth(), now()],
-            default => [now()->startOfDay(), now()],
-        };
-
-        // Datos para Gráfico de Líneas (Tráfico)
-        $format = ($this->period == 'today') ? '%H:00' : '%d/%m';
-        $lineQuery = TicketLog::whereIn('router_id', $routerIds)
-            ->whereBetween('created_at', [$start, $end])
-            ->select(DB::raw("DATE_FORMAT(created_at, '$format') as label"), DB::raw('count(*) as total'))
-            ->groupBy('label')->orderBy('label')->get();
-
-        // Datos para Gráfico de Dona (Distribución por Router)
-        $donutQuery = TicketLog::whereIn('router_id', $routerIds)
-            ->whereBetween('created_at', [$start, $end])
-            ->select('router_id', DB::raw('count(*) as total'))
-            ->groupBy('router_id')
-            ->with('router:id,identity')
-            ->get();
-
-        return [
-            'lineLabels' => $lineQuery->pluck('label'),
-            'lineValues' => $lineQuery->pluck('total'),
-            'donutLabels' => $donutQuery->map(fn($item) => $item->router->identity ?? "Router #{$item->router_id}"),
-            'donutValues' => $donutQuery->pluck('total'),
-        ];
+        // Emitimos evento para que el JS del chart se entere si es necesario, 
+        // aunque el render lo hace automáticamente al refrescar.
     }
 
     public function render()
@@ -126,7 +86,11 @@ class AliadoDashboard extends Component
             default => [now()->startOfDay(), now()],
         };
 
-        $chartData = $this->getChartData();
+        $format = ($this->period == 'today') ? '%H:00' : '%d/%m';
+        $chartQuery = TicketLog::whereIn('router_id', $routerIds)
+            ->whereBetween('created_at', [$start, $end])
+            ->select(DB::raw("DATE_FORMAT(created_at, '$format') as label"), DB::raw('count(*) as total'))
+            ->groupBy('label')->orderBy('label')->get();
 
         return view('livewire.dashboards.aliado-dashboard', [
             'availablePackages' => Package::where('is_active', true)->where('is_visible', true)->get(),
@@ -140,13 +104,12 @@ class AliadoDashboard extends Component
                 'tickets_activos' => Ticket::whereIn('router_id', $routerIds)->where('estado', 'activo')->count(),
                 'conexiones_periodo' => TicketLog::whereIn('router_id', $routerIds)->whereBetween('created_at', [$start, $end])->count(),
             ],
-            'lineLabels' => $chartData['lineLabels'],
-            'lineValues' => $chartData['lineValues'],
-            'donutLabels' => $chartData['donutLabels'],
-            'donutValues' => $chartData['donutValues'],
+            'chartLabels' => $chartQuery->pluck('label'),
+            'chartData' => $chartQuery->pluck('total'),
             'topUsuarios' => TicketLog::whereIn('router_id', $routerIds)
                 ->select('username', DB::raw('count(*) as total_conexiones'), DB::raw('sum(duration_seconds) as tiempo_total'))
                 ->groupBy('username')->orderBy('total_conexiones', 'desc')->take(5)->get(),
+            // SE FILTRAN LOS LOGS POR EL PERIODO SELECCIONADO Y DESCENDENTE
             'ultimosLogs' => TicketLog::with('router')->whereIn('router_id', $routerIds)
                 ->whereBetween('created_at', [$start, $end])
                 ->latest()
