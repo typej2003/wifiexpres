@@ -2,42 +2,43 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Reporte de Conexiones - Generico</title>
+    <title>Reporte de Conexiones</title>
     <style>
         @page {
-            margin: 1cm;
+            margin: 1.5cm;
         }
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
             font-size: 11px;
             color: #333;
-            line-height: 1.4;
+            line-height: 1.5;
         }
         .header {
             width: 100%;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #444;
-            padding-bottom: 10px;
+            margin-bottom: 25px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 15px;
         }
         .header table {
             width: 100%;
         }
-        .brand {
-            font-size: 24px;
+        .main-title {
+            font-size: 18px;
             font-weight: bold;
-            color: #222;
+            color: #000;
             text-transform: uppercase;
+            letter-spacing: 1px;
         }
-        .report-title {
+        .report-info {
             text-align: right;
-            font-size: 14px;
-            color: #666;
+            font-size: 11px;
+            color: #555;
         }
         .info-bar {
-            background-color: #f8f9fa;
-            padding: 10px;
+            background-color: #fcfcfc;
+            padding: 12px;
             margin-bottom: 20px;
-            border-radius: 5px;
+            border-radius: 4px;
             border: 1px solid #eee;
         }
         .info-bar table {
@@ -46,22 +47,24 @@
         .table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
         }
         .table th {
-            background-color: #444;
-            color: white;
+            background-color: #f2f2f2;
+            color: #000;
             text-align: left;
-            padding: 8px;
+            padding: 10px 8px;
             text-transform: uppercase;
-            font-size: 10px;
+            font-size: 9px;
+            border-bottom: 2px solid #333;
         }
         .table td {
-            padding: 8px;
-            border-bottom: 1px solid #dee2e6;
+            padding: 10px 8px;
+            border-bottom: 1px solid #eee;
+            vertical-align: middle;
         }
         .table tr:nth-child(even) {
-            background-color: #f2f2f2;
+            background-color: #fafafa;
         }
         .text-end {
             text-align: right;
@@ -72,22 +75,21 @@
             width: 100%;
             font-size: 9px;
             text-align: center;
-            color: #999;
+            color: #777;
             border-top: 1px solid #eee;
-            padding-top: 5px;
+            padding-top: 10px;
         }
         .badge {
-            padding: 3px 6px;
-            border-radius: 10px;
+            display: inline-block;
+            padding: 2px 5px;
+            background-color: #eee;
+            color: #333;
+            border-radius: 3px;
             font-size: 9px;
-            background-color: #e9ecef;
-            color: #495057;
-            border: 1px solid #ced4da;
         }
         .mac {
             font-family: 'Courier', monospace;
-            color: #333;
-            font-weight: bold;
+            font-size: 10px;
         }
     </style>
 </head>
@@ -97,12 +99,11 @@
         <table>
             <tr>
                 <td>
-                    <div class="brand">PANEXPRES</div>
-                    <div style="font-size: 10px; color: #666;">Sistema de Gestión de Tickets WiFi</div>
+                    <div class="main-title">Sistema de Gestión de Tickets WiFi</div>
                 </td>
-                <td class="report-title">
-                    <strong>Reporte de Historial de Conexiones</strong><br>
-                    Generado el: {{ now()->format('d/m/Y h:i A') }}
+                <td class="report-info">
+                    <strong>Reporte de Historial</strong><br>
+                    {{ now()->format('d/m/Y h:i A') }}
                 </td>
             </tr>
         </table>
@@ -112,12 +113,12 @@
         <table>
             <tr>
                 <td>
-                    <strong>Aliado:</strong> {{ $user->name }}<br>
-                    <strong>Email:</strong> {{ $user->email }}
+                    <strong>Generado por:</strong> {{ $user->name }}<br>
+                    <strong>Identificador:</strong> {{ $user->email }}
                 </td>
                 <td class="text-end">
-                    <strong>Rango de Fechas:</strong> <br>
-                    {{ \Carbon\Carbon::parse($from)->format('d/m/Y') }} hasta {{ \Carbon\Carbon::parse($to)->format('d/m/Y') }}
+                    <strong>Periodo de consulta:</strong> <br>
+                    {{ \Carbon\Carbon::parse($from)->format('d/m/Y') }} — {{ \Carbon\Carbon::parse($to)->format('d/m/Y') }}
                 </td>
             </tr>
         </table>
@@ -126,23 +127,23 @@
     <table class="table">
         <thead>
             <tr>
-                <th>Usuario / Ticket</th>
-                <th>Router / Nodo</th>
-                <th>Ubicación Física</th>
+                <th>Ticket / Usuario</th>
+                <th>Nodo Emisor</th>
+                <th>Ubicación</th>
                 <th>Fecha / Hora</th>
-                <th>Duración</th>
-                <th class="text-end">MAC Address</th>
+                <th>Tiempo de Uso</th>
+                <th class="text-end">Dirección MAC</th>
             </tr>
         </thead>
         <tbody>
             @forelse($logs as $log)
             <tr>
                 <td><strong>{{ $log->username }}</strong></td>
-                <td>{{ $log->router->identity ?? 'MikroTik' }}</td>
+                <td>{{ $log->router->identity ?? 'Router' }}</td>
                 <td>{{ $log->ubicacion_fisica }}</td>
                 <td>
                     {{ $log->created_at->format('d/m/Y') }}<br>
-                    <small style="color: #666;">{{ $log->created_at->format('h:i:s A') }}</small>
+                    <small style="color: #888;">{{ $log->created_at->format('h:i:s A') }}</small>
                 </td>
                 <td>
                     <span class="badge">{{ $log->duracion_formateada }}</span>
@@ -153,14 +154,16 @@
             </tr>
             @empty
             <tr>
-                <td colspan="6" style="text-align: center; padding: 20px;">No se encontraron registros en el rango seleccionado.</td>
+                <td colspan="6" style="text-align: center; padding: 40px; color: #999;">
+                    No se han registrado conexiones en el periodo seleccionado.
+                </td>
             </tr>
             @endforelse
         </tbody>
     </table>
 
     <div class="footer">
-        Este documento es un reporte automático generado por la plataforma PanExpres.com - &copy; {{ date('Y') }}
+        Documento generado automáticamente por el Sistema de Gestión de Tickets WiFi &copy; {{ date('Y') }}
     </div>
 
 </body>
