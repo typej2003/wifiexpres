@@ -12,6 +12,7 @@ class CrearDirectorios extends Component
 {
     public $router_id;
     public $selectedAliado = null;
+    public $routerStatus = []; // Almacena [id => true/false]
     public $logs = [];
     public $isConfiguring = false;
     public $progreso = 0;
@@ -21,13 +22,36 @@ class CrearDirectorios extends Component
     public $pasos = [];
     public $intentos = 0;
 
-    public $bridgeUrl = "http://188.95.113.44:3000";
+    protected $bridgeUrl = "http://188.95.113.44:3000";
 
     public function mount() {
         if (Auth::user()->role !== 'admin') abort(403);
+        $this->refreshStatus();
     }
 
-    // NUEVA FUNCIÓN: Reset HTML (Crea carpetas + Descarga HTML base)
+    /**
+     * Consulta al Bridge qué routers están conectados actualmente
+     */
+    public function refreshStatus()
+    {
+        try {
+            $response = Http::timeout(5)->get("{$this->bridgeUrl}/api/routers-online");
+            if ($response->successful()) {
+                $onlineRouters = $response->json();
+                $activeMacs = collect($onlineRouters)->map(fn($item) => strtoupper(trim($item['mac'])))->toArray();
+                
+                $routers = Router::all();
+                $this->routerStatus = [];
+                foreach ($routers as $r) {
+                    $macLimpia = strtoupper(trim($r->macAddress));
+                    $this->routerStatus[$r->id] = in_array($macLimpia, $activeMacs);
+                }
+            }
+        } catch (\Exception $e) { 
+            $this->routerStatus = []; 
+        }
+    }
+
     public function resetHotspot() {
         $this->iniciarProceso("re-estableciendo HTML Hotspot", [
             ['cmd' => ':if ([:len [/file find name="hotspot"]] = 0) do={ /file add name="hotspot" type="directory" }', 'desc' => 'Verificando carpeta /hotspot'],
@@ -50,6 +74,13 @@ class CrearDirectorios extends Component
 
     private function iniciarProceso($mensaje, $listaPasos) {
         $this->validate(['router_id' => 'required']);
+        
+        // Validación extra: No iniciar si el router seleccionado no está online
+        if (!($this->routerStatus[$this->router_id] ?? false)) {
+            $this->logs[] = "❌ ERROR: El router seleccionado está OFFLINE.";
+            return;
+        }
+
         $this->isConfiguring = true;
         $this->progreso = 0;
         $this->currentStepIndex = 0;
@@ -79,7 +110,10 @@ class CrearDirectorios extends Component
                 ->withBody($scriptLimpio, 'text/plain')
                 ->post("{$this->bridgeUrl}/set-command");
             $this->esperandoRespuesta = true;
-        } catch (\Exception $e) { $this->logs[] = "❌ Error Bridge"; $this->finalizar(); }
+        } catch (\Exception $e) { 
+            $this->logs[] = "❌ Error Bridge"; 
+            $this->finalizar(); 
+        }
     }
 
     public function checkStatus() {
@@ -103,6 +137,7 @@ class CrearDirectorios extends Component
         $this->esperandoRespuesta = false;
         $this->currentStepIndex++;
         $this->progreso = round(($this->currentStepIndex / count($this->pasos)) * 100);
+        $this->dispatchBrowserEvent('logUpdated');
         $this->enviarSiguienteComando();
     }
 
@@ -111,12 +146,13 @@ class CrearDirectorios extends Component
         $this->esperandoRespuesta = false;
         $this->progreso = 100;
         $this->logs[] = "🏁 OPERACIÓN FINALIZADA.";
+        $this->dispatchBrowserEvent('logUpdated');
     }
 
     public function render() {
         return view('livewire.mikrotik.herramientas.crear-directorios', [
             'routers' => Router::when($this->selectedAliado, fn($q) => $q->where('user_id', $this->selectedAliado))->get(),
             'aliados' => User::where('role', 'aliado')->get()
-        ])->layout('layouts.app');
+        ]);
     }
 }
