@@ -242,18 +242,18 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    function initChart() {
-        const el = document.getElementById('chartRoutersAliado');
-        if (!el) return;
+    // 1. Definimos la función de dibujo fuera para que sea accesible
+    function renderAliadoChart() {
+        const chartElement = document.getElementById('chartRoutersAliado');
+        if (!chartElement) return;
 
-        // Limpiar gráfico previo para que no queden rastros al cambiar de periodo
+        // Limpiamos rastro del gráfico anterior para evitar que se "pisen"
         const existingChart = Chart.getChart("chartRoutersAliado");
         if (existingChart) {
             existingChart.destroy();
         }
 
-        const ctx = el.getContext('2d');
-        new Chart(ctx, {
+        new Chart(chartElement.getContext('2d'), {
             type: 'pie',
             data: {
                 labels: @json($chartLabels),
@@ -268,17 +268,20 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: 'bottom' }
+                    legend: { position: 'bottom', display: true }
                 }
             }
         });
     }
 
-    document.addEventListener('livewire:load', () => {
-        initChart();
-        // Escucha el evento del controlador para redibujar al cambiar el periodo
+    // 2. Ejecutar al cargar la página por primera vez
+    document.addEventListener('livewire:load', function () {
+        renderAliadoChart();
+
+        // 3. RE-DIBUJAR cuando Livewire actualice los datos (Periodos: Hoy/Semana/Mes)
         Livewire.on('updateChart', () => {
-            setTimeout(() => { initChart(); }, 100);
+            // Un pequeño delay asegura que los datos nuevos ya estén en el DOM
+            setTimeout(() => { renderAliadoChart(); }, 50);
         });
     });
 </script>

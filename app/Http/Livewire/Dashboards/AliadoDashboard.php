@@ -69,8 +69,7 @@ class AliadoDashboard extends Component
     public function setPeriod($value) 
     { 
         $this->period = $value; 
-        // Emitimos para que el JS sepa que debe re-inicializar el gráfico
-        $this->emit('updateChart');
+        $this->emit('updateChart'); // Esto es vital para el JS
     }
 
     public function render()
