@@ -84,8 +84,8 @@ class AliadoDashboard extends Component
             default => [now()->startOfDay(), now()],
         };
 
-        // Lógica de Distribución por Router (Lo que pediste agregar)
-        $data = TicketLog::whereIn('router_id', $routerIds)
+        // LÓGICA DE LA GRÁFICA DE ROUTERS (LO QUE INTEGRAMOS)
+        $dataPie = TicketLog::whereIn('router_id', $routerIds)
             ->select('router_id', DB::raw('count(*) as total'))
             ->groupBy('router_id')
             ->with('router:id,identity')
@@ -93,7 +93,7 @@ class AliadoDashboard extends Component
 
         $labels = [];
         $values = [];
-        foreach ($data as $item) {
+        foreach ($dataPie as $item) {
             $labels[] = $item->router->identity ?? 'Router #' . $item->router_id;
             $values[] = $item->total;
         }
@@ -113,6 +113,9 @@ class AliadoDashboard extends Component
             'labels' => $labels,
             'values' => $values,
             'totalGeneral' => array_sum($values),
+            'topUsuarios' => TicketLog::whereIn('router_id', $routerIds)
+                ->select('username', DB::raw('count(*) as total_conexiones'), DB::raw('sum(duration_seconds) as tiempo_total'))
+                ->groupBy('username')->orderBy('total_conexiones', 'desc')->take(5)->get(),
             'ultimosLogs' => TicketLog::with('router')->whereIn('router_id', $routerIds)
                 ->whereBetween('created_at', [$start, $end])
                 ->latest()
