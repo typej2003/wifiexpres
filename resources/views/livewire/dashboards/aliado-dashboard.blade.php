@@ -53,7 +53,7 @@
             </div>
         </div>
 
-        {{-- TABLA DE PLANES --}}
+        {{-- TABLA DE PLANES (Se mantiene igual) --}}
         <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
             <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
                 <h6 class="fw-bold mb-0">Suscripciones Activas</h6>
@@ -115,6 +115,7 @@
 
         {{-- GRÁFICAS --}}
         <div class="row g-4 mb-4">
+            {{-- GRÁFICA LINEAL: TRAFICO --}}
             <div class="col-lg-8">
                 <div class="card border-0 shadow-sm rounded-4 p-4">
                     <h6 class="fw-bold mb-4">Tráfico de Red (Logins)</h6>
@@ -124,6 +125,7 @@
                 </div>
             </div>
 
+            {{-- GRÁFICA DE DONA: DISTRIBUCIÓN POR ROUTER --}}
             <div class="col-lg-4">
                 <div class="card border-0 shadow-sm rounded-4 p-4 text-center">
                     <h6 class="fw-bold mb-4">Distribución por Equipo</h6>
@@ -195,7 +197,7 @@
         </div>
     @endif
 
-    {{-- MODAL DE PLANES --}}
+    {{-- MODAL DE PLANES (Se mantiene igual) --}}
     @if($showPlanModal)
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 2050;">
         <div class="modal-dialog modal-xl" style="margin-top: 8rem;">
@@ -233,6 +235,7 @@
         </div>
     </div>
     @endif
+
 </div>
 
 <style>
@@ -248,16 +251,91 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('livewire:load', function () {
+        let lineChart;
+        let donutChart;
+
+        function renderCharts(lineLabels, lineData, donutLabels, donutData) {
+            // 1. Gráfico de Líneas
+            const ctxLine = document.getElementById('aliadoTrafficChart');
+            if (ctxLine) {
+                if (lineChart) lineChart.destroy();
+                lineChart = new Chart(ctxLine, {
+                    type: 'line',
+                    data: {
+                        labels: lineLabels,
+                        datasets: [{
+                            label: 'Logins',
+                            data: lineData,
+                            borderColor: '#0d6efd',
+                            backgroundColor: 'rgba(13, 110, 253, 0.05)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                    }
+                });
+            }
+
+            // 2. Gráfico de Dona
+            const ctxDonut = document.getElementById('routerDistributionChart');
+            if (ctxDonut) {
+                if (donutChart) donutChart.destroy();
+                donutChart = new Chart(ctxDonut, {
+                    type: 'doughnut',
+                    data: {
+                        labels: donutLabels,
+                        datasets: [{
+                            data: donutData,
+                            backgroundColor: ['#0d6efd', '#212529', '#0dcaf0', '#198754', '#ffc107', '#6610f2'],
+                            borderWidth: 2,
+                            borderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' } },
+                        cutout: '70%'
+                    }
+                });
+            }
+        }
+
+        // Render inicial con datos inyectados por PHP
+        renderCharts(
+            @json($lineLabels), 
+            @json($lineValues), 
+            @json($donutLabels), 
+            @json($donutValues)
+        );
+
+        // Escuchar actualizaciones de Livewire (al cambiar periodo)
+        window.livewire.on('updateCharts', (lLabels, lValues, dLabels, dValues) => {
+            renderCharts(lLabels, lValues, dLabels, dValues);
+        });
+    });
+</script>
+@endpush
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('livewire:load', function () {
         let lineChart, donutChart;
 
-        function initCharts() {
-            // Datos inyectados desde el componente Livewire
+        function startCharts() {
+            // Datos desde PHP (Livewire)
             const lLabels = @json($lineLabels);
             const lData = @json($lineValues);
             const dLabels = @json($donutLabels);
             const dData = @json($donutValues);
 
-            // 1. Gráfico de Líneas (Tráfico)
+            // 1. Gráfico de Líneas
             const ctxL = document.getElementById('aliadoTrafficChart');
             if (ctxL) {
                 if (lineChart) lineChart.destroy();
@@ -274,15 +352,11 @@
                             tension: 0.4
                         }]
                     },
-                    options: { 
-                        responsive: true, 
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } }
-                    }
+                    options: { responsive: true, maintainAspectRatio: false }
                 });
             }
 
-            // 2. Gráfico de Dona (Distribución)
+            // 2. Gráfico de Dona
             const ctxD = document.getElementById('routerDistributionChart');
             if (ctxD) {
                 if (donutChart) donutChart.destroy();
@@ -295,21 +369,17 @@
                             backgroundColor: ['#0d6efd', '#212529', '#0dcaf0', '#198754', '#ffc107', '#6610f2'],
                         }]
                     },
-                    options: { 
-                        responsive: true, 
-                        maintainAspectRatio: false,
-                        plugins: { legend: { position: 'bottom' } }
-                    }
+                    options: { responsive: true, maintainAspectRatio: false }
                 });
             }
         }
 
-        // Primera ejecución con pequeño retraso para asegurar el render del DOM
-        setTimeout(initCharts, 200);
+        // Ejecutar al cargar
+        setTimeout(startCharts, 100);
 
-        // Re-inicializar cuando Livewire actualice el componente (cambio de periodo)
+        // Escuchar cuando cambies el periodo (Hoy/Mes)
         window.livewire.on('updateCharts', () => {
-            setTimeout(initCharts, 100);
+            setTimeout(startCharts, 100);
         });
     });
 </script>
