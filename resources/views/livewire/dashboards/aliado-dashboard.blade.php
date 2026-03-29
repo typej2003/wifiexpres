@@ -1,4 +1,4 @@
-<div class="container-fluid py-4">
+<div class="container-fluid py-4"> {{-- ÚNICO ELEMENTO RAÍZ --}}
 
     @if (session()->has('message'))
         <div class="alert alert-success border-0 shadow-sm rounded-4 mb-4">
@@ -186,7 +186,7 @@
         </div>
     @endif
 
-    {{-- MODAL DE PLANES --}}
+    {{-- MODAL DE PLANES (Dentro del div raíz para evitar Multiple Root Elements) --}}
     @if($showPlanModal)
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 2050;">
         <div class="modal-dialog modal-xl" style="margin-top: 8rem;">
@@ -220,57 +220,63 @@
     </div>
     @endif
 
-</div>
+    <style>
+        .bg-primary-soft { background-color: rgba(13, 110, 253, 0.1); }
+        .transition-card { transition: transform 0.3s ease; }
+        .transition-card:hover { transform: translateY(-5px); }
+        .list-group::-webkit-scrollbar { width: 4px; }
+        .list-group::-webkit-scrollbar-track { background: #f1f1f1; }
+        .list-group::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+    </style>
 
-<style>
-    .bg-primary-soft { background-color: rgba(13, 110, 253, 0.1); }
-    .transition-card { transition: transform 0.3s ease; }
-    .transition-card:hover { transform: translateY(-5px); }
-    .list-group::-webkit-scrollbar { width: 4px; }
-    .list-group::-webkit-scrollbar-track { background: #f1f1f1; }
-    .list-group::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
-</style>
+</div> {{-- CIERRE ÚNICO ELEMENTO RAÍZ --}}
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    function initChart() {
-        const el = document.getElementById('chartRouters');
-        if (!el) return;
+    // Envolvemos todo en un ámbito cerrado para evitar conflictos de variables
+    (function() {
+        let chartInstance = null;
 
-        const existingChart = Chart.getChart("chartRouters");
-        if (existingChart) {
-            existingChart.destroy();
+        function initChart() {
+            const el = document.getElementById('chartRouters');
+            if (!el) return;
+
+            // Destrucción segura de la instancia previa
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            const ctx = el.getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: @json($labels),
+                    datasets: [{
+                        data: @json($values),
+                        backgroundColor: ['#0d6efd', '#212529', '#0dcaf0', '#198754', '#ffc107', '#6610f2'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
         }
 
-        const ctx = el.getContext('2d');
-        new Chart(ctx, {
-            type: 'pie',
-            data: {
-                labels: @json($labels),
-                datasets: [{
-                    data: @json($values),
-                    backgroundColor: ['#0d6efd', '#212529', '#0dcaf0', '#198754', '#ffc107', '#6610f2'],
-                    borderWidth: 2,
-                    borderColor: '#ffffff'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'bottom' }
-                }
-            }
+        document.addEventListener('livewire:load', () => {
+            initChart();
+            
+            // Listener para refrescar cuando cambias el periodo (Hoy/Semana/Mes)
+            Livewire.on('chartUpdated', () => {
+                setTimeout(() => { initChart(); }, 150);
+            });
         });
-    }
-
-    document.addEventListener('livewire:load', () => {
-        initChart();
-        // Escuchamos el evento de cambio de periodo
-        Livewire.on('chartUpdated', () => {
-            setTimeout(() => { initChart(); }, 100);
-        });
-    });
+    })();
 </script>
 @endpush
