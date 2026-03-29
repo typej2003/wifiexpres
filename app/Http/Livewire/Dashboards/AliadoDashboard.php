@@ -69,7 +69,8 @@ class AliadoDashboard extends Component
     public function setPeriod($value) 
     { 
         $this->period = $value; 
-        $this->emit('chartUpdated');
+        // Emitimos para que el JS sepa que debe re-inicializar el gráfico
+        $this->emit('updateChart');
     }
 
     public function render()
@@ -85,8 +86,8 @@ class AliadoDashboard extends Component
             default => [now()->startOfDay(), now()],
         };
 
-        // Lógica del gráfico de torta por Router
-        $pieData = TicketLog::whereIn('router_id', $routerIds)
+        // LÓGICA DE LA GRÁFICA DE TORTA (IGUAL A LA QUE TE FUNCIONA)
+        $dataPie = TicketLog::whereIn('router_id', $routerIds)
             ->whereBetween('created_at', [$start, $end])
             ->select('router_id', DB::raw('count(*) as total'))
             ->groupBy('router_id')
@@ -95,7 +96,7 @@ class AliadoDashboard extends Component
 
         $labels = [];
         $values = [];
-        foreach ($pieData as $item) {
+        foreach ($dataPie as $item) {
             $labels[] = $item->router->identity ?? 'Router #' . $item->router_id;
             $values[] = $item->total;
         }
@@ -115,9 +116,13 @@ class AliadoDashboard extends Component
             'chartLabels' => $labels,
             'chartData' => $values,
             'totalGeneral' => array_sum($values),
+            'topUsuarios' => TicketLog::whereIn('router_id', $routerIds)
+                ->select('username', DB::raw('count(*) as total_conexiones'), DB::raw('sum(duration_seconds) as tiempo_total'))
+                ->groupBy('username')->orderBy('total_conexiones', 'desc')->take(5)->get(),
             'ultimosLogs' => TicketLog::with('router')->whereIn('router_id', $routerIds)
                 ->whereBetween('created_at', [$start, $end])
-                ->latest()->take(10)->get(),
+                ->latest()
+                ->get(),
             'dollarRate' => ExchangeRateService::getBcvRate()
         ])->layout('layouts.app');
     }
