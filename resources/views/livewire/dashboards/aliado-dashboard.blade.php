@@ -27,7 +27,7 @@
             </div>
         </div>
     @else
-        {{-- HEADER CON TASA DE CAMBIO --}}
+        {{-- HEADER --}}
         <div class="row mb-4 align-items-center">
             <div class="col-md-6">
                 <h2 class="fw-bold text-dark mb-0">Dashboard Aliado</h2>
@@ -116,12 +116,13 @@
         {{-- GRÁFICA Y ACTIVIDAD --}}
         <div class="row g-4">
             <div class="col-lg-8">
-                <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 text-center">
-                    <h6 class="fw-bold mb-4">Distribución de Conexiones por Router</h6>
+                <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+                    <h6 class="fw-bold mb-4">Distribución de Conexiones</h6>
                     <div style="position: relative; height: 350px;" wire:ignore>
-                        <canvas id="chartRoutersAliado"></canvas>
+                        <canvas id="chartRouters"></canvas>
                     </div>
-                    <div class="mt-4">
+                    <div class="mt-4 text-center">
+                        <hr class="opacity-10">
                         <h6 class="text-muted small text-uppercase fw-bold">Total General</h6>
                         <h3 class="fw-bold text-primary">{{ number_format($totalGeneral) }}</h3>
                     </div>
@@ -185,13 +186,13 @@
         </div>
     @endif
 
-    {{-- MODAL DE PLANES (ESTRUCTURA ORIGINAL) --}}
+    {{-- MODAL DE PLANES --}}
     @if($showPlanModal)
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 2050;">
         <div class="modal-dialog modal-xl" style="margin-top: 8rem;">
             <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
                 <div class="modal-header bg-dark text-white p-4">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-rocket-takeoff me-2"></i>Escala tu Negocio Hotspot</h5>
+                    <h5 class="modal-title fw-bold">Escala tu Negocio Hotspot</h5>
                     @if($activePlans->isNotEmpty() || $pendingPlans->isNotEmpty())
                         <button type="button" wire:click="closeModal" class="btn-close btn-close-white shadow-none"></button>
                     @endif
@@ -207,11 +208,6 @@
                                     <div class="card-body p-4">
                                         <h4 class="fw-bold">{{ $package->name }}</h4>
                                         <div class="display-6 fw-bold my-3 text-dark">${{ number_format($package->cost, 2) }}</div>
-                                        <ul class="list-unstyled text-start small mb-4">
-                                            <li class="mb-2"><i class="bi bi-router-fill text-primary me-2"></i><strong>{{ $package->limit_routers }}</strong> Router(s)</li>
-                                            <li class="mb-2"><i class="bi bi-calendar-check text-primary me-2"></i>{{ $package->duration_months }} Mes(es) de vigencia</li>
-                                            <li class="mb-2"><i class="bi bi-display text-primary me-2"></i>Portal: {{ $package->hotspotVersion->name ?? 'Estándar' }}</li>
-                                        </ul>
                                         <button wire:click="selectPlan({{ $package->id }})" class="btn btn-dark w-100 rounded-pill fw-bold">ADQUIRIR PLAN</button>
                                     </div>
                                 </div>
@@ -219,15 +215,11 @@
                         @endforeach
                     </div>
                 </div>
-                @if($activePlans->isNotEmpty() || $pendingPlans->isNotEmpty())
-                <div class="modal-footer bg-white border-0 p-3">
-                    <button type="button" wire:click="closeModal" class="btn btn-light rounded-pill px-4">Cerrar</button>
-                </div>
-                @endif
             </div>
         </div>
     </div>
     @endif
+
 </div>
 
 <style>
@@ -242,23 +234,22 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // 1. Definimos la función de dibujo fuera para que sea accesible
-    function renderAliadoChart() {
-        const chartElement = document.getElementById('chartRoutersAliado');
-        if (!chartElement) return;
+    function initChart() {
+        const el = document.getElementById('chartRouters');
+        if (!el) return;
 
-        // Limpiamos rastro del gráfico anterior para evitar que se "pisen"
-        const existingChart = Chart.getChart("chartRoutersAliado");
+        const existingChart = Chart.getChart("chartRouters");
         if (existingChart) {
             existingChart.destroy();
         }
 
-        new Chart(chartElement.getContext('2d'), {
+        const ctx = el.getContext('2d');
+        new Chart(ctx, {
             type: 'pie',
             data: {
-                labels: @json($chartLabels),
+                labels: @json($labels),
                 datasets: [{
-                    data: @json($chartData),
+                    data: @json($values),
                     backgroundColor: ['#0d6efd', '#212529', '#0dcaf0', '#198754', '#ffc107', '#6610f2'],
                     borderWidth: 2,
                     borderColor: '#ffffff'
@@ -268,20 +259,17 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: 'bottom', display: true }
+                    legend: { position: 'bottom' }
                 }
             }
         });
     }
 
-    // 2. Ejecutar al cargar la página por primera vez
-    document.addEventListener('livewire:load', function () {
-        renderAliadoChart();
-
-        // 3. RE-DIBUJAR cuando Livewire actualice los datos (Periodos: Hoy/Semana/Mes)
-        Livewire.on('updateChart', () => {
-            // Un pequeño delay asegura que los datos nuevos ya estén en el DOM
-            setTimeout(() => { renderAliadoChart(); }, 50);
+    document.addEventListener('livewire:load', () => {
+        initChart();
+        // Escuchamos el evento de cambio de periodo
+        Livewire.on('chartUpdated', () => {
+            setTimeout(() => { initChart(); }, 100);
         });
     });
 </script>
