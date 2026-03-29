@@ -69,8 +69,6 @@ class AliadoDashboard extends Component
     public function setPeriod($value) 
     { 
         $this->period = $value; 
-        // Emitimos evento para que el JS del chart se entere si es necesario, 
-        // aunque el render lo hace automáticamente al refrescar.
     }
 
     public function render()
@@ -87,10 +85,22 @@ class AliadoDashboard extends Component
         };
 
         $format = ($this->period == 'today') ? '%H:00' : '%d/%m';
+        
+        // Gráfico de Líneas (Tráfico)
         $chartQuery = TicketLog::whereIn('router_id', $routerIds)
             ->whereBetween('created_at', [$start, $end])
             ->select(DB::raw("DATE_FORMAT(created_at, '$format') as label"), DB::raw('count(*) as total'))
             ->groupBy('label')->orderBy('label')->get();
+
+        // Gráfico de Torta (Distribución por Router)
+        $pieQuery = TicketLog::with('router')
+            ->whereIn('router_id', $routerIds)
+            ->whereBetween('created_at', [$start, $end])
+            ->select('router_id', DB::raw('count(*) as total'))
+            ->groupBy('router_id')->get();
+
+        $pieLabels = $pieQuery->map(fn($item) => $item->router->identity ?? 'Desconocido');
+        $pieData = $pieQuery->pluck('total');
 
         return view('livewire.dashboards.aliado-dashboard', [
             'availablePackages' => Package::where('is_active', true)->where('is_visible', true)->get(),
@@ -106,14 +116,14 @@ class AliadoDashboard extends Component
             ],
             'chartLabels' => $chartQuery->pluck('label'),
             'chartData' => $chartQuery->pluck('total'),
+            'pieLabels' => $pieLabels,
+            'pieData' => $pieData,
             'topUsuarios' => TicketLog::whereIn('router_id', $routerIds)
                 ->select('username', DB::raw('count(*) as total_conexiones'), DB::raw('sum(duration_seconds) as tiempo_total'))
                 ->groupBy('username')->orderBy('total_conexiones', 'desc')->take(5)->get(),
-            // SE FILTRAN LOS LOGS POR EL PERIODO SELECCIONADO Y DESCENDENTE
             'ultimosLogs' => TicketLog::with('router')->whereIn('router_id', $routerIds)
                 ->whereBetween('created_at', [$start, $end])
-                ->latest()
-                ->get(),
+                ->latest()->get(),
             'dollarRate' => ExchangeRateService::getBcvRate()
         ])->layout('layouts.app');
     }
