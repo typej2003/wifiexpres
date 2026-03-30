@@ -7,7 +7,6 @@ use App\Models\TicketLog;
 use App\Models\Router;
 use App\Models\UserMikrotik;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
 
 class TicketLogSeeder extends Seeder
 {
@@ -15,14 +14,14 @@ class TicketLogSeeder extends Seeder
     {
         $routers = Router::all();
         if ($routers->isEmpty()) {
-            $this->command->error("No hay routers en la base de datos. Ejecuta primero RouterSeeder.");
+            $this->command->error("No hay routers en la base de datos.");
             return;
         }
 
-        // Limpiamos logs antiguos para que la prueba de marzo sea exacta
+        // Limpiamos logs antiguos
         TicketLog::truncate();
 
-        // 1. Creamos 50 Usuarios de prueba en UserMikrotik
+        // 1. Creamos 50 Usuarios de prueba
         $users = [];
         $generos = ['F', 'M'];
         $nombresF = ['Maria', 'Ana', 'Carmen', 'Elena', 'Laura', 'Rosa'];
@@ -36,43 +35,50 @@ class TicketLogSeeder extends Seeder
             
             $users[] = UserMikrotik::create([
                 'router_id'   => $routers->random()->id,
-                'name'        => 'user' . rand(1000, 9999),
+                'name'        => 'user' . rand(1000, 9999) . $i, // Agregamos $i para evitar duplicados
                 'full_name'   => $firstName . " " . "Prueba " . $i,
                 'gender'      => $gender,
-                // Fechas de nacimiento para cubrir los rangos (15 a 60 años)
-                'birthday'    => Carbon::now()->subYears(rand(15, 60))->subMonths(rand(1, 12))->format('Y-m-d'),
+                'birthday'    => Carbon::now()->subYears(rand(15, 60))->format('Y-m-d'),
                 'email'       => "prueba{$i}@ejemplo.com",
                 'active'      => true,
             ]);
         }
 
-        // 2. Generamos 500 Logs para el mes de Marzo 2026
-        $this->command->info("Generando 500 logs para Marzo 2026...");
+        // 2. Generamos logs hasta el 29-03-2026 12:00:00
+        $this->command->info("Generando logs hasta el 29 de Marzo a las 12:00 PM...");
 
         for ($i = 0; $i < 500; $i++) {
             $router = $routers->random();
             $user = collect($users)->random();
-            
-            // Segmentos IP definidos en AntennaMappingSeeder (Zonas)
             $segmento = collect(['10', '20', '30'])->random();
             $ipSimulada = "192.168.{$segmento}." . rand(2, 254);
 
-            // Generar fecha aleatoria entre 01-03-2026 y 30-03-2026
-            $dia = rand(1, 30);
-            $hora = rand(0, 23);
+            // LÓGICA DE FECHA LIMITADA
+            $dia = rand(1, 29);
+            
+            if ($dia === 29) {
+                $hora = rand(0, 11); // Solo hasta las 11 AM para que al sumar minutos no pase de las 12
+            } else {
+                $hora = rand(0, 23);
+            }
+            
             $minuto = rand(0, 59);
+            
+            // Creamos la fecha y la formateamos explícitamente para evitar el error 1292
             $fechaLog = Carbon::create(2026, 3, $dia, $hora, $minuto, 0);
+            $fechaString = $fechaLog->format('Y-m-d H:i:s');
 
-            $duracion = rand(600, 10800); // Entre 10 min y 3 horas
+            $duracion = rand(600, 3600); // 10 min a 1 hora (reducido para no saltar de día)
+            $fechaDesconexion = $fechaLog->copy()->addSeconds($duracion)->format('Y-m-d H:i:s');
 
             TicketLog::create([
                 'router_id'        => $router->id,
-                'username'         => $user->name, // Se vincula con UserMikrotik->name
-                'mac_address'      => $ipSimulada, // Usamos mac_address para la IP del cliente
+                'username'         => $user->name,
+                'mac_address'      => $ipSimulada,
                 'duration_seconds' => $duracion,
-                'disconnected_at'  => $fechaLog->copy()->addSeconds($duracion),
-                'created_at'       => $fechaLog,
-                'updated_at'       => $fechaLog,
+                'disconnected_at'  => $fechaDesconexion,
+                'created_at'       => $fechaString,
+                'updated_at'       => $fechaString,
             ]);
         }
 
