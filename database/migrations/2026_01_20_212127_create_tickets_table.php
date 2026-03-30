@@ -16,7 +16,7 @@ class CreateTicketsTable extends Migration
         Schema::create('tickets', function (Blueprint $table) {
             $table->id();
             $table->foreignId('router_id')->constrained('routers')->onDelete('cascade');
-            $table->string('username')->unique();
+            $table->string('username');
             $table->string('password');
             $table->string('identity')->nullable();
             $table->decimal('costo', 12,2)->default(0);
