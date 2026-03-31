@@ -49,6 +49,7 @@ class RouteServiceProvider extends ServiceProvider
                 //->group(base_path('routes/web.php'));
                 ->group(function(){
                     require base_path('routes/web/data.php');
+                    require base_path('routes/web/herramientas.php');
                     require base_path('routes/web/hotspot.php');
                     require base_path('routes/web/notificacion.php');
                     require base_path('routes/web/mikrotik.php');
