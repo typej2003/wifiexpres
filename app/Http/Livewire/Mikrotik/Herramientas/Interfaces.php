@@ -13,125 +13,111 @@ class Interfaces extends Component
     public $router_id;
     public $selectedAliado = null;
     public $routerStatus = []; 
-    public $interfaces = [];
+    public $interfaces = []; // Array que llenaremos para la vista
     public $logs = [];
-    public $isConfiguring = false;
-    public $esperandoRespuesta = false;
-    public $currentTid = null;
+    public $loading = false;
+    public $bridgeUrl = "http://188.95.113.44:3000";
 
-    protected $bridgeUrl = "http://188.95.113.44:3000";
-
-    public function mount()
-    {
+    public function mount() {
         if (Auth::user()->role !== 'admin') abort(403);
         $this->refreshStatus();
     }
 
-    public function refreshStatus()
-    {
+    public function refreshStatus() {
         try {
             $response = Http::timeout(5)->get("{$this->bridgeUrl}/api/routers-online");
             if ($response->successful()) {
-                $onlineRouters = $response->json();
-                $activeMacs = collect($onlineRouters)->map(fn($item) => strtoupper(trim($item['mac'])))->toArray();
-                
-                $routers = Router::all();
-                $this->routerStatus = [];
-                foreach ($routers as $r) {
-                    $macLimpia = strtoupper(trim($r->macAddress));
-                    $this->routerStatus[$r->id] = in_array($macLimpia, $activeMacs);
-                }
+                $activeMacs = collect($response->json())->map(fn($item) => strtoupper(trim($item['mac'])))->toArray();
+                $this->routerStatus = Router::all()->mapWithKeys(fn($r) => [$r->id => in_array(strtoupper(trim($r->macAddress)), $activeMacs)])->toArray();
             }
-        } catch (\Exception $e) {
-            $this->routerStatus = [];
-        }
+        } catch (\Exception $e) { $this->routerStatus = []; }
     }
 
-    // Al cambiar aliado solo reseteamos selección
-    public function updatedSelectedAliado()
-    {
-        $this->router_id = null;
-        $this->interfaces = [];
-        $this->refreshStatus();
-    }
-
-    // Único disparador de lectura manual
-    public function cargarInterfaces()
-    {
-        $this->validate([
-            'router_id' => 'required'
-        ], [
-            'router_id.required' => 'Seleccione un router de la lista.'
-        ]);
+    public function cargarInterfaces() {
+        $this->validate(['router_id' => 'required']);
+        $this->loading = true;
+        $this->interfaces = []; // Limpiar tabla
         
-        $this->refreshStatus();
-
-        if (!($this->routerStatus[$this->router_id] ?? false)) {
-            $this->logs[] = "❌ El router no respondió al estado Online.";
-            return;
-        }
-
-        $this->interfaces = [];
-        $this->logs[] = "📡 Petición enviada: Consultando interfaces...";
-        $this->enviarComando("/interface print detail without-paging", "LECTURA");
-    }
-
-    public function toggleInterface($name, $status)
-    {
-        $accion = ($status == 'true' || $status == 'yes') ? 'enable' : 'disable';
-        $this->logs[] = "⚙️ Ejecutando: $accion en $name";
-        $this->enviarComando("/interface $accion [find name=\"$name\"]", "ACCION");
-    }
-
-    private function enviarComando($cmd, $tipo)
-    {
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
-        $this->currentTid = "INT" . time() . rand(10, 99);
-        $this->isConfiguring = true;
+        $tid = "INT" . time();
 
-        $script = "{ :local r \"OK\"; :do { ".$cmd." } on-error={ :set r \"ERR\" }; /tool fetch url=\"$this->bridgeUrl/post-result?mac=$mac&tid=$this->currentTid&data=\$r\" keep-result=no }";
-        $scriptLimpio = trim(preg_replace('/\s+/', ' ', $script));
+        // SCRIPT MAESTRO: Formatea la salida para que PHP la entienda fácilmente
+        $script = ":local res \"\"; /interface { :foreach i in=[find] do={ :set res (\$res . [get \$i name] . \"|\" . [get \$i disabled] . \"|\" . [get \$i type] . \"|\" . [get \$i mac-address] . \",\") } }; " .
+                  "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\$res keep-result=no;";
 
         try {
-            Http::withHeaders(['x-mac' => $mac, 'x-id' => $this->currentTid])
-                ->withBody($scriptLimpio, 'text/plain')
+            $this->logs[] = "📡 Petición enviada: Consultando interfaces...";
+            
+            Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
+                ->withBody(trim(preg_replace('/\s+/', ' ', $script)), 'text/plain')
                 ->post("{$this->bridgeUrl}/set-command");
-            
-            $this->esperandoRespuesta = true;
+
+            // Esperamos la respuesta (máximo 15 segundos)
+            $rawResponse = $this->esperarRespuesta($mac, $tid);
+
+            if ($rawResponse) {
+                $this->procesarDatos($rawResponse);
+                $this->logs[] = "✅ Respuesta recibida y procesada.";
+            } else {
+                $this->logs[] = "❌ TIMEOUT: El router no devolvió datos.";
+            }
         } catch (\Exception $e) {
-            $this->logs[] = "❌ Error de comunicación con el Bridge.";
-            $this->isConfiguring = false;
+            $this->logs[] = "❌ ERROR: " . $e->getMessage();
         }
+        $this->loading = false;
     }
 
-    public function checkStatus()
-    {
-        if (!$this->esperandoRespuesta) return;
+    // Convierte el texto "Nombre|Estado|Tipo|MAC" en el Array de la tabla
+    protected function procesarDatos($raw) {
+        $filas = explode(',', rtrim($raw, ','));
+        $tempInterfaces = [];
 
+        foreach ($filas as $fila) {
+            $datos = explode('|', $fila);
+            if (count($datos) >= 4) {
+                $tempInterfaces[] = [
+                    'name' => $datos[0],
+                    'disabled' => ($datos[1] == "true" || $datos[1] == "yes") ? 'true' : 'false',
+                    'type' => $datos[2],
+                    'mac-address' => $datos[3]
+                ];
+            }
+        }
+        $this->interfaces = $tempInterfaces;
+    }
+
+    protected function esperarRespuesta($mac, $tid) {
+        for ($i = 0; $i < 15; $i++) {
+            sleep(1);
+            try {
+                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
+                if ($res->successful() && $res->json('status') === 'ready') {
+                    return $res->json('data');
+                }
+            } catch (\Exception $e) { }
+        }
+        return null;
+    }
+
+    public function toggleInterface($name, $status) {
+        $accion = ($status == 'true') ? 'enable' : 'disable';
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
+        $tid = "TOG" . time();
 
-        try {
-            $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $this->currentTid]);
-            
-            if ($res->successful() && $res->json('status') === 'ready') {
-                $this->esperandoRespuesta = false;
-                $this->isConfiguring = false;
-                $this->logs[] = "✅ Respuesta recibida del Router.";
-                // Aquí el Bridge debería retornar el array de interfaces en 'data'
-                if($res->json('data') && is_array($res->json('data'))) {
-                    $this->interfaces = $res->json('data');
-                }
-            }
-        } catch (\Exception $e) { }
+        $script = "/interface $accion [find name=\"$name\"]; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no;";
+        
+        $this->logs[] = "⚙️ Ejecutando $accion en $name...";
+        Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])->withBody($script, 'text/plain')->post("{$this->bridgeUrl}/set-command");
+        
+        $this->esperarRespuesta($mac, $tid);
+        $this->cargarInterfaces(); // Refrescar tabla automáticamente
     }
 
-    public function render()
-    {
+    public function render() {
         $routersOnline = Router::when($this->selectedAliado, fn($q) => $q->where('user_id', $this->selectedAliado))
-            ->get()
-            ->filter(fn($r) => $this->routerStatus[$r->id] ?? false);
+            ->get()->filter(fn($r) => $this->routerStatus[$r->id] ?? false);
 
         return view('livewire.mikrotik.herramientas.interfaces', [
             'routers' => $routersOnline,
