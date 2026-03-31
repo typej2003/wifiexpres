@@ -3,16 +3,14 @@
         <div class="col-md-4">
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0"><i class="fas fa-filter me-2"></i>Selección de Dispositivo</h6>
-                    <button wire:click="refreshStatus" class="btn btn-sm btn-outline-light border-0">
-                        <i class="fas fa-sync-alt" wire:loading.class="fa-spin" wire:target="refreshStatus"></i>
-                    </button>
+                    <h6 class="mb-0 fw-bold"><i class="fas fa-server me-2"></i>Equipos Online</h6>
+                    <span wire:loading wire:target="refreshStatus" class="spinner-border spinner-border-sm"></span>
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label class="form-label fw-bold text-muted small uppercase">Aliado Comercial</label>
-                        <select wire:model="selectedAliado" class="form-select form-select-sm shadow-none">
-                            <option value="">-- Seleccione un Aliado --</option>
+                        <label class="form-label small fw-bold text-muted text-uppercase">Aliado</label>
+                        <select wire:model="selectedAliado" class="form-select shadow-none border-secondary-subtle">
+                            <option value="">-- Todos los Aliados --</option>
                             @foreach($aliados as $aliado)
                                 <option value="{{ $aliado->id }}">{{ $aliado->name }}</option>
                             @endforeach
@@ -20,40 +18,33 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-bold text-muted small uppercase">Router Activo</label>
-                        <select wire:model="router_id" class="form-select form-select-sm shadow-none" wire:change="cargarInterfaces">
-                            <option value="">-- Routers Online --</option>
+                        <label class="form-label small fw-bold text-muted text-uppercase">Router (Sólo Activos)</label>
+                        <select wire:model="router_id" class="form-select shadow-none border-secondary-subtle">
+                            <option value="">-- Seleccione Router --</option>
                             @foreach($routers as $r)
-                                <option value="{{ $r->id }}">
-                                    🟢 {{ $r->identity }} ({{ $r->macAddress }})
-                                </option>
+                                <option value="{{ $r->id }}">🟢 {{ $r->identity }}</option>
                             @endforeach
                         </select>
-                        @if($selectedAliado && $routers->isEmpty())
-                            <div class="form-text text-danger small mt-1">
-                                <i class="fas fa-exclamation-triangle"></i> No hay routers online para este aliado.
-                            </div>
-                        @endif
                     </div>
 
-                    <div class="d-grid gap-2">
-                        <button class="btn btn-primary btn-sm" wire:click="cargarInterfaces" 
-                                wire:loading.attr="disabled" @if(!$router_id) disabled @endif>
-                            <i class="fas fa-plug me-1"></i> Leer Interfaces
+                    <div class="d-grid">
+                        <button class="btn btn-primary shadow-sm fw-bold" 
+                                wire:click="cargarInterfaces" 
+                                wire:loading.attr="disabled"
+                                @if(!$router_id) disabled @endif>
+                            <i class="fas fa-sync-alt me-2" wire:loading.class="fa-spin" wire:target="cargarInterfaces"></i>
+                            LEER INTERFACES
                         </button>
                     </div>
 
-                    <hr class="my-4">
+                    <hr class="my-4 text-muted">
 
-                    <label class="form-label fw-bold text-muted small">CONSOLA DE EVENTOS</label>
-                    <div class="bg-dark text-success p-2 rounded shadow-inner" 
-                         style="height: 180px; overflow-y: auto; font-family: 'Courier New', Courier, monospace; font-size: 0.75rem;">
+                    <label class="form-label small fw-bold text-muted text-uppercase">Log de Sistema</label>
+                    <div class="bg-dark text-success p-3 rounded" style="height: 200px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 0.8rem; border-left: 4px solid #0d6efd;">
                         @forelse(array_reverse($logs) as $log)
-                            <div class="mb-1">
-                                <span class="text-muted">[{{ now()->format('H:i') }}]</span> {{ $log }}
-                            </div>
+                            <div class="mb-1 border-bottom border-secondary pb-1">> {{ $log }}</div>
                         @empty
-                            <div class="text-muted">Esperando acciones...</div>
+                            <div class="text-muted">Esperando comando manual...</div>
                         @endforelse
                     </div>
                 </div>
@@ -62,58 +53,52 @@
 
         <div class="col-md-8">
             <div class="card shadow-sm border-0">
-                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0 text-dark fw-bold">Interfaces de Red</h6>
-                    <div wire:loading wire:target="cargarInterfaces, toggleInterface">
-                        <span class="badge bg-warning text-dark"><i class="fas fa-spinner fa-spin me-1"></i> Procesando...</span>
-                    </div>
+                <div class="card-header bg-white border-bottom">
+                    <h6 class="mb-0 fw-bold"><i class="fas fa-network-wired me-2 text-primary"></i>Configuración de Interfaces</h6>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
-                            <thead class="table-light">
-                                <tr class="small text-uppercase">
-                                    <th class="ps-3" style="width: 150px;">Estado</th>
-                                    <th>Nombre</th>
+                            <thead class="bg-light">
+                                <tr class="small text-muted text-uppercase">
+                                    <th class="ps-4">Estado</th>
+                                    <th>Interface</th>
                                     <th>Tipo</th>
                                     <th>MAC Address</th>
-                                    <th class="text-center">Acción</th>
+                                    <th class="text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse($interfaces as $int)
-                                    @php 
-                                        $isDisabled = ($int['disabled'] == 'true' || $int['disabled'] == 'yes');
-                                    @endphp
-                                    <tr class="{{ $isDisabled ? 'table-light opacity-75' : '' }}">
-                                        <td class="ps-3">
-                                            @if($isDisabled)
-                                                <span class="badge rounded-pill bg-danger shadow-sm"><i class="fas fa-times-circle"></i> Disabled</span>
+                                    @php $disabled = ($int['disabled'] == 'true' || $int['disabled'] == 'yes'); @endphp
+                                    <tr class="{{ $disabled ? 'bg-light' : '' }}">
+                                        <td class="ps-4">
+                                            @if($disabled)
+                                                <span class="badge bg-danger-subtle text-danger px-3">DISABLED</span>
                                             @else
-                                                <span class="badge rounded-pill bg-success shadow-sm"><i class="fas fa-check-circle"></i> Running</span>
+                                                <span class="badge bg-success-subtle text-success px-3">RUNNING</span>
                                             @endif
                                         </td>
-                                        <td class="fw-bold text-dark">{{ $int['name'] }}</td>
-                                        <td><span class="badge bg-secondary opacity-50">{{ $int['type'] ?? 'ether' }}</span></td>
-                                        <td><code class="text-primary small">{{ $int['mac-address'] ?? '00:00:00:00:00:00' }}</code></td>
+                                        <td class="fw-bold">{{ $int['name'] }}</td>
+                                        <td><small class="text-muted">{{ $int['type'] ?? 'ether' }}</small></td>
+                                        <td><code>{{ $int['mac-address'] ?? 'N/A' }}</code></td>
                                         <td class="text-center">
-                                            <button 
-                                                wire:click="toggleInterface('{{ $int['name'] }}', '{{ $isDisabled ? 'true' : 'false' }}')"
-                                                wire:loading.attr="disabled"
-                                                class="btn btn-sm {{ $isDisabled ? 'btn-success' : 'btn-danger' }} rounded-circle shadow-sm"
-                                                title="{{ $isDisabled ? 'Habilitar' : 'Deshabilitar' }}"
-                                                style="width: 32px; height: 32px; padding: 0;">
-                                                <i class="fas {{ $isDisabled ? 'fa-play' : 'fa-power-off' }}" style="font-size: 0.7rem;"></i>
-                                            </button>
+                                            @if($disabled)
+                                                <button wire:click="toggleInterface('{{ $int['name'] }}', 'true')" class="btn btn-sm btn-success shadow-sm" title="Habilitar">
+                                                    <i class="fas fa-play"></i>
+                                                </button>
+                                            @else
+                                                <button wire:click="toggleInterface('{{ $int['name'] }}', 'false')" class="btn btn-sm btn-danger shadow-sm" title="Deshabilitar">
+                                                    <i class="fas fa-power-off"></i>
+                                                </button>
+                                            @endif
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="text-center py-5">
-                                            <div class="py-4">
-                                                <i class="fas fa-network-wired fa-3x text-light mb-3"></i>
-                                                <p class="text-muted">No se han cargado datos. Seleccione un router activo para listar sus interfaces.</p>
-                                            </div>
+                                        <td colspan="5" class="text-center py-5 text-muted">
+                                            <i class="fas fa-mouse-pointer fa-3x mb-3 opacity-25"></i>
+                                            <p>Seleccione un router y presione "Leer Interfaces" para comenzar.</p>
                                         </td>
                                     </tr>
                                 @endforelse

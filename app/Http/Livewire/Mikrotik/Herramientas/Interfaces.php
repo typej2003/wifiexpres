@@ -12,7 +12,7 @@ class Interfaces extends Component
 {
     public $router_id;
     public $selectedAliado = null;
-    public $routerStatus = []; // Almacena quién está online
+    public $routerStatus = []; 
     public $interfaces = [];
     public $logs = [];
     public $isConfiguring = false;
@@ -27,16 +27,12 @@ class Interfaces extends Component
         $this->refreshStatus();
     }
 
-    /**
-     * Consulta al Bridge qué routers están activos en este momento
-     */
     public function refreshStatus()
     {
         try {
             $response = Http::timeout(5)->get("{$this->bridgeUrl}/api/routers-online");
             if ($response->successful()) {
                 $onlineRouters = $response->json();
-                // Extraemos solo las MACs activas y las normalizamos
                 $activeMacs = collect($onlineRouters)->map(fn($item) => strtoupper(trim($item['mac'])))->toArray();
                 
                 $routers = Router::all();
@@ -48,13 +44,10 @@ class Interfaces extends Component
             }
         } catch (\Exception $e) {
             $this->routerStatus = [];
-            $this->logs[] = "⚠️ No se pudo sincronizar el estado de los routers.";
         }
     }
 
-    /**
-     * Acción al cambiar el aliado: Resetea el router seleccionado
-     */
+    // Al cambiar aliado solo reseteamos selección
     public function updatedSelectedAliado()
     {
         $this->router_id = null;
@@ -62,28 +55,31 @@ class Interfaces extends Component
         $this->refreshStatus();
     }
 
+    // Único disparador de lectura manual
     public function cargarInterfaces()
     {
-        $this->validate(['router_id' => 'required']);
+        $this->validate([
+            'router_id' => 'required'
+        ], [
+            'router_id.required' => 'Seleccione un router de la lista.'
+        ]);
         
-        // Verificación de seguridad extra por si el estado cambió
         $this->refreshStatus();
+
         if (!($this->routerStatus[$this->router_id] ?? false)) {
-            $this->logs[] = "❌ El router seleccionado se ha desconectado.";
+            $this->logs[] = "❌ El router no respondió al estado Online.";
             return;
         }
 
-        $this->logs[] = "📡 Solicitando interfaces al router...";
+        $this->interfaces = [];
+        $this->logs[] = "📡 Petición enviada: Consultando interfaces...";
         $this->enviarComando("/interface print detail without-paging", "LECTURA");
     }
 
     public function toggleInterface($name, $status)
     {
-        // Si status es 'true' (deshabilitado), la acción es 'enable', y viceversa
         $accion = ($status == 'true' || $status == 'yes') ? 'enable' : 'disable';
-        $desc = ($accion == 'disable') ? "Deshabilitando" : "Habilitando";
-        
-        $this->logs[] = "⚙️ $desc interfaz: $name";
+        $this->logs[] = "⚙️ Ejecutando: $accion en $name";
         $this->enviarComando("/interface $accion [find name=\"$name\"]", "ACCION");
     }
 
@@ -104,7 +100,7 @@ class Interfaces extends Component
             
             $this->esperandoRespuesta = true;
         } catch (\Exception $e) {
-            $this->logs[] = "❌ Error de conexión con el Bridge.";
+            $this->logs[] = "❌ Error de comunicación con el Bridge.";
             $this->isConfiguring = false;
         }
     }
@@ -117,37 +113,28 @@ class Interfaces extends Component
         $mac = strtoupper(trim($router->macAddress));
 
         try {
-            $res = Http::get("{$this->bridgeUrl}/api/check-task-result", [
-                'mac' => $mac, 
-                'tid' => $this->currentTid
-            ]);
+            $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $this->currentTid]);
             
             if ($res->successful() && $res->json('status') === 'ready') {
                 $this->esperandoRespuesta = false;
                 $this->isConfiguring = false;
-                $this->logs[] = "✅ Tarea finalizada con éxito.";
-                
-                // Refrescamos la lista para confirmar el cambio visualmente
-                $this->cargarInterfaces(); 
+                $this->logs[] = "✅ Respuesta recibida del Router.";
+                // Aquí el Bridge debería retornar el array de interfaces en 'data'
+                if($res->json('data') && is_array($res->json('data'))) {
+                    $this->interfaces = $res->json('data');
+                }
             }
         } catch (\Exception $e) { }
     }
 
     public function render()
     {
-        // FILTRADO DINÁMICO:
-        // 1. Filtra por el aliado seleccionado.
-        // 2. Solo incluye routers cuyo ID esté marcado como 'true' en routerStatus (Online).
-        $routersActivos = Router::when($this->selectedAliado, function($query) {
-                return $query->where('user_id', $this->selectedAliado);
-            })
+        $routersOnline = Router::when($this->selectedAliado, fn($q) => $q->where('user_id', $this->selectedAliado))
             ->get()
-            ->filter(function($r) {
-                return $this->routerStatus[$r->id] ?? false;
-            });
+            ->filter(fn($r) => $this->routerStatus[$r->id] ?? false);
 
         return view('livewire.mikrotik.herramientas.interfaces', [
-            'routers' => $routersActivos,
+            'routers' => $routersOnline,
             'aliados' => User::where('role', 'aliado')->get()
         ]);
     }
