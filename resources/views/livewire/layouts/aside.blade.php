@@ -271,6 +271,11 @@
                 <span class="menu-text">ANÁLISIS DE HORAS</span>
             </a>
 
+            <a href="{{ route('mikrotik.grafico-conexiones') }}" class="sidebar-link {{ request()->routeIs('mikrotik.grafico-conexiones') ? 'active' : '' }}">
+                <i class="bi bi-bar-chart-line"></i> 
+                <span class="menu-text">Rendimiento Diario</span>
+            </a>
+
             <a href="{{ route('aliado.routers') }}" class="sidebar-link {{ request()->routeIs('aliado.routers') ? 'active' : '' }}">
                 <i class="bi bi-router"></i>
                 <span class="menu-text">Mis Routers</span>
