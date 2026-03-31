@@ -4,5 +4,14 @@ use Illuminate\Support\Facades\Route;
 
 use App\Http\Livewire\Mikrotik\Herramientas\Interfaces;
 
-// Dentro de tu grupo de rutas con middleware 'auth' y 'admin'
-Route::get('/mikrotik/herramientas/interfaces', Interfaces::class)->name('mikrotik.herramientas.interfaces');
+Route::middleware(['auth', 'verified', 'admin'])->group(function () {
+    
+    // ... otras rutas ...
+
+    Route::prefix('mikrotik')->group(function () {
+        Route::prefix('herramientas')->group(function () {
+            Route::get('/interfaces', Interfaces::class)->name('mikrotik.herramientas.interfaces');
+        });
+    });
+
+});

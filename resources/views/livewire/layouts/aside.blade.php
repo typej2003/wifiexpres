@@ -220,6 +220,12 @@
                 <span class="menu-text">Conf Remoto Detallada</span>
             </a>
 
+            <a class="sidebar-link {{ request()->routeIs('mikrotik.confdetallada') ? 'active' : '' }}" 
+            href="{{ route('mikrotik.herramientas.interfaces') }}">
+                <i class="fas fa-network-wired"></i>
+                <span>Interfaces</span>
+            </a>
+
             <a href="{{ route('admin.diagnostico') }}" class="sidebar-link {{ request()->routeIs('admin.diagnostico') ? 'active' : '' }}">
                 <i class="bi bi-terminal"></i> 
                 <span class="menu-text">Diagnóstico</span>
