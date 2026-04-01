@@ -12,4 +12,4 @@ Route::get('/mikrotik/user-history/{username?}', UserHistory::class)->name('mikr
 
 Route::get('/mikrotik/grafico-uso', GraficoRouters::class)->name('mikrotik.grafico');
 
-Route::get('/mikrotik/data/grafico-conexiones', GraficoConexiones::class)->name('mikrotik.grafico-conexiones');
+Route::get('/mikrotik/data/rendimiento-aliado', \App\Http\Livewire\Mikrotik\Data\GraficoConexiones::class)->name('mikrotik.grafico-conexiones');

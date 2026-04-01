@@ -272,8 +272,8 @@
             </a>
 
             <a href="{{ route('mikrotik.grafico-conexiones') }}" class="sidebar-link {{ request()->routeIs('mikrotik.grafico-conexiones') ? 'active' : '' }}">
-                <i class="bi bi-bar-chart-line"></i> 
-                <span class="menu-text">Rendimiento Diario</span>
+                <i class="bi bi-bar-chart-steps"></i> 
+                <span class="menu-text">Rendimiento por Router</span>
             </a>
 
             <a href="{{ route('aliado.routers') }}" class="sidebar-link {{ request()->routeIs('aliado.routers') ? 'active' : '' }}">

@@ -10,48 +10,67 @@ use Illuminate\Support\Facades\DB;
 
 class GraficoConexiones extends Component
 {
-    public $router_id = ''; // Filtro seleccionado
-    public $days = 10;      // Rango de días a mostrar
+    public $days = 7; // Mostramos una semana para no saturar visualmente
+    public $router_id = ''; 
 
     public function render()
     {
         $user = Auth::user();
-        
-        // 1. Routers disponibles para el selector
         $misRouters = Router::where('user_id', $user->id)->get();
+        $routerIds = $misRouters->pluck('id');
 
-        // 2. Consulta de logs
-        $query = TicketLog::whereIn('router_id', $misRouters->pluck('id'))
-            ->select(
-                DB::raw('DATE(created_at) as fecha'),
-                DB::raw('count(*) as total')
-            )
-            ->where('created_at', '>=', now()->subDays($this->days))
-            ->groupBy('fecha')
-            ->orderBy('fecha', 'ASC');
-
-        // Filtrar por router específico si se selecciona uno
-        if (!empty($this->router_id)) {
-            $query->where('router_id', $this->router_id);
+        // 1. Obtener todas las fechas del rango para el eje X
+        $fechas = [];
+        for ($i = $this->days - 1; $i >= 0; $i--) {
+            $fechas[] = now()->subDays($i)->format('Y-m-d');
         }
 
-        $resultados = $query->get();
+        // 2. Obtener logs agrupados por día y router
+        $logs = TicketLog::whereIn('router_id', $routerIds)
+            ->where('created_at', '>=', now()->subDays($this->days))
+            ->select(
+                DB::raw('DATE(created_at) as fecha'),
+                'router_id',
+                DB::raw('count(*) as total')
+            )
+            ->groupBy('fecha', 'router_id')
+            ->get();
 
-        // 3. Formatear datos para el gráfico
-        $labels = $resultados->pluck('fecha')->toArray();
-        $values = $resultados->pluck('total')->toArray();
+        // 3. Preparar Datasets (Una serie de datos por cada Router)
+        // Colores predefinidos para diferenciar routers
+        $colores = ['#0d6efd', '#198754', '#ffc107', '#0dcaf0', '#6610f2', '#fd7e14', '#20c997', '#dc3545'];
+        $datasets = [];
 
-        // Emitir evento para que JS actualice el gráfico
-        $this->dispatchBrowserEvent('updateChart', [
-            'labels' => $labels,
-            'values' => $values,
+        foreach ($misRouters as $index => $router) {
+            // Si hay un filtro de router activo, saltamos los demás
+            if (!empty($this->router_id) && $this->router_id != $router->id) continue;
+
+            $dataValues = [];
+            foreach ($fechas as $fecha) {
+                // Buscamos si este router tuvo conexiones en esta fecha
+                $log = $logs->where('fecha', $fecha)->where('router_id', $router->id)->first();
+                $dataValues[] = $log ? $log->total : 0;
+            }
+
+            $datasets[] = [
+                'label' => $router->identity,
+                'data' => $dataValues,
+                'backgroundColor' => $colores[$index % count($colores)],
+                'borderRadius' => 5,
+            ];
+        }
+
+        // Notificar a la vista
+        $this->dispatchBrowserEvent('updateMultiChart', [
+            'labels' => $fechas,
+            'datasets' => $datasets,
         ]);
 
         return view('livewire.mikrotik.data.grafico-conexiones', [
             'routers' => $misRouters,
-            'labels' => $labels,
-            'values' => $values,
-            'maxConexiones' => !empty($values) ? max($values) : 0
+            'labels' => $fechas,
+            'datasets' => $datasets,
+            'totalGeneral' => $logs->sum('total')
         ])->layout('layouts.app');
     }
 }
