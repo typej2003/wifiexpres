@@ -13,12 +13,36 @@ class Diagnostico extends Component {
     public $command = "/system resource print";
     public $terminal_output = "Consola lista. Seleccione un router...";
     public $loading = false;
+    public $routerStatus = []; // Almacena el estado online/offline
 
     // Campos para gestión de usuarios
     public $new_username, $new_password = "123", $new_profile = "neutro";
-
-    // CAMBIO: Debe ser public para evitar el error de acceso
     public $bridgeUrl = "http://188.95.113.44:3000";
+
+    public function mount() {
+        $this->refreshStatus();
+    }
+
+    public function refreshStatus() {
+        try {
+            $response = Http::timeout(5)->get("{$this->bridgeUrl}/api/routers-online");
+            if ($response->successful()) {
+                $onlineRouters = $response->json();
+                $activeMacs = collect($onlineRouters)->map(fn($item) => strtoupper(trim($item['mac'])))->toArray();
+                
+                $user = Auth::user();
+                $routers = ($user->role === "admin") ? Router::all() : Router::where("user_id", $user->id)->get();
+                
+                $this->routerStatus = [];
+                foreach ($routers as $r) {
+                    $macLimpia = strtoupper(trim($r->macAddress));
+                    $this->routerStatus[$r->id] = in_array($macLimpia, $activeMacs);
+                }
+            }
+        } catch (\Exception $e) { 
+            $this->routerStatus = []; 
+        }
+    }
 
     protected function emitirAlSocket($comando, $mac, $tid) {
         try {

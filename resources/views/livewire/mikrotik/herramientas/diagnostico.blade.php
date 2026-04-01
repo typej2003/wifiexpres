@@ -7,6 +7,9 @@
                 <div class="rounded-circle bg-success me-2" style="width: 12px; height: 12px;"></div>
                 <span class="ms-3 text-light font-monospace small text-uppercase">Bridge Connector — Diagnósticos V3</span>
             </div>
+            <button wire:click="refreshStatus" class="btn btn-sm btn-outline-light rounded-pill px-3 fw-bold shadow-sm" style="font-size: 0.7rem;">
+                <i class="bi bi-arrow-clockwise me-1"></i> REFRESCAR ESTADO
+            </button>
         </div>
 
         <div class="card-body p-4">
@@ -16,7 +19,10 @@
                     <select wire:model="router_id" class="form-select bg-dark text-white border-secondary font-monospace shadow-none">
                         <option value="">Seleccione equipo...</option>
                         @foreach($routers as $r)
-                            <option value="{{ $r->id }}">{{ strtoupper($r->identity) }} [{{ $r->macAddress }}]</option>
+                            @php $online = $routerStatus[$r->id] ?? false; @endphp
+                            <option value="{{ $r->id }}" {{ !$online ? 'disabled' : '' }}>
+                                {{ $online ? '🟢' : '🔴' }} {{ strtoupper($r->identity) }} [{{ $r->macAddress }}]
+                            </option>
                         @endforeach
                     </select>
                 </div>
@@ -78,10 +84,10 @@
                     <pre class="font-monospace text-success mb-0" style="white-space: pre-wrap; font-size: 0.85rem; line-height: 1.4;">{{ $terminal_output }}</pre>
                 </div>
                 
-                <div wire:loading wire:target="executeCommand, createUser, setPreset, changeProfile" class="position-absolute top-50 start-50 translate-middle">
+                <div wire:loading wire:target="executeCommand, createUser, setPreset, changeProfile, refreshStatus" class="position-absolute top-50 start-50 translate-middle">
                     <div class="text-center bg-dark p-3 rounded border border-secondary shadow" style="min-width: 250px;">
                         <div class="spinner-border text-success mb-2" role="status"></div>
-                        <div class="text-success font-monospace small">COMUNICANDO CON MIKROTIK...</div>
+                        <div class="text-success font-monospace small">CONECTANDO...</div>
                     </div>
                 </div>
             </div>
