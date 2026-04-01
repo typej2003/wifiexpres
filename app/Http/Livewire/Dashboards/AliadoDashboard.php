@@ -69,7 +69,7 @@ class AliadoDashboard extends Component
     }
 
     public function openModal() { $this->showPlanModal = true; }
-    public function closeModal() { $this->showPlanModal = false; }
+    public function closeModal() { $this->closeModal(); }
 
     public function render()
     {
@@ -121,6 +121,12 @@ class AliadoDashboard extends Component
 
         $activePlans = $user->packages()->wherePivot('status', 'active')->wherePivot('end_date', '>=', now())->get();
 
+        // Cálculo de Routers Online (Actividad en los últimos 5 minutos)
+        $routersOnlineCount = Router::where('user_id', $user->id)
+            ->whereHas('logs', function($q) {
+                $q->where('created_at', '>=', now()->subMinutes(5));
+            })->count();
+
         return view('livewire.dashboards.aliado-dashboard', [
             'availablePackages' => Package::where('is_active', true)->where('is_visible', true)->get(),
             'activePlans' => $activePlans,
@@ -128,6 +134,7 @@ class AliadoDashboard extends Component
             'routers' => $misRouters,
             'stats' => [
                 'total_routers' => $misRouters->count(),
+                'routers_online' => $routersOnlineCount,
                 'limit_routers' => $activePlans->sum('pivot.allowed_routers'),
                 'total_tickets' => Ticket::whereIn('router_id', $routerIds)->count(),
                 'tickets_activos' => Ticket::whereIn('router_id', $routerIds)->where('estado', 'activo')->count(),
