@@ -15,9 +15,23 @@ use Carbon\Carbon;
 class AliadoDashboard extends Component
 {
     public $showPlanModal = false;
-    public $period = 'weekly'; // Cambiado a weekly por defecto para mejor visualización
+    public $period = 'weekly'; // Por defecto semanal para ver las barras mejor
 
-    public function mount() { $this->checkInitialPlan(); }
+    public function mount()
+    {
+        $this->checkInitialPlan();
+    }
+
+    public function checkInitialPlan()
+    {
+        $user = Auth::user();
+        $hasActive = $user->packages()->wherePivot('status', 'active')->wherePivot('end_date', '>=', now())->exists();
+        $hasPending = $user->packages()->wherePivot('status', 'pending')->exists();
+
+        if (!$hasActive && !$hasPending) {
+            $this->showPlanModal = true;
+        }
+    }
 
     public function setPeriod($value) 
     { 
@@ -40,7 +54,7 @@ class AliadoDashboard extends Component
         $routers = Router::where('user_id', $user->id)->get();
         [$start, $end] = $this->getRange();
 
-        // Generar etiquetas (fechas)
+        // Generar etiquetas (fechas para el eje X)
         $labels = [];
         $temp = clone $start;
         while ($temp <= $end) {
@@ -48,14 +62,14 @@ class AliadoDashboard extends Component
             $temp->addDay();
         }
 
-        // Consultar logs
+        // Consultar logs agrupados por fecha y router
         $logs = TicketLog::whereIn('router_id', $routers->pluck('id'))
             ->whereBetween('created_at', [$start, $end])
             ->select(DB::raw('DATE(created_at) as fecha'), 'router_id', DB::raw('count(*) as total'))
             ->groupBy('fecha', 'router_id')
             ->get();
 
-        $colores = ['#0d6efd', '#198754', '#ffc107', '#0dcaf0', '#6610f2', '#fd7e14', '#dc3545'];
+        $colores = ['#0d6efd', '#198754', '#ffc107', '#0dcaf0', '#6610f2', '#fd7e14', '#dc3545', '#20c997'];
         $datasets = [];
 
         foreach ($routers as $index => $router) {
@@ -68,16 +82,53 @@ class AliadoDashboard extends Component
                 'label' => $router->identity,
                 'data' => $dataValues,
                 'backgroundColor' => $colores[$index % count($colores)],
-                'borderRadius' => 5
+                'borderRadius' => 5,
+                'barPercentage' => 0.8,
+                'categoryPercentage' => 0.8
             ];
         }
 
+        // Emitir evento para JS
         $this->dispatchBrowserEvent('refreshChart', [
             'labels' => $labels,
             'datasets' => $datasets
         ]);
 
         return ['labels' => $labels, 'datasets' => $datasets];
+    }
+
+    public function selectPlan($packageId)
+    {
+        $package = Package::findOrFail($packageId);
+        $user = Auth::user();
+        
+        $alreadyPending = $user->packages()->where('package_id', $packageId)->wherePivot('status', 'pending')->exists();
+        if($alreadyPending) {
+            session()->flash('error', 'Ya tienes una solicitud pendiente para este plan.');
+            return;
+        }
+
+        $user->packages()->attach($package->id, [
+            'start_date' => now(),
+            'end_date' => now()->addMonths($package->duration_months),
+            'status' => 'pending',
+            'allowed_routers' => $package->limit_routers,
+            'router_quantity' => 0,
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
+
+        $this->showPlanModal = false;
+        session()->flash('message', '¡Solicitud enviada! Tu plan se activará pronto.');
+    }
+
+    public function openModal() { $this->showPlanModal = true; }
+    
+    public function closeModal() 
+    { 
+        $user = Auth::user();
+        $hasPlan = $user->packages()->wherePivotIn('status', ['active', 'pending'])->exists();
+        if ($hasPlan) { $this->showPlanModal = false; }
     }
 
     public function render()
@@ -87,16 +138,21 @@ class AliadoDashboard extends Component
         $routerIds = $routers->pluck('id');
         [$start, $end] = $this->getRange();
 
+        $activePlans = $user->packages()
+            ->wherePivot('status', 'active')
+            ->wherePivot('end_date', '>=', now())
+            ->get();
+
         $chartData = $this->refreshChartData();
 
         return view('livewire.dashboards.aliado-dashboard', [
             'availablePackages' => Package::where('is_active', true)->where('is_visible', true)->get(),
-            'activePlans' => $user->packages()->wherePivot('status', 'active')->wherePivot('end_date', '>=', now())->get(),
+            'activePlans' => $activePlans,
             'pendingPlans' => $user->packages()->wherePivot('status', 'pending')->get(),
             'routers' => $routers,
             'stats' => [
                 'total_routers' => $routers->count(),
-                'limit_routers' => $user->packages()->wherePivot('status', 'active')->sum('pivot.allowed_routers'),
+                'limit_routers' => $activePlans->sum('pivot.allowed_routers'), // Suma sobre colección para evitar SQL Error
                 'total_tickets' => Ticket::whereIn('router_id', $routerIds)->count(),
                 'tickets_activos' => Ticket::whereIn('router_id', $routerIds)->where('estado', 'activo')->count(),
                 'conexiones_periodo' => TicketLog::whereIn('router_id', $routerIds)->whereBetween('created_at', [$start, $end])->count(),
@@ -104,15 +160,15 @@ class AliadoDashboard extends Component
             'labels' => $chartData['labels'],
             'datasets' => $chartData['datasets'],
             'totalGeneral' => TicketLog::whereIn('router_id', $routerIds)->whereBetween('created_at', [$start, $end])->count(),
-            'ultimosLogs' => TicketLog::with('router')->whereIn('router_id', $routerIds)->latest()->take(10)->get(),
-            'dollarRate' => ExchangeRateService::getBcvRate(),
-            // Otros datos omitidos por brevedad...
+            'topUsuarios' => TicketLog::whereIn('router_id', $routerIds)
+                ->whereBetween('created_at', [$start, $end])
+                ->select('username', DB::raw('count(*) as total_conexiones'), DB::raw('sum(duration_seconds) as tiempo_total'))
+                ->groupBy('username')->orderBy('total_conexiones', 'desc')->take(5)->get(),
+            'ultimosLogs' => TicketLog::with('router')->whereIn('router_id', $routerIds)
+                ->whereBetween('created_at', [$start, $end])
+                ->latest()
+                ->get(),
+            'dollarRate' => ExchangeRateService::getBcvRate()
         ])->layout('layouts.app');
     }
-
-    // Mantener funciones de planes...
-    public function checkInitialPlan() { /* ... */ }
-    public function selectPlan($id) { /* ... */ }
-    public function openModal() { $this->showPlanModal = true; }
-    public function closeModal() { $this->showPlanModal = false; }
 }
