@@ -10,16 +10,14 @@
     </div>
 
     @if (session()->has('message'))
-        <div class="alert alert-success border-0 shadow-sm rounded-4 mb-4 alert-dismissible fade show">
+        <div class="alert alert-success border-0 shadow-sm rounded-4 mb-4">
             <i class="bi bi-check-circle-fill me-2"></i> {{ session('message') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
 
     @if (session()->has('error'))
-        <div class="alert alert-danger border-0 shadow-sm rounded-4 mb-4 alert-dismissible fade show">
+        <div class="alert alert-danger border-0 shadow-sm rounded-4 mb-4">
             <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ session('error') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
 
@@ -37,7 +35,7 @@
                     </div>
 
                     <div class="card-body p-4 pt-5">
-                        <div class="d-flex align-items-center mb-3"> 
+                        <div class="d-flex align-items-center mb-3 mt-2"> 
                             <div class="bg-primary bg-opacity-10 p-3 rounded-4 me-3">
                                 <i class="bi bi-router h3 text-primary mb-0"></i>
                             </div>
@@ -57,7 +55,7 @@
                             </div>
                             <div class="d-flex justify-content-between small">
                                 <span class="text-muted">Ubicación:</span>
-                                <span class="fw-bold text-truncate text-dark ms-2">{{ $r->location ?: 'No definida' }}</span>
+                                <span class="fw-bold text-truncate text-dark ms-2">{{ $r->location ?: 'N/A' }}</span>
                             </div>
                         </div>
 
@@ -68,14 +66,19 @@
                                 </button>
                             </div>
                             <div class="col-6">
+                                <a href="{{ route('aliado.router.planes', $r->id) }}" class="btn btn-outline-primary btn-sm w-100 rounded-pill fw-bold">
+                                    <i class="bi bi-tags me-1"></i> PLANES
+                                </a>
+                            </div>
+                            <div class="col-6">
                                 <a href="{{ route('mikrotik.hotspot.config', $r->id) }}" class="btn btn-outline-info btn-sm w-100 rounded-pill fw-bold">
                                     <i class="bi bi-broadcast me-1"></i> HOTSPOT
                                 </a>
                             </div>
-                            <div class="col-12">
+                            <div class="col-6">
                                 <a href="{{ $online ? route('aliado.tickets', $r->id) : '#' }}" 
                                 class="btn btn-primary btn-sm w-100 rounded-pill fw-bold {{ !$online ? 'disabled opacity-50' : '' }}">
-                                    <i class="bi bi-ticket-perforated me-1"></i> GENERAR TICKETS
+                                    <i class="bi bi-ticket-perforated me-1"></i> TICKETS
                                 </a>
                             </div>
                         </div>
@@ -92,88 +95,58 @@
 
     @if($isModalOpen)
     <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5); z-index: 1050; backdrop-filter: blur(4px);">
-        <div class="modal-dialog modal-lg" style="margin-top: 5rem; margin-bottom: 5rem;">
+        <div class="modal-dialog modal-md" style="margin-top: 5rem;">
             <div class="modal-content shadow-lg border-0 rounded-4">
                 <div class="modal-header bg-dark text-white p-4">
                     <h5 class="modal-title fw-bold">
                         <i class="bi bi-cpu-fill me-2"></i>
-                        {{ $router_id ? 'CONFIGURACIÓN DEL NODO' : 'REGISTRAR NUEVO NODO' }}
+                        {{ $router_id ? 'DATOS DEL EQUIPO' : 'REGISTRAR EQUIPO' }}
                     </h5>
                     <button wire:click="closeModal" class="btn-close btn-close-white"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div class="row g-3">
-                        {{-- SECCIÓN DE PLAN --}}
                         <div class="col-12">
                             <div class="bg-primary bg-opacity-10 p-3 rounded-4 border-start border-4 border-primary mb-2">
-                                <label class="form-label small fw-bold text-primary mb-1">PLAN DE MEMBRESÍA</label>
+                                <label class="form-label small fw-bold text-primary mb-1">PLAN DE MEMBRESÍA ADQUIRIDO</label>
                                 <select wire:model="package_id" class="form-select border-0 shadow-sm">
                                     <option value="">-- Seleccionar Plan --</option>
                                     @foreach($packages as $p)
-                                        <option value="{{ $p->id }}">{{ $p->name }} (Límite: {{ $p->limit_routers }} routers)</option>
+                                        <option value="{{ $p->id }}">{{ $p->name }} (Cupos: {{ $p->limit_routers }})</option>
                                     @endforeach
                                 </select>
-                                @error('package_id') <small class="text-danger">Debe asignar un plan.</small> @enderror
-                            </div>
-                        </div>
-
-                        {{-- SECCIÓN ESTADO --}}
-                        <div class="col-12">
-                            <div class="bg-light p-3 rounded-4 border-start border-4 {{ $status === 'Habilitado' ? 'border-success' : 'border-danger' }}">
-                                <label class="form-label small fw-bold text-dark mb-1">ESTADO OPERATIVO</label>
-                                <select wire:model="status" class="form-select border-0 shadow-sm">
-                                    <option value="Habilitado">🟢 Habilitado (Activo)</option>
-                                    <option value="Mantenimiento">🟠 Mantenimiento (Inactivo)</option>
-                                    <option value="Suspendido">🔴 Suspendido (Inactivo)</option>
-                                </select>
                             </div>
                         </div>
 
                         <div class="col-md-6 mt-3">
-                            <label class="form-label small fw-bold text-muted">IDENTIDAD MK</label>
-                            <input type="text" wire:model.defer="identity" class="form-control bg-light border-0" placeholder="Nombre identificador">
+                            <label class="form-label small fw-bold text-muted">NOMBRE IDENTIFICADOR</label>
+                            <input type="text" wire:model.defer="identity" class="form-control" placeholder="Ej: Router Principal">
                         </div>
 
                         <div class="col-md-6 mt-3">
-                            <label class="form-label small fw-bold text-muted">MAC ADDRESS</label>
-                            <input type="text" wire:model.defer="macAddress" class="form-control bg-light border-0" placeholder="00:00:00:00:00:00">
+                            <label class="form-label small fw-bold text-muted">MAC ADDRESS (ID)</label>
+                            <input type="text" wire:model.defer="macAddress" class="form-control" placeholder="00:00:00:00:00:00">
                         </div>
 
                         <div class="col-12">
-                            <hr class="my-2">
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-primary">VERSIÓN DEL PORTAL</label>
-                            <select wire:model.defer="hotspot_version_id" class="form-select border-primary border-opacity-25 shadow-sm">
-                                <option value="">-- Seleccionar Versión --</option>
-                                @foreach($hotspotVersions as $version)
-                                    <option value="{{ $version->id }}">{{ $version->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-primary">NOMBRE COMERCIAL</label>
+                            <label class="form-label small fw-bold text-dark">NOMBRE DEL COMERCIO</label>
                             <input type="text" wire:model.defer="comercio_nombre" class="form-control border-primary border-opacity-25 shadow-sm">
                         </div>
 
-                        <div class="col-md-12">
-                            <label class="form-label small fw-bold text-muted">URL PORTAL (LINK)</label>
-                            <input type="text" wire:model.defer="hotspot_url" class="form-control bg-light border-0" placeholder="https://miportal.com">
+                        <div class="col-12">
+                            <label class="form-label small fw-bold text-muted">URL DEL PORTAL (SISTEMA)</label>
+                            <input type="text" wire:model.defer="hotspot_url" class="form-control bg-light" readonly disabled placeholder="Generado automáticamente">
                         </div>
 
-                        <div class="col-md-12">
-                            <label class="form-label small fw-bold text-muted">UBICACIÓN FÍSICA</label>
-                            <input type="text" wire:model.defer="location" class="form-control bg-light border-0" placeholder="Dirección del comercio o zona">
+                        <div class="col-12">
+                            <label class="form-label small fw-bold text-muted">UBICACIÓN / DIRECCIÓN</label>
+                            <input type="text" wire:model.defer="location" class="form-control">
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-0 p-4">
                     <button wire:click="closeModal" class="btn btn-secondary rounded-pill px-4">Cancelar</button>
-                    <button wire:click.prevent="store" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">
-                        <i class="bi bi-save me-1"></i> GUARDAR CAMBIOS
-                    </button>
+                    <button wire:click.prevent="store" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">GUARDAR</button>
                 </div>
             </div>
         </div>

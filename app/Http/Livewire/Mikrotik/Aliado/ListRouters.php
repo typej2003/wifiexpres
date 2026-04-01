@@ -6,43 +6,36 @@ use Livewire\Component;
 use App\Models\Router;
 use App\Models\Package;
 use App\Models\HotspotVersion;
-use App\Models\Setting;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 
 class ListRouters extends Component
 {
     public $isModalOpen = false;
-    public $router_id, $identity, $macAddress, $location;
-    public $comercio_nombre, $hotspot_url, $hotspot_version_id, $status = 'Habilitado', $package_id;
+    public $router_id, $identity, $macAddress, $location, $comercio_nombre;
+    public $hotspot_url, $hotspot_version_id, $status, $package_id;
     
     public $routerStatus = [];
-    public $connectionMode;
-
-    public function mount()
-    {
-        $setting = Setting::where('user_id', Auth::id())->first();
-        $this->connectionMode = $setting ? (int)$setting->mikrotik_connection_mode : 0;
-    }
 
     public function render()
     {
         $aliado = Auth::user();
+        
         $routers = Router::where("user_id", $aliado->id)
                     ->with(['package', 'hotspotVersion'])
                     ->latest()
                     ->get();
 
-        $hotspotVersions = HotspotVersion::all();
-        
-        // Obtenemos los planes disponibles (renombrado para coincidir con la vista)
-        $packages = Package::where('is_active', true)->get();
+        // IMPORTANTE: Solo mostramos planes que el aliado ya tiene asignados/comprados
+        // Si tu lógica usa una tabla pivot, aquí filtrarías. Por ahora traemos los que él ya usa en sus equipos.
+        $packages = Package::whereHas('routers', function($q) use ($aliado) {
+            $q->where('user_id', $aliado->id);
+        })->orWhere('is_active', true)->get()->unique();
 
         $this->refreshStatus();
 
         return view("livewire.mikrotik.aliado.list-routers", [
             "routers" => $routers,
-            "hotspotVersions" => $hotspotVersions,
             "packages" => $packages
         ]);
     }
@@ -57,9 +50,7 @@ class ListRouters extends Component
             foreach ($routers as $r) {
                 $this->routerStatus[$r->id] = in_array($r->macAddress, $activeMacs);
             }
-        } catch (\Exception $e) {
-            // Error silencioso
-        }
+        } catch (\Exception $e) {}
     }
 
     public function store()
@@ -69,9 +60,9 @@ class ListRouters extends Component
             "macAddress" => "required",
             "comercio_nombre" => "required",
             "package_id" => "required",
-            "hotspot_version_id" => "required"
         ]);
 
+        // Validación de límite de routers según el plan seleccionado
         if (!$this->router_id) {
             $plan = Package::find($this->package_id);
             $totalActual = Router::where('user_id', Auth::id())
@@ -90,13 +81,13 @@ class ListRouters extends Component
             "identity"           => $this->identity,
             "macAddress"         => $this->macAddress,
             "location"           => $this->location,
-            "status"             => $this->status,
             "comercio_nombre"    => $this->comercio_nombre,
-            "hotspot_url"        => $this->hotspot_url,
-            "hotspot_version_id" => $this->hotspot_version_id,
+            // Los campos que el aliado no edita se mantienen o se asignan por defecto
+            "status"             => $this->status ?? 'Habilitado', 
+            "hotspot_version_id" => $this->hotspot_version_id ?? 1, 
         ]);
 
-        session()->flash("message", "Router guardado correctamente.");
+        session()->flash("message", "Equipo guardado con éxito.");
         $this->closeModal();
     }
 
@@ -106,16 +97,16 @@ class ListRouters extends Component
         $this->identity = $router->identity;
         $this->macAddress = $router->macAddress;
         $this->location = $router->location;
-        $this->status = $router->status;
         $this->package_id = $router->package_id;
         $this->comercio_nombre = $router->comercio_nombre;
         $this->hotspot_url = $router->hotspot_url;
+        $this->status = $router->status;
         $this->hotspot_version_id = $router->hotspot_version_id;
         $this->openModal();
     }
 
     public function create() {
-        $this->reset(['router_id', 'identity', 'package_id', 'macAddress', 'location', 'comercio_nombre', 'hotspot_url', 'hotspot_version_id']);
+        $this->reset(['router_id', 'identity', 'package_id', 'macAddress', 'location', 'comercio_nombre', 'hotspot_url']);
         $this->status = 'Habilitado';
         $this->openModal();
     }
