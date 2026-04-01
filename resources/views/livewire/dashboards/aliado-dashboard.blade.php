@@ -18,9 +18,9 @@
         </div>
         <div class="col-md-6 text-end">
             <div class="bg-white p-2 px-3 rounded-4 shadow-sm border d-inline-block text-start">
-                <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.6rem;">Capacidad Suscripción</small>
+                <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.6rem;">Cupacidad Routers</small>
                 <span class="fw-bold {{ $stats['total_routers'] >= $stats['limit_routers'] ? 'text-danger' : 'text-primary' }}">
-                    {{ $stats['total_routers'] }} / {{ $stats['limit_routers'] }} Equipos
+                    {{ $stats['total_routers'] }} / {{ $stats['limit_routers'] }}
                 </span>
             </div>
         </div>
@@ -102,12 +102,6 @@
     <div class="row g-4 mb-4">
         <div class="col-md-3">
             <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white h-100">
-                <h6 class="text-muted small fw-bold text-uppercase">Routers Registrados</h6>
-                <h2 class="fw-bold mb-0">{{ $stats['total_routers'] }}</h2>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white h-100">
                 <h6 class="text-muted small fw-bold text-uppercase">Routers Online</h6>
                 <h2 class="fw-bold mb-0 text-success">
                     {{ $stats['routers_online'] }} <small class="text-muted fs-6">de {{ $stats['total_routers'] }}</small>
@@ -116,14 +110,20 @@
         </div>
         <div class="col-md-3">
             <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white h-100">
-                <h6 class="text-muted small fw-bold text-uppercase">Tickets Online</h6>
-                <h2 class="fw-bold mb-0 text-info">{{ $stats['tickets_activos'] }}</h2>
+                <h6 class="text-muted small fw-bold text-uppercase">Tickets Total</h6>
+                <h2 class="fw-bold mb-0 text-dark">{{ $stats['total_tickets'] }}</h2>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white h-100">
-                <h6 class="text-muted small fw-bold text-uppercase">Sesiones (Filtro)</h6>
-                <h2 class="fw-bold mb-0 text-primary">{{ number_format($stats['conexiones_periodo']) }}</h2>
+                <h6 class="text-muted small fw-bold text-uppercase">Tickets Online</h6>
+                <h2 class="fw-bold mb-0 text-primary">{{ $stats['tickets_activos'] }}</h2>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white h-100">
+                <h6 class="text-muted small fw-bold text-uppercase">Sesiones Filtro</h6>
+                <h2 class="fw-bold mb-0 text-info">{{ number_format($stats['conexiones_periodo']) }}</h2>
             </div>
         </div>
     </div>

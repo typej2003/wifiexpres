@@ -10,6 +10,7 @@ use App\Models\TicketLog;
 use App\Services\ExchangeRateService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 use Carbon\Carbon;
 
 class AliadoDashboard extends Component
@@ -69,7 +70,38 @@ class AliadoDashboard extends Component
     }
 
     public function openModal() { $this->showPlanModal = true; }
-    public function closeModal() { $this->closeModal(); }
+    public function closeModal() { $this->showPlanModal = false; }
+
+    /**
+     * Consulta al Bridge para obtener cuántos routers del aliado están realmente online
+     */
+    private function getRoutersOnlineCount($misRouters)
+    {
+        try {
+            $response = Http::timeout(3)->get('http://188.95.113.44:3000/api/routers-online');
+            
+            if ($response->successful()) {
+                $onlineRoutersData = $response->json();
+                
+                // Extraer MACs online limpias
+                $activeMacs = collect($onlineRoutersData)->map(function($item) {
+                    return strtoupper(trim($item['mac']));
+                })->toArray();
+
+                $count = 0;
+                foreach ($misRouters as $r) {
+                    $macLimpia = strtoupper(trim($r->macAddress));
+                    if (in_array($macLimpia, $activeMacs)) {
+                        $count++;
+                    }
+                }
+                return $count;
+            }
+        } catch (\Exception $e) { 
+            return 0; 
+        }
+        return 0;
+    }
 
     public function render()
     {
@@ -97,7 +129,7 @@ class AliadoDashboard extends Component
             ->groupBy('fecha', 'router_id')
             ->get();
 
-        // 3. Datasets
+        // 3. Datasets para Gráfica
         $colores = ['#0d6efd', '#198754', '#ffc107', '#0dcaf0', '#6610f2', '#fd7e14', '#dc3545', '#20c997'];
         $datasets = [];
 
@@ -121,12 +153,6 @@ class AliadoDashboard extends Component
 
         $activePlans = $user->packages()->wherePivot('status', 'active')->wherePivot('end_date', '>=', now())->get();
 
-        // Cálculo de Routers Online (Actividad en los últimos 5 minutos)
-        $routersOnlineCount = Router::where('user_id', $user->id)
-            ->whereHas('logs', function($q) {
-                $q->where('created_at', '>=', now()->subMinutes(5));
-            })->count();
-
         return view('livewire.dashboards.aliado-dashboard', [
             'availablePackages' => Package::where('is_active', true)->where('is_visible', true)->get(),
             'activePlans' => $activePlans,
@@ -134,10 +160,10 @@ class AliadoDashboard extends Component
             'routers' => $misRouters,
             'stats' => [
                 'total_routers' => $misRouters->count(),
-                'routers_online' => $routersOnlineCount,
+                'routers_online' => $this->getRoutersOnlineCount($misRouters), // NUEVO: Real de Bridge
                 'limit_routers' => $activePlans->sum('pivot.allowed_routers'),
                 'total_tickets' => Ticket::whereIn('router_id', $routerIds)->count(),
-                'tickets_activos' => Ticket::whereIn('router_id', $routerIds)->where('estado', 'activo')->count(),
+                'tickets_activos' => Ticket::whereIn('router_id', $routerIds)->where('estado', 'activo')->count(), // Tickets Online
                 'conexiones_periodo' => $logs->sum('total'),
             ],
             'topUsuarios' => (clone $logsQuery)
