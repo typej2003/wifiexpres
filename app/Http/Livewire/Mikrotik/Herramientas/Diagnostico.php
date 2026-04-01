@@ -64,6 +64,7 @@ class Diagnostico extends Component {
             "user_list" => "/ip hotspot user { :foreach i in=[find] do={ :set res (\$res . [get \$i name] . \" (\" . [get \$i profile] . \")\\n\") } };",
             "dns"       => ":local s [/ip dns get servers]; :set res (\"Static:\" . \$s);",
             "usuarios"  => ":set res [/ip hotspot user count-only];",
+            "dhcp"      => "/ip dhcp-server { :foreach i in=[find] do={ :set res (\$res . [get \$i name] . \" -> \" . [get \$i interface] . \" [\" . [get \$i address-pool] . \"]\\n\") } };",
         ];
 
         return isset($scripts[$key]) ? ($base . $scripts[$key] . $end) : null;
