@@ -61,6 +61,7 @@
                     <button wire:click="setPreset('cpu')" class="btn btn-sm btn-outline-info text-light border-secondary">CPU %</button>
                     <button wire:click="setPreset('uptime')" class="btn btn-sm btn-outline-info text-light border-secondary">Uptime</button>
                     <button wire:click="setPreset('address')" class="btn btn-sm btn-outline-success text-light border-secondary">Addresses</button>
+                    <button wire:click="setPreset('pools')" class="btn btn-sm btn-outline-success text-light border-secondary">IP Pools</button>
                     <button wire:click="setPreset('dhcp')" class="btn btn-sm btn-outline-success text-light border-secondary">DHCP Servers</button>
                     <button wire:click="setPreset('dns')" class="btn btn-sm btn-outline-success text-light border-secondary">DNS</button>
                     <button wire:click="setPreset('usuarios')" class="btn btn-sm btn-outline-warning text-light border-secondary">Count Users</button>
