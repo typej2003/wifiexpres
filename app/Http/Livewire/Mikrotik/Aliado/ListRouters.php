@@ -3,21 +3,17 @@
 namespace App\Http\Livewire\Mikrotik\Aliado;
 
 use Livewire\Component;
-use App\Models\User;
 use App\Models\Router;
 use App\Models\Package;
 use App\Models\HotspotVersion;
 use App\Models\Setting;
-use RouterOS\Client;
-use RouterOS\Query;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 
 class ListRouters extends Component
 {
     public $isModalOpen = false;
-    public $showPassword = false;
-    public $router_id, $identity, $ip, $macAddress, $admin, $password, $location, $dns, $api_port;
+    public $router_id, $identity, $macAddress, $location;
     public $comercio_nombre, $hotspot_url, $hotspot_version_id, $status = 'Habilitado', $package_id;
     
     public $routerStatus = [];
@@ -37,17 +33,11 @@ class ListRouters extends Component
                     ->latest()
                     ->get();
 
-        // Obtener versiones
         $hotspotVersions = HotspotVersion::all();
         
-        /** * PLANES DISPONIBLES: 
-         * Aquí podrías filtrar para que el aliado solo vea los planes que HA COMPRADO 
-         * o que están activos en su tabla 'package_user'. 
-         * Por ahora, mostramos los activos globalmente para la prueba.
-         */
+        // Filtramos planes activos para el aliado
         $planesDisponibles = Package::where('is_active', true)->get();
 
-        // Sincronizamos estados online (usando tu lógica de Node.js si la prefieres o la de RouterOS)
         $this->refreshStatus();
 
         return view("livewire.mikrotik.aliado.list-routers", [
@@ -59,7 +49,6 @@ class ListRouters extends Component
 
     public function refreshStatus()
     {
-        // Usamos la API de Node para mayor velocidad como en la vista de Admin
         try {
             $response = Http::timeout(2)->get('http://188.95.113.44:3000/api/routers-online');
             $activeMacs = $response->successful() ? collect($response->json())->pluck('mac')->toArray() : [];
@@ -69,46 +58,16 @@ class ListRouters extends Component
                 $this->routerStatus[$r->id] = in_array($r->macAddress, $activeMacs);
             }
         } catch (\Exception $e) {
-            // Fallback: Si el servicio Node falla, no marcamos nada para no dar falsos negativos
-        }
-    }
-
-    public function testConnection()
-    {
-        $this->validate([
-            "ip" => "required",
-            "admin" => "required",
-            "password" => "required",
-            "api_port" => "required|numeric",
-        ]);
-
-        try {
-            $client = new Client([
-                'host' => $this->ip,
-                'user' => $this->admin,
-                'pass' => $this->password,
-                'port' => (int)$this->api_port,
-                'timeout' => 3
-            ]);
-            
-            $query = new Query('/system/identity/print');
-            $response = $client->query($query)->read();
-            $this->identity = $response[0]['name'] ?? 'MikroTik';
-            
-            session()->flash("test_message", "¡Conexión exitosa! Identity: " . $this->identity);
-        } catch (\Exception $e) {
-            session()->flash("test_error", "Error: " . $e->getMessage());
+            // Silencioso para evitar interrupciones en la UI
         }
     }
 
     public function store()
     {
         $this->validate([
-            "ip" => "required",
-            "admin" => "required",
-            "password" => "required",
+            "identity" => "required",
+            "macAddress" => "required",
             "comercio_nombre" => "required",
-            "api_port" => "required|numeric",
             "package_id" => "required",
             "hotspot_version_id" => "required"
         ]);
@@ -128,14 +87,9 @@ class ListRouters extends Component
         Router::updateOrCreate(["id" => $this->router_id], [
             "user_id"            => Auth::id(),
             "package_id"         => $this->package_id,
-            "identity"           => $this->identity ?? "MikroTik",
-            "ip"                 => $this->ip,
-            "api_port"           => $this->api_port,
+            "identity"           => $this->identity,
             "macAddress"         => $this->macAddress,
-            "admin"              => $this->admin,
-            "password"           => $this->password,
             "location"           => $this->location,
-            "dns"                => $this->dns,
             "status"             => $this->status,
             "comercio_nombre"    => $this->comercio_nombre,
             "hotspot_url"        => $this->hotspot_url,
@@ -150,13 +104,8 @@ class ListRouters extends Component
     {
         $this->router_id = $router->id;
         $this->identity = $router->identity;
-        $this->ip = $router->ip;
-        $this->api_port = $router->api_port;
         $this->macAddress = $router->macAddress;
-        $this->admin = $router->admin;
-        $this->password = $router->password;
         $this->location = $router->location;
-        $this->dns = $router->dns;
         $this->status = $router->status;
         $this->package_id = $router->package_id;
         $this->comercio_nombre = $router->comercio_nombre;
@@ -166,13 +115,11 @@ class ListRouters extends Component
     }
 
     public function create() {
-        $this->reset(['router_id', 'identity', 'ip', 'package_id', 'macAddress', 'admin', 'password', 'location', 'dns', 'comercio_nombre', 'hotspot_url', 'hotspot_version_id']);
-        $this->api_port = 8728;
+        $this->reset(['router_id', 'identity', 'package_id', 'macAddress', 'location', 'comercio_nombre', 'hotspot_url', 'hotspot_version_id']);
         $this->status = 'Habilitado';
         $this->openModal();
     }
 
     public function openModal() { $this->isModalOpen = true; }
-    public function closeModal() { $this->isModalOpen = false; $this->showPassword = false; }
-    public function togglePassword() { $this->showPassword = !$this->showPassword; }
+    public function closeModal() { $this->isModalOpen = false; }
 }
