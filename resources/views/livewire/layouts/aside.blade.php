@@ -258,12 +258,12 @@
         @if(auth()->user()->role === 'aliado')
             <a href="{{ route('aliado.index') }}" class="sidebar-link {{ request()->routeIs('aliado.index') ? 'active' : '' }}">
                 <i class="bi bi-speedometer2"></i> 
-                <span class="menu-text">Dashboard</span>
+                <span class="menu-text">ESCRITORIO</span>
             </a>
 
             <a href="{{ route('mikrotik.grafico') }}" class="sidebar-link {{ request()->routeIs('mikrotik.grafico') ? 'active' : '' }}">
                 <i class="bi bi-speedometer2"></i> 
-                <span class="menu-text">GraficoRouters</span>
+                <span class="menu-text">GRÁFICO POR ROUTER</span>
             </a>
 
             <a href="{{ route('aliado.hour.analysis') }}" class="sidebar-link {{ request()->routeIs('aliado.hour.analysis') ? 'active' : '' }}">
@@ -273,17 +273,17 @@
 
             <a href="{{ route('mikrotik.grafico-conexiones') }}" class="sidebar-link {{ request()->routeIs('mikrotik.grafico-conexiones') ? 'active' : '' }}">
                 <i class="bi bi-bar-chart-steps"></i> 
-                <span class="menu-text">Rendimiento por Router</span>
+                <span class="menu-text">RENDIMIENTO POR ROUTER</span>
             </a>
 
             <a href="{{ route('aliado.routers') }}" class="sidebar-link {{ request()->routeIs('aliado.routers') ? 'active' : '' }}">
                 <i class="bi bi-router"></i>
-                <span class="menu-text">Mis Routers</span>
+                <span class="menu-text">MIS ROUTERS</span>
             </a>
 
             <a href="{{ route('aliado.ventas') }}" class="sidebar-link {{ request()->routeIs('aliado.ventas') ? 'active' : '' }}">
                 <i class="bi bi-cash-coin"></i>
-                <span class="menu-text">Mis Ventas</span>
+                <span class="menu-text">MIS VENTAS</span>
                 @php
                     $salesCount = \App\Models\Sale::where('user_id', auth()->id())
                                     ->whereDate('created_at', today())
@@ -296,14 +296,14 @@
 
             <a href="{{ route('aliado.ranking') }}" class="sidebar-link {{ request()->routeIs('aliado.ranking') ? 'active' : '' }}">
                 <i class="bi bi-trophy"></i> 
-                <span class="menu-text">Ranking de Usuarios</span>
+                <span class="menu-text">RANKING DE USUARIOS</span>
             </a>
 
-            <a href="{{ route('habladores.index') }}" class="sidebar-link {{ request()->routeIs('habladores.index') ? 'active' : '' }}">
+            <!-- <a href="{{ route('habladores.index') }}" class="sidebar-link {{ request()->routeIs('habladores.index') ? 'active' : '' }}">
                 <i class="bi bi-tv"></i> 
                 <span class="menu-text">Habladores Digitales</span>
                 <span class="badge rounded-pill bg-warning text-dark ms-auto menu-text" style="font-size: 0.6rem; font-weight: 800;">PRO</span>
-            </a>
+            </a> -->
         @endif
 
         @if(auth()->user()->role === 'cliente')
