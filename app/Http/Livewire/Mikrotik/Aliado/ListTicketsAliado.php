@@ -65,13 +65,14 @@ class ListTicketsAliado extends Component
         $tid = $tid ?? uniqid('Q');
 
         try {
-            $response = Http::timeout(5)->withHeaders(['x-mac' => $mac, 'x-id' => $tid])
+            $response = Http::timeout(10)->withHeaders(['x-mac' => $mac, 'x-id' => $tid])
                 ->withBody(trim($comando), 'text/plain')
                 ->post("{$this->bridgeUrl}/set-command");
 
             if (!$response->successful()) return null;
 
-            for ($i = 0; $i < 20; $i++) {
+            // Aumentamos ligeramente la espera para comandos de sincronización pesados
+            for ($i = 0; $i < 25; $i++) {
                 $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
                 if ($res->successful() && $res->json('status') === 'ready') {
                     $output = trim($res->json('data'));
@@ -127,6 +128,7 @@ class ListTicketsAliado extends Component
         }
 
         $planLower = strtolower($planInfo->name);
+        // Regla: Si el nombre tiene neutro, cortesia o trial, el costo es 0.
         $costoFinal = preg_match('/neutro|cortesia|trial/i', $planLower) ? 0 : $planInfo->price;
 
         $router = Router::find($this->selectedRouter);
@@ -193,12 +195,20 @@ class ListTicketsAliado extends Component
         $macActual = strtoupper($router->macAddress);
         $tid = "SYNC" . time();
         
-        $comando = ":local res \"DATA:\"; :foreach i in=[/ip hotspot user find] do={ :local n [/ip hotspot user get \$i name]; :local p [/ip hotspot user get \$i password]; :local pr [/ip hotspot user get \$i profile]; :local u [/ip hotspot user get \$i uptime]; :local lu [/ip hotspot user get \$i limit-uptime]; :local c [/ip hotspot user get \$i comment]; :set res (\$res . \$n . \",\" . \$p . \",\" . \$pr . \",\" . \$u . \",\" . \$lu . \",\" . \$c . \"|\"); }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\$res keep-result=no;";
+        // Optimización del comando para reducir el tamaño del string y evitar errores de buffer
+        $comando = ":local res \"D:\"; :foreach i in=[/ip hotspot user find where name!=\"default-trial\"] do={ " .
+                   ":local n [/ip hotspot user get \$i name]; " .
+                   ":local p [/ip hotspot user get \$i password]; " .
+                   ":local pr [/ip hotspot user get \$i profile]; " .
+                   ":local u [/ip hotspot user get \$i uptime]; " .
+                   ":local c [/ip hotspot user get \$i comment]; " .
+                   ":set res (\$res . \$n . \",\" . \$p . \",\" . \$pr . \",\" . \$u . \",\" . \$c . \"|\"); " .
+                   "}; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\$res keep-result=no;";
         
         $raw = $this->sendCommandQuick($comando, $tid);
         
-        if ($raw && str_contains($raw, 'DATA:')) {
-            $datos = str_replace('DATA:', '', $raw);
+        if ($raw && str_contains($raw, 'D:')) {
+            $datos = str_replace('D:', '', $raw);
             $filas = array_filter(explode('|', trim($datos, "| ")));
             $mikrotikUsernames = [];
             $planesCache = Plan::where('router_id', $this->selectedRouter)->get()->keyBy('mikrotik_profile');
@@ -206,8 +216,8 @@ class ListTicketsAliado extends Component
             foreach ($filas as $fila) {
                 $p = explode(',', $fila);
                 if (count($p) < 3) continue;
+                
                 $uName = $p[0];
-                if ($uName === 'default-trial') continue;
                 $mikrotikUsernames[] = $uName;
 
                 $planNombre = $p[2];
@@ -215,21 +225,29 @@ class ListTicketsAliado extends Component
                 $planLower = strtolower($planNombre);
                 $esGratis = preg_match('/neutro|cortesia|trial/i', $planLower) || $planLower === 'default';
 
+                // Buscamos si el ticket ya existe para no sobreescribir el 'identity' original si el comment viene vacío
+                $ticketExistente = Ticket::where('router_id', $this->selectedRouter)->where('username', $uName)->first();
+                $nuevoIdentity = (!empty($p[4]) && $p[4] !== "nil") ? $p[4] : ($ticketExistente ? $ticketExistente->identity : "IMP-{$uName}");
+
                 Ticket::updateOrCreate(
                     ['router_id' => $this->selectedRouter, 'username' => $uName],
                     [
                         'password' => $p[1] ?? '',
                         'plan' => $planNombre,
                         'costo' => ($planData && !$esGratis) ? $planData->price : 0,
-                        'identity' => $p[5] ?: "IMP-{$uName}",
+                        'identity' => $nuevoIdentity,
                         'tiempo_consumido' => $p[3] ?: '0s',
                         'tiempo_uso' => $planData->session_timeout ?? '0s',
-                        'sincronizado' => true
+                        'sincronizado' => true,
+                        'estado' => ($p[3] !== '0s' && $p[3] !== '') ? 'en_uso' : 'disponible'
                     ]
                 );
             }
+            // Eliminar tickets en BD que ya no existen en MikroTik
             Ticket::where('router_id', $this->selectedRouter)->whereNotIn('username', $mikrotikUsernames)->delete();
             session()->flash('message', 'Sincronización finalizada.');
+        } else {
+            session()->flash('error', 'No se recibió respuesta del router o el volumen de datos es muy alto.');
         }
         $this->showOverlay = false; 
     }
@@ -271,7 +289,7 @@ class ListTicketsAliado extends Component
         $router = Router::find($this->selectedRouter);
         $mac = strtoupper(trim($router->macAddress));
         $tid = "ANUL" . time();
-        $cmd = ":do {/ip hotspot user set [find name=\"{$ticket->username}\"] profile=\"neutro\" limit-uptime=0s;/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no} on-error={/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"ERROR\" keep-result=no}";
+        $cmd = ":do {/ip hotspot user set [find name=\"{$ticket->username}\"] profile=\"neutro\" limit-uptime=1s;/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no} on-error={/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"ERROR\" keep-result=no}";
         if ($this->sendCommandQuick($cmd, $tid)) {
             $ticket->update(['estado' => 'anulado', 'anulado' => true]);
             session()->flash('message', "Ticket {$ticket->username} anulado.");
