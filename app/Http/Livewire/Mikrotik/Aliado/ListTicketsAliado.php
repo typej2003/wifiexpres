@@ -10,6 +10,7 @@ use App\Models\Plan;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Carbon;
 
 class ListTicketsAliado extends Component
 {
@@ -71,7 +72,6 @@ class ListTicketsAliado extends Component
 
             if (!$response->successful()) return null;
 
-            // Aumentamos ligeramente la espera para comandos de sincronización pesados
             for ($i = 0; $i < 25; $i++) {
                 $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
                 if ($res->successful() && $res->json('status') === 'ready') {
@@ -120,7 +120,11 @@ class ListTicketsAliado extends Component
         }
 
         $cantidadAProcesar = min($this->bulk_chunk_size, $restantes);
-        $planInfo = Plan::where('mikrotik_profile', $this->bulk_plan)->where('router_id', $this->selectedRouter)->first();
+        
+        // Obtenemos info del plan para costo y session_timeout
+        $planInfo = Plan::where('mikrotik_profile', $this->bulk_plan)
+                        ->where('router_id', $this->selectedRouter)
+                        ->first();
 
         if (!$planInfo) {
             session()->flash('error', 'No se encontró información del plan.');
@@ -128,8 +132,9 @@ class ListTicketsAliado extends Component
         }
 
         $planLower = strtolower($planInfo->name);
-        // Regla: Si el nombre tiene neutro, cortesia o trial, el costo es 0.
-        $costoFinal = preg_match('/neutro|cortesia|trial/i', $planLower) ? 0 : $planInfo->price;
+        // REGLA: Neutro, Cortesía, Trial o Gratis -> Costo 0
+        $costoFinal = preg_match('/neutro|cortesia|trial|gratis/i', $planLower) ? 0 : $planInfo->price;
+        $limitUptime = $planInfo->session_timeout ?? '0s';
 
         $router = Router::find($this->selectedRouter);
         $mac = strtoupper(trim($router->macAddress));
@@ -144,20 +149,21 @@ class ListTicketsAliado extends Component
             $identityStr = "{$this->selectedRouter}-{$this->bulk_last_lote}-{$secStr}";
             $passStr = (string)rand(10000, 99999);
 
-            $comandoInterno .= "/ip hotspot user add name=\"$identityStr\" password=\"$passStr\" profile=\"$this->bulk_plan\" comment=\"Lote {$this->bulk_last_lote}\";\n";
+            // Se incluye limit-uptime en el comando para MikroTik
+            $comandoInterno .= "/ip hotspot user add name=\"$identityStr\" password=\"$passStr\" profile=\"$this->bulk_plan\" limit-uptime=\"$limitUptime\" comment=\"Lote {$this->bulk_last_lote}\";\n";
             
             $insertData[] = [
                 'router_id'    => $this->selectedRouter,
                 'identity'     => $identityStr,
                 'username'     => $identityStr, 
                 'password'     => $passStr,
-                'plan'         => $this->bulk_plan,
+                'plan'         => $planInfo->name, // Nombre comercial del plan
                 'costo'        => $costoFinal,
                 'estado'       => 'disponible',
-                'tiempo_uso'   => $planInfo->session_timeout ?? '0s',
+                'tiempo_uso'   => $limitUptime, // Sincronizado con session_timeout
                 'sincronizado' => true,
-                'created_at'   => now(),
-                'updated_at'   => now()
+                'created_at'   => Carbon::now(),
+                'updated_at'   => Carbon::now()
             ];
         }
 
@@ -195,7 +201,6 @@ class ListTicketsAliado extends Component
         $macActual = strtoupper($router->macAddress);
         $tid = "SYNC" . time();
         
-        // Optimización del comando para reducir el tamaño del string y evitar errores de buffer
         $comando = ":local res \"D:\"; :foreach i in=[/ip hotspot user find where name!=\"default-trial\"] do={ " .
                    ":local n [/ip hotspot user get \$i name]; " .
                    ":local p [/ip hotspot user get \$i password]; " .
@@ -220,12 +225,22 @@ class ListTicketsAliado extends Component
                 $uName = $p[0];
                 $mikrotikUsernames[] = $uName;
 
-                $planNombre = $p[2];
-                $planData = $planesCache->get($planNombre);
-                $planLower = strtolower($planNombre);
-                $esGratis = preg_match('/neutro|cortesia|trial/i', $planLower) || $planLower === 'default';
+                $profileName = $p[2];
+                $planData = $planesCache->get($profileName);
+                
+                // Lógica de costo y tiempo para la sincronización
+                $costoSync = 0;
+                $tiempoUsoSync = '0s';
+                $nombrePlanSync = $profileName;
 
-                // Buscamos si el ticket ya existe para no sobreescribir el 'identity' original si el comment viene vacío
+                if ($planData) {
+                    $nombrePlanSync = $planData->name;
+                    $planLower = strtolower($planData->name);
+                    $esGratis = preg_match('/neutro|cortesia|trial|gratis/i', $planLower) || $planLower === 'default';
+                    $costoSync = $esGratis ? 0 : $planData->price;
+                    $tiempoUsoSync = $planData->session_timeout ?? '0s';
+                }
+
                 $ticketExistente = Ticket::where('router_id', $this->selectedRouter)->where('username', $uName)->first();
                 $nuevoIdentity = (!empty($p[4]) && $p[4] !== "nil") ? $p[4] : ($ticketExistente ? $ticketExistente->identity : "IMP-{$uName}");
 
@@ -233,21 +248,20 @@ class ListTicketsAliado extends Component
                     ['router_id' => $this->selectedRouter, 'username' => $uName],
                     [
                         'password' => $p[1] ?? '',
-                        'plan' => $planNombre,
-                        'costo' => ($planData && !$esGratis) ? $planData->price : 0,
+                        'plan' => $nombrePlanSync,
+                        'costo' => $costoSync,
                         'identity' => $nuevoIdentity,
                         'tiempo_consumido' => $p[3] ?: '0s',
-                        'tiempo_uso' => $planData->session_timeout ?? '0s',
+                        'tiempo_uso' => $tiempoUsoSync,
                         'sincronizado' => true,
                         'estado' => ($p[3] !== '0s' && $p[3] !== '') ? 'en_uso' : 'disponible'
                     ]
                 );
             }
-            // Eliminar tickets en BD que ya no existen en MikroTik
             Ticket::where('router_id', $this->selectedRouter)->whereNotIn('username', $mikrotikUsernames)->delete();
             session()->flash('message', 'Sincronización finalizada.');
         } else {
-            session()->flash('error', 'No se recibió respuesta del router o el volumen de datos es muy alto.');
+            session()->flash('error', 'No se recibió respuesta del router.');
         }
         $this->showOverlay = false; 
     }
@@ -302,10 +316,16 @@ class ListTicketsAliado extends Component
     {
         $ticket = Ticket::find($id);
         if (!$ticket) return;
+        
+        // Buscamos el plan original para obtener su perfil técnico de MikroTik
+        $plan = Plan::where('name', $ticket->plan)->where('router_id', $this->selectedRouter)->first();
+        $profile = $plan ? $plan->mikrotik_profile : $ticket->plan;
+        $limitUptime = $plan ? $plan->session_timeout : '0s';
+
         $router = Router::find($this->selectedRouter);
         $mac = strtoupper(trim($router->macAddress));
         $tid = "REST" . time();
-        $cmd = ":do {/ip hotspot user set [find name=\"{$ticket->username}\"] profile=\"{$ticket->plan}\" limit-uptime=0s;/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no} on-error={/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"ERROR\" keep-result=no}";
+        $cmd = ":do {/ip hotspot user set [find name=\"{$ticket->username}\"] profile=\"{$profile}\" limit-uptime=\"{$limitUptime}\";/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"OK\" keep-result=no} on-error={/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\"ERROR\" keep-result=no}";
         if ($this->sendCommandQuick($cmd, $tid)) {
             $ticket->update(['estado' => 'disponible', 'anulado' => false]);
             session()->flash('message', "Ticket {$ticket->username} restaurado.");
