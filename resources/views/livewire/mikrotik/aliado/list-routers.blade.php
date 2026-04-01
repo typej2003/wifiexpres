@@ -115,111 +115,147 @@
     </div>
 
     @if($isModalOpen)
-    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5); z-index: 9999; backdrop-filter: blur(4px);">
-        <div class="modal-dialog modal-lg modal-dialog-centered" style="margin-top: 6rem; margin-bottom: 5rem;"> 
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5); z-index: 1050; backdrop-filter: blur(4px);">
+        <div class="modal-dialog modal-lg" style="margin-top: 6rem; margin-bottom: 5rem;">
             <div class="modal-content shadow-lg border-0 rounded-4">
                 <div class="modal-header bg-dark text-white p-4">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-gear-fill me-2"></i>DATOS TÉCNICOS DEL NODO</h5>
-                    <button type="button" wire:click="closeModal" class="btn-close btn-close-white"></button>
+                    <h5 class="modal-title fw-bold"><i class="bi bi-cpu-fill me-2"></i>DATOS TÉCNICOS DEL NODO</h5>
+                    <div class="d-flex align-items-center gap-3 ms-auto">
+                        @if($router_id)
+                            <a href="{{ route('mikrotik.hotspot.config', $router_id) }}" class="btn btn-outline-info btn-sm rounded-pill px-3 fw-bold">
+                                <i class="bi bi-broadcast me-1"></i> CONFIG. HOTSPOT
+                            </a>
+                        @endif
+                        <button wire:click="closeModal" class="btn-close btn-close-white ms-0"></button>
+                    </div>
                 </div>
                 <div class="modal-body p-4">
                     <div class="row g-3">
-                        {{-- SECTOR DE PLANES (NUEVO) --}}
-                        <div class="col-12 mb-2">
-                            <div class="bg-primary bg-opacity-10 p-3 rounded-4 border-start border-4 border-primary shadow-sm">
-                                <label class="form-label small fw-bold text-primary mb-1">PLAN DE SERVICIO PARA ESTE EQUIPO</label>
-                                <select wire:model="package_id" class="form-select border-0">
-                                    <option value="">-- Seleccionar Plan --</option>
-                                    @foreach($planesDisponibles as $p)
-                                        <option value="{{ $p->id }}">{{ $p->name }} ({{ $p->limit_routers }} routers máx.)</option>
-                                    @endforeach
-                                </select>
-                                @error('package_id') <small class="text-danger">Seleccione un plan para continuar.</small> @enderror
+                        <div class="col-12">
+                            <div class="bg-primary bg-opacity-10 p-3 rounded-4 border-start border-4 border-primary mb-2">
+                                <label class="form-label small fw-bold text-primary mb-1">PLAN DE MEMBRESÍA DEL NODO</label>
+                                
+                                {{-- INPUT GROUP CON EL BOTÓN DE ELIMINAR --}}
+                                <div class="input-group">
+                                    <select wire:model="package_id" id="package_select" class="form-select border-0 shadow-sm">
+                                        <option value="">-- Seleccionar Plan --</option>
+                                        @foreach($packages as $p)
+                                            <option value="{{ $p->id }}">{{ $p->name }} (Límite: {{ $p->limit_routers }} routers)</option>
+                                        @endforeach
+                                    </select>
+                                    @if($package_id)
+                                        <button 
+                                            type="button" 
+                                            wire:click="removePackage" 
+                                            onclick="confirm('¿Estás seguro de quitar el plan? Se liberará un cupo del aliado.') || event.stopImmediatePropagation()"
+                                            class="btn btn-danger border-0 shadow-sm px-3" 
+                                            title="Desvincular Plan"
+                                        >
+                                            <i class="bi bi-trash-fill"></i>
+                                        </button>
+                                    @endif
+                                </div>
+
+                                @if($packages->isEmpty())
+                                    <small class="text-danger d-block mt-1">Este aliado no posee planes activos.</small>
+                                @endif
+                                @error('package_id') <small class="text-danger">Debe asignar un plan.</small> @enderror
                             </div>
                         </div>
 
-                        {{-- Conexión --}}
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted">IP / HOST LOCAL</label>
-                            <input type="text" wire:model.defer="ip" class="form-control rounded-3" placeholder="192.168.88.1">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted">DNS / DDNS CLOUD</label>
-                            <input type="text" wire:model.defer="dns" class="form-control rounded-3 border-primary" placeholder="sn.mynetname.net">
+                        <div class="col-12">
+                            <div class="bg-light p-3 rounded-4 border-start border-4 {{ $status === 'Habilitado' ? 'border-success' : ($status === 'Mantenimiento' ? 'border-warning' : 'border-danger') }}">
+                                <div class="row align-items-center">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold text-dark mb-1">ESTADO OPERATIVO</label>
+                                        <select wire:model="status" class="form-select border-0 shadow-sm">
+                                            <option value="Habilitado">🟢 Habilitado (Online)</option>
+                                            <option value="Mantenimiento">🟠 Mantenimiento (Offline)</option>
+                                            <option value="Suspendido">🔴 Suspendido (Offline)</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 text-center">
+                                        <span class="badge {{ $status === 'Habilitado' ? 'bg-success' : ($status === 'Mantenimiento' ? 'bg-warning' : 'bg-danger') }} px-3 py-2 rounded-pill text-uppercase">
+                                            {{ $status }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        {{-- Datos de Red --}}
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-muted">PUERTO API</label>
-                            <input type="number" wire:model.defer="api_port" class="form-control rounded-3">
+                        <div class="col-md-6 mt-4">
+                            <label class="form-label small fw-bold text-muted">ALIADO PROPIETARIO</label>
+                            <select wire:model="user_id" class="form-select bg-light">
+                                <option value="">Seleccione...</option>
+                                @foreach($aliados as $a) <option value="{{ $a->id }}">{{ $a->name }}</option> @endforeach
+                            </select>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-6 mt-4">
+                            <label class="form-label small fw-bold text-muted">IDENTIDAD MK</label>
+                            <input type="text" wire:model.defer="identity" class="form-control">
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted">IP / HOST</label>
+                            <input type="text" wire:model.defer="ip" class="form-control">
+                        </div>
+                        <div class="col-md-3">
                             <label class="form-label small fw-bold text-muted">MAC ADDRESS</label>
-                            <input type="text" wire:model.defer="macAddress" class="form-control rounded-3" placeholder="AA:BB:CC:DD:EE:FF">
+                            <input type="text" wire:model.defer="macAddress" class="form-control">
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-muted">UBICACIÓN</label>
-                            <input type="text" wire:model.defer="location" class="form-control rounded-3">
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted">API PORT</label>
+                            <input type="number" wire:model.defer="api_port" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted text-primary">UBICACIÓN</label>
+                            <input type="text" wire:model.defer="location" class="form-control border-primary border-opacity-25">
                         </div>
 
-                        {{-- Credenciales --}}
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-muted">USUARIO API</label>
-                            <input type="text" wire:model.defer="admin" class="form-control rounded-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">ADMIN API/FTP</label>
+                            <input type="text" wire:model.defer="admin" class="form-control">
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-muted">PASSWORD API</label>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">PASSWORD API/FTP</label>
                             <div class="input-group">
-                                <input type="{{ $showPassword ? 'text' : 'password' }}" wire:model.defer="password" class="form-control rounded-3">
-                                <button type="button" class="btn btn-outline-secondary" wire:click="togglePassword">
+                                <input type="{{ $showPassword ? 'text' : 'password' }}" wire:model.defer="password" class="form-control">
+                                <button class="btn btn-outline-secondary" type="button" wire:click="togglePassword">
                                     <i class="bi bi-{{ $showPassword ? 'eye-slash' : 'eye' }}"></i>
                                 </button>
                             </div>
                         </div>
-                        <div class="col-md-4 d-flex align-items-end">
-                            <button type="button" wire:click="testConnection" class="btn btn-info w-100 fw-bold rounded-3 text-white shadow-sm">
-                                <i class="bi bi-lightning-charge me-1"></i> TEST API
-                            </button>
-                        </div>
-                        
-                        <hr class="my-4 text-muted">
 
-                        {{-- Datos Comerciales --}}
+                        <hr class="my-3">
+                        
                         <div class="col-md-6">
-                            <label class="form-label small fw-bold text-primary">NOMBRE COMERCIO</label>
-                            <input type="text" wire:model.defer="comercio_nombre" class="form-control rounded-3 border-primary border-opacity-25">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted">IDENTIDAD (MK)</label>
-                            <input type="text" wire:model="identity" class="form-control bg-light rounded-3 fw-bold" readonly>
-                        </div>
-                        <div class="col-md-8">
-                            <label class="form-label small fw-bold text-muted">URL PORTAL (Hotspot DNS)</label>
-                            <input type="text" wire:model.defer="hotspot_url" class="form-control rounded-3" placeholder="portal.wifi">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-primary">VERSIÓN HOTSPOT</label>
-                            <select wire:model.defer="hotspot_version_id" class="form-select border-primary border-opacity-25">
-                                <option value="">Seleccione...</option>
-                                @foreach($hotspotVersions as $v)
-                                    <option value="{{ $v->id }}">{{ $v->name }}</option>
+                            <label class="form-label small fw-bold text-primary">VERSIÓN DEL PORTAL</label>
+                            <select wire:model.defer="hotspot_version_id" class="form-select border-primary border-opacity-50 shadow-sm">
+                                <option value="">-- Seleccionar Versión --</option>
+                                @foreach($hotspotVersions as $version)
+                                    <option value="{{ $version->id }}">{{ $version->name }}</option>
                                 @endforeach
                             </select>
                         </div>
-                    </div>
 
-                    @if(session()->has("test_message"))
-                        <div class="alert alert-success mt-3 mb-0 py-2 small fw-bold">{{ session("test_message") }}</div>
-                    @endif
-                    @if(session()->has("test_error"))
-                        <div class="alert alert-danger mt-3 mb-0 py-2 small fw-bold">{{ session("test_error") }}</div>
-                    @endif
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-primary">NOMBRE COMERCIAL</label>
+                            <input type="text" wire:model.defer="comercio_nombre" class="form-control border-primary border-opacity-50 shadow-sm">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">URL PORTAL</label>
+                            <input type="text" wire:model.defer="hotspot_url" class="form-control bg-light">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">DNS CLOUD (OPCIONAL)</label>
+                            <input type="text" wire:model.defer="dns" class="form-control bg-light">
+                        </div>
+                    </div>
                 </div>
-                <div class="modal-footer bg-light p-4">
-                    <button type="button" wire:click="closeModal" class="btn btn-light rounded-pill px-4 fw-bold">Cerrar</button>
-                    <button type="button" wire:click="store" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">
-                        {{ $router_id ? 'ACTUALIZAR ROUTER' : 'GUARDAR ROUTER' }}
-                    </button>
+                <div class="modal-footer bg-light border-0 p-4">
+                    <button wire:click="closeModal" class="btn btn-secondary rounded-pill px-4">Cancelar</button>
+                    <button wire:click.prevent="store" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">GUARDAR CAMBIOS</button>
                 </div>
             </div>
         </div>
