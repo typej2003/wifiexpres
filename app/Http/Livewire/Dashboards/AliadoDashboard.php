@@ -15,8 +15,9 @@ use Carbon\Carbon;
 class AliadoDashboard extends Component
 {
     public $showPlanModal = false;
-    public $periodo = 'semana'; // Sincronizado con tu lógica de gráficos
+    public $periodo = 'semana'; 
     public $fecha_desde, $fecha_hasta;
+    public $router_id = ''; 
 
     public function mount()
     {
@@ -64,7 +65,7 @@ class AliadoDashboard extends Component
         ]);
 
         $this->showPlanModal = false;
-        session()->flash('message', '¡Solicitud enviada!');
+        session()->flash('message', '¡Solicitud enviada! Tu plan se activará pronto.');
     }
 
     public function openModal() { $this->showPlanModal = true; }
@@ -79,7 +80,7 @@ class AliadoDashboard extends Component
         $desde = Carbon::parse($this->fecha_desde)->startOfDay();
         $hasta = Carbon::parse($this->fecha_hasta)->endOfDay();
 
-        // 1. Generar etiquetas del eje X
+        // 1. Eje X
         $labels = [];
         $temp = clone $desde;
         while ($temp <= $hasta) {
@@ -87,18 +88,22 @@ class AliadoDashboard extends Component
             $temp->addDay();
         }
 
-        // 2. Consulta de logs
-        $logs = TicketLog::whereIn('router_id', $routerIds)
-            ->whereBetween('created_at', [$desde, $hasta])
+        // 2. Datos
+        $logsQuery = TicketLog::whereIn('router_id', $routerIds)
+            ->whereBetween('created_at', [$desde, $hasta]);
+        
+        $logs = (clone $logsQuery)
             ->select(DB::raw('DATE(created_at) as fecha'), 'router_id', DB::raw('count(*) as total'))
             ->groupBy('fecha', 'router_id')
             ->get();
 
-        // 3. Construir Datasets
+        // 3. Datasets
         $colores = ['#0d6efd', '#198754', '#ffc107', '#0dcaf0', '#6610f2', '#fd7e14', '#dc3545', '#20c997'];
         $datasets = [];
 
         foreach ($misRouters as $index => $router) {
+            if (!empty($this->router_id) && $this->router_id != $router->id) continue;
+
             $dataValues = [];
             foreach ($labels as $label) {
                 $val = $logs->where('fecha', $label)->where('router_id', $router->id)->first();
@@ -109,16 +114,10 @@ class AliadoDashboard extends Component
                 'data' => $dataValues,
                 'backgroundColor' => $colores[$index % count($colores)],
                 'borderRadius' => 5,
-                'barPercentage' => 0.8,
-                'categoryPercentage' => 0.8
             ];
         }
 
-        // Emitir evento para el gráfico
-        $this->dispatchBrowserEvent('updateMultiChart', [
-            'labels' => $labels,
-            'datasets' => $datasets,
-        ]);
+        $this->dispatchBrowserEvent('updateMultiChart', ['labels' => $labels, 'datasets' => $datasets]);
 
         $activePlans = $user->packages()->wherePivot('status', 'active')->wherePivot('end_date', '>=', now())->get();
 
@@ -134,10 +133,13 @@ class AliadoDashboard extends Component
                 'tickets_activos' => Ticket::whereIn('router_id', $routerIds)->where('estado', 'activo')->count(),
                 'conexiones_periodo' => $logs->sum('total'),
             ],
+            'topUsuarios' => (clone $logsQuery)
+                ->select('username', DB::raw('count(*) as total_conexiones'), DB::raw('sum(duration_seconds) as tiempo_total'))
+                ->groupBy('username')->orderBy('total_conexiones', 'desc')->take(5)->get(),
+            'ultimosLogs' => TicketLog::with('router')->whereIn('router_id', $routerIds)->latest()->take(8)->get(),
+            'dollarRate' => ExchangeRateService::getBcvRate(),
             'labels' => $labels,
-            'datasets' => $datasets,
-            'ultimosLogs' => TicketLog::with('router')->whereIn('router_id', $routerIds)->latest()->take(10)->get(),
-            'dollarRate' => ExchangeRateService::getBcvRate()
+            'datasets' => $datasets
         ])->layout('layouts.app');
     }
 }
