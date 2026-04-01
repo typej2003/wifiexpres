@@ -115,7 +115,9 @@
                                 <select wire:model="package_id" class="form-select border-0 shadow-sm">
                                     <option value="">-- Seleccionar Plan --</option>
                                     @foreach($packages as $p)
-                                        <option value="{{ $p->id }}">{{ $p->name }} (Cupos contratados: {{ $p->pivot->allowed_routers }})</option>
+                                        <option value="{{ $p->id }}">
+                                            {{ $p->name }} (Cupos contratados: {{ $p->pivot->allowed_routers }})
+                                        </option>
                                     @endforeach
                                 </select>
                             </div>
@@ -123,12 +125,12 @@
 
                         <div class="col-md-6 mt-3">
                             <label class="form-label small fw-bold text-muted">IDENTIDAD MK</label>
-                            <input type="text" wire:model.defer="identity" class="form-control bg-light border-0" placeholder="Nombre identificador">
+                            <input type="text" wire:model.defer="identity" class="form-control bg-light border-0">
                         </div>
 
                         <div class="col-md-6 mt-3">
                             <label class="form-label small fw-bold text-muted">MAC ADDRESS</label>
-                            <input type="text" wire:model.defer="macAddress" class="form-control bg-light border-0" placeholder="00:00:00:00:00:00">
+                            <input type="text" wire:model.defer="macAddress" class="form-control bg-light border-0">
                         </div>
 
                         <div class="col-md-12">
@@ -143,7 +145,7 @@
 
                         <div class="col-md-12">
                             <label class="form-label small fw-bold text-muted">UBICACIÓN FÍSICA</label>
-                            <input type="text" wire:model.defer="location" class="form-control bg-light border-0" placeholder="Dirección del comercio">
+                            <input type="text" wire:model.defer="location" class="form-control bg-light border-0">
                         </div>
                     </div>
                 </div>

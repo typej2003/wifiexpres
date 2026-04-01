@@ -5,7 +5,6 @@ namespace App\Http\Livewire\Mikrotik\Aliado;
 use Livewire\Component;
 use App\Models\Router;
 use App\Models\Package;
-use App\Models\HotspotVersion;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 
@@ -13,7 +12,10 @@ class ListRouters extends Component
 {
     public $isModalOpen = false;
     public $router_id, $identity, $macAddress, $location, $comercio_nombre;
-    public $hotspot_url, $hotspot_version_id, $status, $package_id;
+    public $hotspot_url, $package_id;
+    
+    // Propiedades heredadas para mantener la integridad del registro
+    public $status, $hotspot_version_id;
     
     public $routerStatus = [];
 
@@ -22,13 +24,13 @@ class ListRouters extends Component
         $user = Auth::user();
         
         $routers = Router::where("user_id", $user->id)
-                    ->with(['package', 'hotspotVersion'])
+                    ->with(['package'])
                     ->latest()
                     ->get();
 
-        // Obtenemos los planes desde la relación pivote del Aliado
+        // IMPORTANTE: Ajustado a 'active' según el estándar de tu modelo User
         $packages = $user->packages()
-                        ->wherePivot('status', 'activo')
+                        ->wherePivot('status', 'active')
                         ->get();
 
         $this->refreshStatus();
@@ -64,10 +66,13 @@ class ListRouters extends Component
         $user = Auth::user();
 
         if (!$this->router_id) {
-            $planContratado = $user->packages()->where('package_id', $this->package_id)->first();
+            $planContratado = $user->packages()
+                                  ->where('package_id', $this->package_id)
+                                  ->wherePivot('status', 'active')
+                                  ->first();
             
             if (!$planContratado) {
-                session()->flash("error", "No tienes este plan asignado.");
+                session()->flash("error", "No posees este plan activo en tu suscripción.");
                 return;
             }
 
@@ -76,7 +81,7 @@ class ListRouters extends Component
                                 ->count();
 
             if ($totalActual >= $planContratado->pivot->allowed_routers) {
-                session()->flash("error", "Límite alcanzado en este plan ({$planContratado->pivot->allowed_routers}).");
+                session()->flash("error", "Cupos agotados. Límite: {$planContratado->pivot->allowed_routers} equipos.");
                 return;
             }
         }
@@ -88,12 +93,11 @@ class ListRouters extends Component
             "macAddress"         => $this->macAddress,
             "location"           => $this->location,
             "comercio_nombre"    => $this->comercio_nombre,
-            // Valores protegidos (no editables por aliado, se mantienen los existentes o defaults)
             "status"             => $this->status ?? 'Habilitado',
             "hotspot_version_id" => $this->hotspot_version_id ?? 1,
         ]);
 
-        session()->flash("message", "Router guardado correctamente.");
+        session()->flash("message", "Operación realizada con éxito.");
         $this->closeModal();
     }
 
