@@ -17,7 +17,7 @@
             </div>
         </div>
         <div class="col-md-6 text-end">
-            <div class="bg-white p-2 px-3 rounded-4 shadow-sm border d-inline-block text-start me-2">
+            <div class="bg-white p-2 px-3 rounded-4 shadow-sm border d-inline-block text-start">
                 <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.6rem;">Capacidad Routers</small>
                 <span class="fw-bold {{ $stats['total_routers'] >= $stats['limit_routers'] ? 'text-danger' : 'text-primary' }}">
                     {{ $stats['total_routers'] }} / {{ $stats['limit_routers'] }}
@@ -26,47 +26,14 @@
         </div>
     </div>
 
-    {{-- FILTROS DINÁMICOS --}}
-    <div class="card border-0 shadow-sm rounded-4 mb-4">
-        <div class="card-body p-3">
-            <div class="row g-3 align-items-end">
-                <div class="col-md-3">
-                    <label class="small fw-bold text-muted mb-1">EQUIPO</label>
-                    <select wire:model="router_id" class="form-select border-0 bg-light rounded-3 shadow-none">
-                        <option value="">📊 Todos los Routers</option>
-                        @foreach($routers as $r)
-                            <option value="{{ $r->id }}">{{ $r->identity }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="small fw-bold text-muted mb-1">RANGO</label>
-                    <select wire:model="periodo" class="form-select border-0 bg-light rounded-3 shadow-none">
-                        <option value="dia">Hoy</option>
-                        <option value="semana">Semana</option>
-                        <option value="mes">Mes</option>
-                        <option value="personalizado">Personalizado</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="small fw-bold text-muted mb-1">DESDE</label>
-                    <input type="date" wire:model="fecha_desde" class="form-control border-0 bg-light rounded-3 shadow-none" {{ $periodo != 'personalizado' ? 'disabled' : '' }}>
-                </div>
-                <div class="col-md-2">
-                    <label class="small fw-bold text-muted mb-1">HASTA</label>
-                    <input type="date" wire:model="fecha_hasta" class="form-control border-0 bg-light rounded-3 shadow-none" {{ $periodo != 'personalizado' ? 'disabled' : '' }}>
-                </div>
-                <div class="col-md-3 text-end">
-                    <button wire:click="openModal" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm w-100">
-                        <i class="bi bi-plus-circle me-1"></i> GESTIONAR PLANES
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {{-- TABLA DE PLANES ACTIVOS --}}
+    {{-- 1. SECCIÓN DE PLANES (AHORA ARRIBA) --}}
     <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+            <h6 class="fw-bold mb-0"><i class="bi bi-shield-check text-primary me-2"></i>Mi Suscripción Activa</h6>
+            <button wire:click="openModal" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm">
+                <i class="bi bi-plus-circle me-1"></i> GESTIONAR PLANES
+            </button>
+        </div>
         <div class="table-responsive">
             <table class="table align-middle mb-0">
                 <thead class="bg-light small fw-bold">
@@ -79,7 +46,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($activePlans as $plan)
+                    @forelse($activePlans as $plan)
                     <tr>
                         <td class="ps-4 fw-bold">{{ $plan->name }}</td>
                         <td><span class="badge bg-primary rounded-pill">{{ strtoupper($plan->service_type) }}</span></td>
@@ -87,41 +54,79 @@
                         <td>{{ \Carbon\Carbon::parse($plan->pivot->end_date)->format('d/m/Y') }}</td>
                         <td class="text-end pe-4"><span class="badge bg-success rounded-pill px-3">Activo</span></td>
                     </tr>
-                    @endforeach
+                    @empty
+                    <tr>
+                        <td colspan="5" class="text-center py-3 text-muted small">No posees planes activos actualmente.</td>
+                    </tr>
+                    @endforelse
                 </tbody>
             </table>
         </div>
     </div>
 
-    {{-- STATS CARDS --}}
+    {{-- 2. FILTROS DINÁMICOS --}}
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-body p-3">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="small fw-bold text-muted mb-1 text-uppercase">Equipo / Router</label>
+                    <select wire:model="router_id" class="form-select border-0 bg-light rounded-3 shadow-none">
+                        <option value="">📊 Todos los Routers</option>
+                        @foreach($routers as $r)
+                            <option value="{{ $r->id }}">{{ $r->identity }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="small fw-bold text-muted mb-1 text-uppercase">Rango</label>
+                    <select wire:model="periodo" class="form-select border-0 bg-light rounded-3 shadow-none">
+                        <option value="dia">Hoy</option>
+                        <option value="semana">Semana</option>
+                        <option value="mes">Mes</option>
+                        <option value="personalizado">Personalizado</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="small fw-bold text-muted mb-1 text-uppercase">Desde</label>
+                    <input type="date" wire:model="fecha_desde" class="form-control border-0 bg-light rounded-3 shadow-none" {{ $periodo != 'personalizado' ? 'disabled' : '' }}>
+                </div>
+                <div class="col-md-3">
+                    <label class="small fw-bold text-muted mb-1 text-uppercase">Hasta</label>
+                    <input type="date" wire:model="fecha_hasta" class="form-control border-0 bg-light rounded-3 shadow-none" {{ $periodo != 'personalizado' ? 'disabled' : '' }}>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- 3. STATS CARDS --}}
     <div class="row g-4 mb-4">
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white">
-                <h6 class="text-muted small fw-bold">ROUTERS</h6>
+            <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white h-100">
+                <h6 class="text-muted small fw-bold text-uppercase">Routers</h6>
                 <h2 class="fw-bold mb-0">{{ $stats['total_routers'] }}</h2>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white">
-                <h6 class="text-muted small fw-bold">TICKETS TOTAL</h6>
+            <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white h-100">
+                <h6 class="text-muted small fw-bold text-uppercase">Tickets Total</h6>
                 <h2 class="fw-bold mb-0 text-info">{{ $stats['total_tickets'] }}</h2>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white">
-                <h6 class="text-muted small fw-bold">ONLINE</h6>
+            <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white h-100">
+                <h6 class="text-muted small fw-bold text-uppercase">Online</h6>
                 <h2 class="fw-bold mb-0 text-success">{{ $stats['tickets_activos'] }}</h2>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white">
-                <h6 class="text-muted small fw-bold">SESIONES FILTRO</h6>
+            <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white h-100">
+                <h6 class="text-muted small fw-bold text-uppercase">Sesiones Filtro</h6>
                 <h2 class="fw-bold mb-0 text-primary">{{ number_format($stats['conexiones_periodo']) }}</h2>
             </div>
         </div>
     </div>
 
-    {{-- GRÁFICA Y TOP USUARIOS --}}
+    {{-- 4. GRÁFICA Y TOP USUARIOS --}}
     <div class="row g-4">
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
@@ -146,7 +151,7 @@
                 @endforeach
             </div>
 
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-50">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden" style="height: calc(100% - 215px);">
                 <div class="card-header bg-white border-0 pt-3">
                     <h6 class="fw-bold mb-0">Actividad Reciente</h6>
                 </div>
@@ -201,7 +206,9 @@
 <script>
     let multiChart;
     function renderMultiChart(labels, datasets) {
-        const ctx = document.getElementById('multiBarChart').getContext('2d');
+        const canvas = document.getElementById('multiBarChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
         if (multiChart) multiChart.destroy();
         multiChart = new Chart(ctx, {
             type: 'bar',
