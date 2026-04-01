@@ -1,19 +1,25 @@
 <div class="container-fluid py-4">
+    <div class="row mb-3">
+        <div class="col-12">
+            <h4 class="fw-bold"><i class="bi bi-graph-up-arrow text-primary me-2"></i>Análisis de Tráfico de Red</h4>
+        </div>
+    </div>
+
     <div class="card border-0 shadow-sm rounded-4 mb-4">
         <div class="card-body p-4">
             <div class="row g-3 align-items-end">
                 <div class="col-md-3">
-                    <label class="small fw-bold text-muted mb-1 text-uppercase">Router</label>
+                    <label class="small fw-bold text-muted mb-1 text-uppercase">Equipo / Router</label>
                     <select wire:model="router_id" class="form-select border-secondary-subtle shadow-none">
-                        <option value="">📊 Comparativa Todos</option>
+                        <option value="">📊 Todos los Equipos</option>
                         @foreach($routers as $r)
                             <option value="{{ $r->id }}">📍 {{ $r->identity }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <label class="small fw-bold text-muted mb-1 text-uppercase">Periodo</label>
-                    <select wire:model="periodo" class="form-select border-secondary-subtle shadow-none text-primary fw-bold">
+                    <label class="small fw-bold text-muted mb-1 text-uppercase">Rango</label>
+                    <select wire:model="periodo" class="form-select border-secondary-subtle shadow-none fw-bold">
                         <option value="dia">Hoy</option>
                         <option value="semana">Última Semana</option>
                         <option value="mes">Último Mes</option>
@@ -29,8 +35,8 @@
                     <input type="date" wire:model="fecha_hasta" class="form-control border-secondary-subtle shadow-none" {{ $periodo != 'personalizado' ? 'disabled' : '' }}>
                 </div>
                 <div class="col-md-3 text-end">
-                    <div class="p-2 bg-primary-subtle rounded-3 d-inline-block">
-                        <small class="text-primary d-block fw-bold">TOTAL SESIONES</small>
+                    <div class="p-2 bg-light border rounded-3 d-inline-block w-100">
+                        <small class="text-muted d-block fw-bold">TOTAL SESIONES</small>
                         <h4 class="text-primary mb-0 fw-bold">{{ number_format($totalPeriodo) }}</h4>
                     </div>
                 </div>
@@ -66,19 +72,46 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index',
+                },
                 plugins: {
-                    legend: { position: 'bottom', labels: { usePointStyle: true, padding: 25 } },
-                    tooltip: { mode: 'index', intersect: false, padding: 15 }
+                    legend: { 
+                        position: 'bottom', 
+                        labels: { usePointStyle: true, padding: 25, font: { size: 12 } } 
+                    },
+                    tooltip: {
+                        padding: 15,
+                        backgroundColor: 'rgba(20, 20, 20, 0.9)',
+                        titleFont: { size: 14 },
+                        bodyFont: { size: 13 },
+                        cornerRadius: 10
+                    }
                 },
                 scales: {
-                    y: { beginAtZero: true, grid: { color: '#f5f5f5' } },
-                    x: { grid: { display: false } }
+                    y: { 
+                        beginAtZero: true, 
+                        grid: { color: '#f0f0f0', drawBorder: false },
+                        ticks: { font: { size: 11 } }
+                    },
+                    x: { 
+                        grid: { display: false },
+                        ticks: { font: { weight: 'bold' } }
+                    }
                 }
             }
         });
     }
 
-    document.addEventListener('DOMContentLoaded', () => renderMultiChart(@json($labels ?? []), @json($datasets ?? [])));
-    window.addEventListener('updateMultiChart', event => renderMultiChart(event.detail.labels, event.detail.datasets));
+    // Carga inicial al entrar a la página
+    document.addEventListener('DOMContentLoaded', () => {
+        renderMultiChart(@json($labels), @json($datasets));
+    });
+
+    // Actualización dinámica cuando cambian los filtros
+    window.addEventListener('updateMultiChart', event => {
+        renderMultiChart(event.detail.labels, event.detail.datasets);
+    });
 </script>
 @endpush
