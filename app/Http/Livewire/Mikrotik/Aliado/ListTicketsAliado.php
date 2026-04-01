@@ -120,8 +120,6 @@ class ListTicketsAliado extends Component
         }
 
         $cantidadAProcesar = min($this->bulk_chunk_size, $restantes);
-        
-        // Obtenemos info del plan para costo y session_timeout
         $planInfo = Plan::where('mikrotik_profile', $this->bulk_plan)
                         ->where('router_id', $this->selectedRouter)
                         ->first();
@@ -132,7 +130,6 @@ class ListTicketsAliado extends Component
         }
 
         $planLower = strtolower($planInfo->name);
-        // REGLA: Neutro, Cortesía, Trial o Gratis -> Costo 0
         $costoFinal = preg_match('/neutro|cortesia|trial|gratis/i', $planLower) ? 0 : $planInfo->price;
         $limitUptime = $planInfo->session_timeout ?? '0s';
 
@@ -149,21 +146,21 @@ class ListTicketsAliado extends Component
             $identityStr = "{$this->selectedRouter}-{$this->bulk_last_lote}-{$secStr}";
             $passStr = (string)rand(10000, 99999);
 
-            // Se incluye limit-uptime en el comando para MikroTik
             $comandoInterno .= "/ip hotspot user add name=\"$identityStr\" password=\"$passStr\" profile=\"$this->bulk_plan\" limit-uptime=\"$limitUptime\" comment=\"Lote {$this->bulk_last_lote}\";\n";
             
             $insertData[] = [
-                'router_id'    => $this->selectedRouter,
-                'identity'     => $identityStr,
-                'username'     => $identityStr, 
-                'password'     => $passStr,
-                'plan'         => $planInfo->name, // Nombre comercial del plan
-                'costo'        => $costoFinal,
-                'estado'       => 'disponible',
-                'tiempo_uso'   => $limitUptime, // Sincronizado con session_timeout
-                'sincronizado' => true,
-                'created_at'   => Carbon::now(),
-                'updated_at'   => Carbon::now()
+                'router_id'        => $this->selectedRouter,
+                'identity'         => $identityStr,
+                'username'         => $identityStr, 
+                'password'         => $passStr,
+                'plan'             => $planInfo->name,
+                'costo'            => $costoFinal,
+                'estado'           => 'disponible',
+                'tiempo_consumido' => '0s', // Valor inicial para tickets nuevos
+                'tiempo_uso'       => $limitUptime,
+                'sincronizado'     => true,
+                'created_at'       => Carbon::now(),
+                'updated_at'       => Carbon::now()
             ];
         }
 
@@ -182,7 +179,7 @@ class ListTicketsAliado extends Component
             }
         } else {
             $this->bulk_step = 'continue';
-            session()->flash('error', 'El MikroTik no confirmó la creación. Reintente el bloque.');
+            session()->flash('error', 'El MikroTik no confirmó la creación.');
         }
     }
 
@@ -191,7 +188,7 @@ class ListTicketsAliado extends Component
         $this->isBulkModalOpen = false;
         $this->bulk_current_count = 0;
         $this->bulk_total_requested = 0;
-        session()->flash('message', 'Lote de tickets generado exitosamente.');
+        session()->flash('message', 'Lote generado exitosamente.');
     }
 
     public function syncPendingTickets()
@@ -205,7 +202,7 @@ class ListTicketsAliado extends Component
                    ":local n [/ip hotspot user get \$i name]; " .
                    ":local p [/ip hotspot user get \$i password]; " .
                    ":local pr [/ip hotspot user get \$i profile]; " .
-                   ":local u [/ip hotspot user get \$i uptime]; " .
+                   ":local u [/ip hotspot user get \$i uptime]; " . // Obtenemos el uptime de MikroTik
                    ":local c [/ip hotspot user get \$i comment]; " .
                    ":set res (\$res . \$n . \",\" . \$p . \",\" . \$pr . \",\" . \$u . \",\" . \$c . \"|\"); " .
                    "}; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\$res keep-result=no;";
@@ -226,9 +223,10 @@ class ListTicketsAliado extends Component
                 $mikrotikUsernames[] = $uName;
 
                 $profileName = $p[2];
+                $uptimeReal = $p[3] ?: '0s'; // VALOR REAL DE MikroTik
+                
                 $planData = $planesCache->get($profileName);
                 
-                // Lógica de costo y tiempo para la sincronización
                 $costoSync = 0;
                 $tiempoUsoSync = '0s';
                 $nombrePlanSync = $profileName;
@@ -236,7 +234,7 @@ class ListTicketsAliado extends Component
                 if ($planData) {
                     $nombrePlanSync = $planData->name;
                     $planLower = strtolower($planData->name);
-                    $esGratis = preg_match('/neutro|cortesia|trial|gratis/i', $planLower) || $planLower === 'default';
+                    $esGratis = preg_match('/neutro|cortesia|trial|gratis/i', $planLower);
                     $costoSync = $esGratis ? 0 : $planData->price;
                     $tiempoUsoSync = $planData->session_timeout ?? '0s';
                 }
@@ -247,21 +245,21 @@ class ListTicketsAliado extends Component
                 Ticket::updateOrCreate(
                     ['router_id' => $this->selectedRouter, 'username' => $uName],
                     [
-                        'password' => $p[1] ?? '',
-                        'plan' => $nombrePlanSync,
-                        'costo' => $costoSync,
-                        'identity' => $nuevoIdentity,
-                        'tiempo_consumido' => $p[3] ?: '0s',
-                        'tiempo_uso' => $tiempoUsoSync,
-                        'sincronizado' => true,
-                        'estado' => ($p[3] !== '0s' && $p[3] !== '') ? 'en_uso' : 'disponible'
+                        'password'         => $p[1] ?? '',
+                        'plan'             => $nombrePlanSync,
+                        'costo'            => $costoSync,
+                        'identity'         => $nuevoIdentity,
+                        'tiempo_consumido' => $uptimeReal, // Se guarda el string tal cual viene del router
+                        'tiempo_uso'       => $tiempoUsoSync,
+                        'sincronizado'     => true,
+                        'estado'           => ($uptimeReal !== '0s' && $uptimeReal !== '') ? 'en_uso' : 'disponible'
                     ]
                 );
             }
             Ticket::where('router_id', $this->selectedRouter)->whereNotIn('username', $mikrotikUsernames)->delete();
             session()->flash('message', 'Sincronización finalizada.');
         } else {
-            session()->flash('error', 'No se recibió respuesta del router.');
+            session()->flash('error', 'Error en la respuesta del router.');
         }
         $this->showOverlay = false; 
     }
@@ -317,7 +315,6 @@ class ListTicketsAliado extends Component
         $ticket = Ticket::find($id);
         if (!$ticket) return;
         
-        // Buscamos el plan original para obtener su perfil técnico de MikroTik
         $plan = Plan::where('name', $ticket->plan)->where('router_id', $this->selectedRouter)->first();
         $profile = $plan ? $plan->mikrotik_profile : $ticket->plan;
         $limitUptime = $plan ? $plan->session_timeout : '0s';
