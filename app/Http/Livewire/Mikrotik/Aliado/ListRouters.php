@@ -35,15 +35,15 @@ class ListRouters extends Component
 
         $hotspotVersions = HotspotVersion::all();
         
-        // Filtramos planes activos para el aliado
-        $planesDisponibles = Package::where('is_active', true)->get();
+        // Obtenemos los planes disponibles (renombrado para coincidir con la vista)
+        $packages = Package::where('is_active', true)->get();
 
         $this->refreshStatus();
 
         return view("livewire.mikrotik.aliado.list-routers", [
             "routers" => $routers,
             "hotspotVersions" => $hotspotVersions,
-            "planesDisponibles" => $planesDisponibles
+            "packages" => $packages
         ]);
     }
 
@@ -58,7 +58,7 @@ class ListRouters extends Component
                 $this->routerStatus[$r->id] = in_array($r->macAddress, $activeMacs);
             }
         } catch (\Exception $e) {
-            // Silencioso para evitar interrupciones en la UI
+            // Error silencioso
         }
     }
 
@@ -79,7 +79,7 @@ class ListRouters extends Component
                                 ->count();
 
             if ($totalActual >= $plan->limit_routers) {
-                session()->flash("test_error", "Límite alcanzado: Este plan solo permite {$plan->limit_routers} routers.");
+                session()->flash("error", "Límite alcanzado: Este plan solo permite {$plan->limit_routers} routers.");
                 return;
             }
         }
@@ -96,7 +96,7 @@ class ListRouters extends Component
             "hotspot_version_id" => $this->hotspot_version_id,
         ]);
 
-        session()->flash("message", "Router guardado con éxito.");
+        session()->flash("message", "Router guardado correctamente.");
         $this->closeModal();
     }
 

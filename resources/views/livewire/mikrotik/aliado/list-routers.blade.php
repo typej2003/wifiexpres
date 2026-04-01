@@ -16,6 +16,13 @@
         </div>
     @endif
 
+    @if (session()->has('error'))
+        <div class="alert alert-danger border-0 shadow-sm rounded-4 mb-4 alert-dismissible fade show">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
+
     <div class="row">
         @forelse($routers as $r)
             @php $online = $routerStatus[$r->id] ?? false; @endphp
@@ -57,7 +64,7 @@
                         <div class="row g-2">
                             <div class="col-6">
                                 <button wire:click="edit({{ $r->id }})" class="btn btn-outline-secondary btn-sm w-100 rounded-pill fw-bold">
-                                    <i class="bi bi-pencil-square me-1"></i> EDITAR
+                                    <i class="bi bi-gear me-1"></i> CONFIG
                                 </button>
                             </div>
                             <div class="col-6">
@@ -85,70 +92,87 @@
 
     @if($isModalOpen)
     <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5); z-index: 1050; backdrop-filter: blur(4px);">
-        <div class="modal-dialog modal-md" style="margin-top: 5rem;">
+        <div class="modal-dialog modal-lg" style="margin-top: 5rem; margin-bottom: 5rem;">
             <div class="modal-content shadow-lg border-0 rounded-4">
                 <div class="modal-header bg-dark text-white p-4">
                     <h5 class="modal-title fw-bold">
-                        <i class="bi bi-{{ $router_id ? 'pencil-square' : 'plus-circle' }} me-2"></i>
-                        {{ $router_id ? 'EDITAR ROUTER' : 'NUEVO ROUTER' }}
+                        <i class="bi bi-cpu-fill me-2"></i>
+                        {{ $router_id ? 'CONFIGURACIÓN DEL NODO' : 'REGISTRAR NUEVO NODO' }}
                     </h5>
                     <button wire:click="closeModal" class="btn-close btn-close-white"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div class="row g-3">
+                        {{-- SECCIÓN DE PLAN --}}
                         <div class="col-12">
-                            <label class="form-label small fw-bold">PLAN DE MEMBRESÍA</label>
-                            <select wire:model="package_id" class="form-select bg-light border-0">
-                                <option value="">-- Seleccionar Plan --</option>
-                                @foreach($planesDisponibles as $p)
-                                    <option value="{{ $p->id }}">{{ $p->name }} (Máx: {{ $p->limit_routers }})</option>
-                                @endforeach
-                            </select>
-                            @error('package_id') <small class="text-danger">Seleccione un plan</small> @enderror
+                            <div class="bg-primary bg-opacity-10 p-3 rounded-4 border-start border-4 border-primary mb-2">
+                                <label class="form-label small fw-bold text-primary mb-1">PLAN DE MEMBRESÍA</label>
+                                <select wire:model="package_id" class="form-select border-0 shadow-sm">
+                                    <option value="">-- Seleccionar Plan --</option>
+                                    @foreach($packages as $p)
+                                        <option value="{{ $p->id }}">{{ $p->name }} (Límite: {{ $p->limit_routers }} routers)</option>
+                                    @endforeach
+                                </select>
+                                @error('package_id') <small class="text-danger">Debe asignar un plan.</small> @enderror
+                            </div>
                         </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">NOMBRE DEL NODO (IDENTITY)</label>
-                            <input type="text" wire:model.defer="identity" class="form-control" placeholder="Ej: Router_Centro">
+                        {{-- SECCIÓN ESTADO --}}
+                        <div class="col-12">
+                            <div class="bg-light p-3 rounded-4 border-start border-4 {{ $status === 'Habilitado' ? 'border-success' : 'border-danger' }}">
+                                <label class="form-label small fw-bold text-dark mb-1">ESTADO OPERATIVO</label>
+                                <select wire:model="status" class="form-select border-0 shadow-sm">
+                                    <option value="Habilitado">🟢 Habilitado (Activo)</option>
+                                    <option value="Mantenimiento">🟠 Mantenimiento (Inactivo)</option>
+                                    <option value="Suspendido">🔴 Suspendido (Inactivo)</option>
+                                </select>
+                            </div>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">MAC ADDRESS</label>
-                            <input type="text" wire:model.defer="macAddress" class="form-control" placeholder="AA:BB:CC:11:22:33">
+
+                        <div class="col-md-6 mt-3">
+                            <label class="form-label small fw-bold text-muted">IDENTIDAD MK</label>
+                            <input type="text" wire:model.defer="identity" class="form-control bg-light border-0" placeholder="Nombre identificador">
+                        </div>
+
+                        <div class="col-md-6 mt-3">
+                            <label class="form-label small fw-bold text-muted">MAC ADDRESS</label>
+                            <input type="text" wire:model.defer="macAddress" class="form-control bg-light border-0" placeholder="00:00:00:00:00:00">
                         </div>
 
                         <div class="col-12">
-                            <label class="form-label small fw-bold">NOMBRE DEL COMERCIO</label>
-                            <input type="text" wire:model.defer="comercio_nombre" class="form-control">
+                            <hr class="my-2">
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label small fw-bold">VERSIÓN HOTSPOT</label>
-                            <select wire:model.defer="hotspot_version_id" class="form-select">
-                                <option value="">-- Seleccionar --</option>
+                            <label class="form-label small fw-bold text-primary">VERSIÓN DEL PORTAL</label>
+                            <select wire:model.defer="hotspot_version_id" class="form-select border-primary border-opacity-25 shadow-sm">
+                                <option value="">-- Seleccionar Versión --</option>
                                 @foreach($hotspotVersions as $version)
                                     <option value="{{ $version->id }}">{{ $version->name }}</option>
                                 @endforeach
                             </select>
                         </div>
+
                         <div class="col-md-6">
-                            <label class="form-label small fw-bold">ESTADO</label>
-                            <select wire:model="status" class="form-select">
-                                <option value="Habilitado">Habilitado</option>
-                                <option value="Mantenimiento">Mantenimiento</option>
-                                <option value="Suspendido">Suspendido</option>
-                            </select>
+                            <label class="form-label small fw-bold text-primary">NOMBRE COMERCIAL</label>
+                            <input type="text" wire:model.defer="comercio_nombre" class="form-control border-primary border-opacity-25 shadow-sm">
                         </div>
 
-                        <div class="col-12">
-                            <label class="form-label small fw-bold text-muted">UBICACIÓN / DIRECCIÓN</label>
-                            <input type="text" wire:model.defer="location" class="form-control">
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold text-muted">URL PORTAL (LINK)</label>
+                            <input type="text" wire:model.defer="hotspot_url" class="form-control bg-light border-0" placeholder="https://miportal.com">
+                        </div>
+
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold text-muted">UBICACIÓN FÍSICA</label>
+                            <input type="text" wire:model.defer="location" class="form-control bg-light border-0" placeholder="Dirección del comercio o zona">
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-0 p-4">
                     <button wire:click="closeModal" class="btn btn-secondary rounded-pill px-4">Cancelar</button>
-                    <button wire:click.prevent="store" class="btn btn-primary rounded-pill px-4 fw-bold">
-                        {{ $router_id ? 'ACTUALIZAR' : 'GUARDAR EQUIPO' }}
+                    <button wire:click.prevent="store" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">
+                        <i class="bi bi-save me-1"></i> GUARDAR CAMBIOS
                     </button>
                 </div>
             </div>
