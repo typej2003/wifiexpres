@@ -116,7 +116,7 @@
 
     @if($isModalOpen)
     <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5); z-index: 9999; backdrop-filter: blur(4px);">
-        <div class="modal-dialog modal-lg modal-dialog-centered"> 
+        <div class="modal-dialog modal-lg modal-dialog-centered" style="margin-top: 6rem; margin-bottom: 5rem;"> 
             <div class="modal-content shadow-lg border-0 rounded-4">
                 <div class="modal-header bg-dark text-white p-4">
                     <h5 class="modal-title fw-bold"><i class="bi bi-gear-fill me-2"></i>DATOS TÉCNICOS DEL NODO</h5>
