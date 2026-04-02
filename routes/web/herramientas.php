@@ -6,6 +6,8 @@ use App\Http\Livewire\Mikrotik\Herramientas\Interfaces;
 
 use App\Http\Livewire\Mikrotik\Herramientas\UsersOnline;
 
+use App\Http\Livewire\Mikrotik\Herramientas\CambiarTrialUserprofile;
+
 Route::middleware(['auth', 'admin'])->group(function () {
     
     // ... otras rutas ...
@@ -15,6 +17,9 @@ Route::middleware(['auth', 'admin'])->group(function () {
             Route::get('/interfaces', Interfaces::class)->name('mikrotik.herramientas.interfaces');
         });
     });
+
+    Route::get('/mikrotik/herramientas/cambiar-trial', CambiarTrialUserprofile::class)
+        ->name('mikrotik.cambiar-trial');
 
 });
 

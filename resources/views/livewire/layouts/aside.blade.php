@@ -234,6 +234,14 @@
                 <span class="menu-text">Conf Remoto Detallada</span>
             </a>
 
+            <a class="sidebar-link {{ request()->routeIs('mikrotik.cambiar-trial') ? 'active bg-gradient-primary text-white' : '' }}" 
+            href="{{ route('mikrotik.cambiar-trial') }}">
+                <div class="icon icon-shape icon-sm border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                    <i class="bi bi-calendar-event {{ request()->routeIs('mikrotik.cambiar-trial') ? 'text-white' : 'text-primary' }} text-sm opacity-10"></i>
+                </div>
+                <span class="nav-link-text ms-1 text-uppercase">Cambiar Perfil Trial</span>
+            </a>
+
             <a class="sidebar-link {{ request()->routeIs('mikrotik.confdetallada') ? 'active' : '' }}" 
             href="{{ route('mikrotik.herramientas.interfaces') }}">
                 <i class="fas fa-network-wired"></i>
