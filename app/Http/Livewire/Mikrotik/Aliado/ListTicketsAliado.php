@@ -143,20 +143,27 @@ class ListTicketsAliado extends Component
         for ($i = 1; $i <= $cantidadAProcesar; $i++) {
             $posGlobal = $this->bulk_current_count + $i;
             $secStr = str_pad($posGlobal, 4, '0', STR_PAD_LEFT);
+            
+            // Mantenemos identity con guiones para lógica interna y de impresión
             $identityStr = "{$this->selectedRouter}-{$this->bulk_last_lote}-{$secStr}";
+            
+            // CREAMOS EL USERNAME SIN GUIONES (Solo números)
+            $usernameSinGuion = "{$this->selectedRouter}{$this->bulk_last_lote}{$secStr}";
+            
             $passStr = (string)rand(10000, 99999);
 
-            $comandoInterno .= "/ip hotspot user add name=\"$identityStr\" password=\"$passStr\" profile=\"$this->bulk_plan\" limit-uptime=\"$limitUptime\" comment=\"Lote {$this->bulk_last_lote}\";\n";
+            // IMPORTANTE: En MikroTik mandamos el name sin guiones
+            $comandoInterno .= "/ip hotspot user add name=\"$usernameSinGuion\" password=\"$passStr\" profile=\"$this->bulk_plan\" limit-uptime=\"$limitUptime\" comment=\"Lote {$this->bulk_last_lote}\";\n";
             
             $insertData[] = [
                 'router_id'        => $this->selectedRouter,
-                'identity'         => $identityStr,
-                'username'         => $identityStr, 
+                'identity'         => $identityStr, // El identity se queda con guiones para el LIKE del PDF
+                'username'         => $usernameSinGuion, // El username para loguearse no tiene guiones
                 'password'         => $passStr,
                 'plan'             => $planInfo->name,
                 'costo'            => $costoFinal,
                 'estado'           => 'disponible',
-                'tiempo_consumido' => '0s', // Valor inicial para tickets nuevos
+                'tiempo_consumido' => '0s',
                 'tiempo_uso'       => $limitUptime,
                 'sincronizado'     => true,
                 'created_at'       => Carbon::now(),
@@ -202,7 +209,7 @@ class ListTicketsAliado extends Component
                    ":local n [/ip hotspot user get \$i name]; " .
                    ":local p [/ip hotspot user get \$i password]; " .
                    ":local pr [/ip hotspot user get \$i profile]; " .
-                   ":local u [/ip hotspot user get \$i uptime]; " . // Obtenemos el uptime de MikroTik
+                   ":local u [/ip hotspot user get \$i uptime]; " . 
                    ":local c [/ip hotspot user get \$i comment]; " .
                    ":set res (\$res . \$n . \",\" . \$p . \",\" . \$pr . \",\" . \$u . \",\" . \$c . \"|\"); " .
                    "}; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$macActual&tid=$tid\" http-method=post http-data=\$res keep-result=no;";
@@ -223,7 +230,7 @@ class ListTicketsAliado extends Component
                 $mikrotikUsernames[] = $uName;
 
                 $profileName = $p[2];
-                $uptimeReal = $p[3] ?: '0s'; // VALOR REAL DE MikroTik
+                $uptimeReal = $p[3] ?: '0s'; 
                 
                 $planData = $planesCache->get($profileName);
                 
@@ -249,7 +256,7 @@ class ListTicketsAliado extends Component
                         'plan'             => $nombrePlanSync,
                         'costo'            => $costoSync,
                         'identity'         => $nuevoIdentity,
-                        'tiempo_consumido' => $uptimeReal, // Se guarda el string tal cual viene del router
+                        'tiempo_consumido' => $uptimeReal,
                         'tiempo_uso'       => $tiempoUsoSync,
                         'sincronizado'     => true,
                         'estado'           => ($uptimeReal !== '0s' && $uptimeReal !== '') ? 'en_uso' : 'disponible'
