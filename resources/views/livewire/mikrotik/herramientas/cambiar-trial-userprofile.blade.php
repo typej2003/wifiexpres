@@ -5,14 +5,17 @@
                 <div class="card-header bg-gradient-primary p-4 d-flex justify-content-between align-items-center">
                     <h5 class="text-white mb-0"><i class="bi bi-gear-wide-connected me-2"></i> Ajuste de Perfil Trial (hsprof1)</h5>
                     <button wire:click="refreshStatus" class="btn btn-sm btn-outline-light rounded-pill px-3">
-                        <i class="bi bi-arrow-clockwise"></i> Refrescar Routers
+                        <i class="bi bi-arrow-clockwise"></i> Refrescar
                     </button>
                 </div>
                 <div class="card-body p-4">
                     
                     @if($message)
-                        <div class="alert alert-info alert-dismissible fade show border-0 shadow-sm" role="alert">
-                            {{ $message }}
+                        <div class="alert {{ str_contains($message, '✅') ? 'alert-success' : 'alert-danger' }} alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+                            <div class="d-flex align-items-center">
+                                <span class="fs-5 me-2"></span>
+                                <div>{{ $message }}</div>
+                            </div>
                             <button type="button" class="btn-close" wire:click="$set('message', null)"></button>
                         </div>
                     @endif
@@ -45,16 +48,19 @@
                         <div class="col-12 mb-3">
                             <div class="p-3 border rounded-3 bg-light d-flex justify-content-between align-items-center">
                                 <div>
-                                    <span class="text-muted small fw-bold d-block">PERFIL TRIAL EN MIKROTIK:</span>
+                                    <span class="text-muted small fw-bold d-block">PERFIL TRIAL ACTUAL:</span>
                                     <span class="h5 mb-0 fw-bold {{ $perfil_actual ? 'text-primary' : 'text-secondary opacity-50' }}">
                                         {{ $perfil_actual ?? 'No consultado' }}
                                     </span>
                                 </div>
                                 <button wire:click="consultarPerfilActual" class="btn btn-outline-primary shadow-sm" 
                                         wire:loading.attr="disabled" {{ !$router_id || !($routerStatus[$router_id] ?? false) ? 'disabled' : '' }}>
-                                    <i class="bi bi-search me-1" wire:loading.remove wire:target="consultarPerfilActual"></i>
-                                    <span class="spinner-border spinner-border-sm me-1" wire:loading wire:target="consultarPerfilActual"></span>
-                                    Consultar Actual
+                                    <span wire:loading.remove wire:target="consultarPerfilActual">
+                                        <i class="bi bi-search me-1"></i> Consultar
+                                    </span>
+                                    <span wire:loading wire:target="consultarPerfilActual">
+                                        <span class="spinner-border spinner-border-sm me-1"></span> Buscando...
+                                    </span>
                                 </button>
                             </div>
                         </div>
@@ -63,16 +69,19 @@
                             <label class="form-label fw-bold small text-uppercase text-muted">3. Cambiar a Perfil:</label>
                             <div class="input-group">
                                 <select wire:model="perfil_seleccionado" class="form-select border-2" {{ empty($perfiles) ? 'disabled' : '' }}>
-                                    <option value="">-- Seleccione el nuevo perfil --</option>
+                                    <option value="">-- Elija el perfil --</option>
                                     @foreach($perfiles as $p)
                                         <option value="{{ $p }}">{{ $p }}</option>
                                     @endforeach
                                 </select>
                                 <button wire:click="obtenerListaPerfiles" class="btn btn-secondary" 
                                         wire:loading.attr="disabled" {{ !$router_id || !($routerStatus[$router_id] ?? false) ? 'disabled' : '' }}>
-                                    <i class="bi bi-list-check" wire:loading.remove wire:target="obtenerListaPerfiles"></i>
-                                    <span class="spinner-border spinner-border-sm" wire:loading wire:target="obtenerListaPerfiles"></span>
-                                    Cargar Perfiles
+                                    <span wire:loading.remove wire:target="obtenerListaPerfiles">
+                                        <i class="bi bi-list-check"></i> Cargar Lista
+                                    </span>
+                                    <span wire:loading wire:target="obtenerListaPerfiles">
+                                        <span class="spinner-border spinner-border-sm"></span>
+                                    </span>
                                 </button>
                             </div>
                         </div>
@@ -86,7 +95,7 @@
                                     <i class="bi bi-cloud-arrow-up me-2"></i> ACTUALIZAR MIKROTIK
                                 </span>
                                 <span wire:loading wire:target="aplicarCambio">
-                                    <i class="bi bi-hourglass-split me-2"></i> PROCESANDO...
+                                    <i class="bi bi-hourglass-split me-2"></i> ENVIANDO COMANDO... POR FAVOR ESPERE
                                 </span>
                             </button>
                         </div>

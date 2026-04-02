@@ -39,23 +39,22 @@ class CambiarTrialUserprofile extends Component
                     $this->routerStatus[$r->id] = in_array($macLimpia, $activeMacs);
                 }
             }
-        } catch (\Exception $e) { $this->routerStatus = []; }
+        } catch (\Exception $e) { 
+            $this->routerStatus = []; 
+        }
     }
 
-    // Limpiar datos si cambia el router, pero NO consultar nada automáticamente
     public function updatedRouterId()
     {
         $this->reset(['perfiles', 'perfil_actual', 'perfil_seleccionado', 'message']);
     }
 
-    /**
-     * BOTÓN 1: Consulta exclusivamente el perfil configurado en hsprof1
-     */
     public function consultarPerfilActual()
     {
         if (!$this->router_id) return;
-
+        $this->message = null;
         $this->loading = true;
+        
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
         $tid = "GETCUR_" . time();
@@ -66,7 +65,7 @@ class CambiarTrialUserprofile extends Component
         try {
             Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])->withBody($comando, 'text/plain')->post("{$this->bridgeUrl}/set-command");
 
-            for ($i = 0; $i < 10; $i++) {
+            for ($i = 0; $i < 15; $i++) {
                 usleep(800000);
                 $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
                 if ($res->successful() && $res->json('status') === 'ready') {
@@ -75,19 +74,19 @@ class CambiarTrialUserprofile extends Component
                     return;
                 }
             }
-        } catch (\Exception $e) { }
+            $this->message = "⚠️ Tiempo de espera agotado al consultar perfil.";
+        } catch (\Exception $e) { 
+            $this->message = "❌ Error: " . $e->getMessage();
+        }
         $this->loading = false;
-        $this->message = "❌ No se pudo obtener el perfil actual.";
     }
 
-    /**
-     * BOTÓN 2: Consulta la lista de perfiles disponibles en el sistema
-     */
     public function obtenerListaPerfiles()
     {
         if (!$this->router_id) return;
-
+        $this->message = null;
         $this->loading = true;
+
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
         $tid = "GETLST_" . time();
@@ -99,7 +98,7 @@ class CambiarTrialUserprofile extends Component
         try {
             Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])->withBody($comando, 'text/plain')->post("{$this->bridgeUrl}/set-command");
 
-            for ($i = 0; $i < 10; $i++) {
+            for ($i = 0; $i < 15; $i++) {
                 usleep(800000);
                 $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
                 if ($res->successful() && $res->json('status') === 'ready') {
@@ -109,16 +108,19 @@ class CambiarTrialUserprofile extends Component
                     return;
                 }
             }
-        } catch (\Exception $e) { }
+            $this->message = "⚠️ No se pudo obtener la lista de perfiles (Timeout).";
+        } catch (\Exception $e) { 
+            $this->message = "❌ Error: " . $e->getMessage();
+        }
         $this->loading = false;
-        $this->message = "❌ No se pudo cargar la lista de perfiles.";
     }
 
     public function aplicarCambio()
     {
         $this->validate(['router_id' => 'required', 'perfil_seleccionado' => 'required']);
-
+        $this->message = null;
         $this->loading = true;
+
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
         $tid = "SETTRL_" . time();
@@ -130,22 +132,26 @@ class CambiarTrialUserprofile extends Component
         try {
             Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])->withBody($comando, 'text/plain')->post("{$this->bridgeUrl}/set-command");
 
-            for ($i = 0; $i < 10; $i++) {
-                usleep(800000);
+            for ($i = 0; $i < 15; $i++) {
+                usleep(900000); // Un poco más de tiempo entre intentos para aplicar cambios
                 $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
+                
                 if ($res->successful() && $res->json('status') === 'ready') {
                     if($res->json('data') == 'OK') {
-                        $this->message = "✅ Perfil Trial actualizado correctamente.";
+                        $this->message = "✅ Perfil Trial actualizado correctamente en MikroTik.";
                         $this->perfil_actual = $this->perfil_seleccionado;
                         $this->perfil_seleccionado = null;
                     } else {
-                        $this->message = "❌ Error al aplicar el perfil.";
+                        $this->message = "❌ MikroTik reportó un error al aplicar el perfil.";
                     }
                     $this->loading = false;
                     return;
                 }
             }
-        } catch (\Exception $e) { $this->message = "❌ Error de comunicación."; }
+            $this->message = "⚠️ El comando se envió, pero no se recibió confirmación de éxito.";
+        } catch (\Exception $e) { 
+            $this->message = "❌ Error de comunicación: " . $e->getMessage(); 
+        }
         $this->loading = false;
     }
 
