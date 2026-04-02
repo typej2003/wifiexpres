@@ -144,21 +144,21 @@ class ListTicketsAliado extends Component
             $posGlobal = $this->bulk_current_count + $i;
             $secStr = str_pad($posGlobal, 4, '0', STR_PAD_LEFT);
             
-            // Identity mantiene guiones para tu lógica interna de lotes
+            // EL IDENTITY SI LLEVA GUIONES (Como lo pediste)
             $identityStr = "{$this->selectedRouter}-{$this->bulk_last_lote}-{$secStr}";
             
-            // USERNAME SIN GUIONES: Esto es lo que se envía a MikroTik y lo que usa el cliente
+            // EL USERNAME NO LLEVA GUIONES (Para MikroTik y login del cliente)
             $usernameSinGuion = "{$this->selectedRouter}{$this->bulk_last_lote}{$secStr}";
             
             $passStr = (string)rand(10000, 99999);
 
-            // Se usa $usernameSinGuion en el comando de MikroTik
+            // Enviamos el nombre sin guiones a MikroTik
             $comandoInterno .= "/ip hotspot user add name=\"$usernameSinGuion\" password=\"$passStr\" profile=\"$this->bulk_plan\" limit-uptime=\"$limitUptime\" comment=\"Lote {$this->bulk_last_lote}\";\n";
             
             $insertData[] = [
                 'router_id'        => $this->selectedRouter,
-                'identity'         => $identityStr,
-                'username'         => $usernameSinGuion, // Guardamos el username limpio
+                'identity'         => $identityStr,      // Con guiones
+                'username'         => $usernameSinGuion, // Sin guiones
                 'password'         => $passStr,
                 'plan'             => $planInfo->name,
                 'costo'            => $costoFinal,
