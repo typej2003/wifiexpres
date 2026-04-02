@@ -38,19 +38,25 @@
                         class="btn btn-sm btn-success w-100 fw-bold" 
                         wire:loading.attr="disabled"
                         {{ !$canScan ? 'disabled' : '' }}>
-                        <span wire:loading.remove wire:target="scanUsers">
+                        <span wire:loading.remove wire:target="scanUsers, removeUser">
                             <i class="fas fa-bolt"></i> ESCANEAR AHORA
                         </span>
-                        <span wire:loading wire:target="scanUsers">
-                            <i class="fas fa-circle-notch fa-spin"></i> CONSULTANDO...
+                        <span wire:loading wire:target="scanUsers, removeUser">
+                            <i class="fas fa-circle-notch fa-spin"></i> PROCESANDO...
                         </span>
                     </button>
                 </div>
             </div>
 
             @if($error_message)
-                <div class="alert alert-warning mt-3 mb-0 py-2 small">
+                <div class="alert alert-warning mt-3 mb-0 py-2 small border-0 shadow-sm">
                     <i class="fas fa-exclamation-triangle me-2"></i> {{ $error_message }}
+                </div>
+            @endif
+
+            @if($success_message)
+                <div class="alert alert-success mt-3 mb-0 py-2 small border-0 shadow-sm">
+                    <i class="fas fa-check-circle me-2"></i> {{ $success_message }}
                 </div>
             @endif
         </div>
@@ -66,6 +72,7 @@
                         <th>MAC Address</th>
                         <th>Tiempo Conexión</th>
                         <th>Referencia / Comentario</th>
+                        <th class="text-center">Acción</th>
                     </tr>
                 </thead>
                 <tbody class="border-top-0">
@@ -84,13 +91,23 @@
                             <td class="small text-truncate" style="max-width: 200px;">
                                 {{ $user['comment'] }}
                             </td>
+                            <td class="text-center">
+                                <button 
+                                    wire:click="removeUser('{{ $user['username'] }}')" 
+                                    wire:loading.attr="disabled"
+                                    class="btn btn-sm btn-outline-danger border-0 rounded-pill"
+                                    title="Remover Usuario"
+                                    onclick="confirm('¿Expulsar a este usuario?') || event.stopImmediatePropagation()">
+                                    <i class="fas fa-user-times"></i>
+                                </button>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="text-center py-5">
+                            <td colspan="6" class="text-center py-5">
                                 @if($loading)
                                     <div class="spinner-border spinner-border-sm text-primary me-2"></div>
-                                    <span class="text-muted">Obteniendo datos desde MikroTik...</span>
+                                    <span class="text-muted">Procesando solicitud en MikroTik...</span>
                                 @else
                                     <div class="text-muted">
                                         <i class="fas fa-info-circle mb-2 fa-2x"></i><br>
@@ -109,4 +126,5 @@
 <style>
     .bg-soft-primary { background-color: rgba(13, 110, 253, 0.1); }
     .border-primary-soft { border-color: rgba(13, 110, 253, 0.2) !important; }
+    .btn-outline-danger:hover { background-color: #dc3545; color: white; }
 </style>
