@@ -17,47 +17,50 @@
             display: inline-block; 
             vertical-align: top; 
             text-align: center; 
-            padding: 25px 5px 5px 5px; /* Margen superior ampliado sustancialmente */
+            padding: 15px 5px 5px 5px; /* Margen superior ampliado (15px) */
             box-sizing: border-box; 
             overflow: hidden; 
+            position: relative;
         }
 
-        .logo-img { max-height: 48px; max-width: 90%; margin-bottom: 8px; }
-        .comercio-nombre { font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
+        .logo-img { max-height: 45px; max-width: 90%; margin-bottom: 5px; }
         
-        /* Dirección: Solo se muestra si tiene contenido */
+        .comercio-nombre { font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
+        
+        /* Nueva sección para la dirección */
         .comercio-direccion { 
             font-size: 7px; 
             color: #444; 
             text-transform: uppercase; 
-            margin-bottom: 5px; 
-            line-height: 1.1;
-            padding: 0 5px;
+            margin-bottom: 4px; 
+            line-height: 1;
+            border-bottom: 0.5pt solid #eee;
+            padding-bottom: 3px;
         }
 
-        .ticket-id { color: #666; font-size: 8px; margin-bottom: 10px; display: block; border-top: 0.5pt solid #eee; padding-top: 3px; }
+        .ticket-id { color: #666; font-size: 8px; margin-bottom: 8px; display: block; }
         
-        /* Credenciales alineadas a la izquierda */
-        .creds-container { 
+        /* Credenciales alineadas a la izquierda y amplias */
+        .creds-table { 
             width: 100%; 
-            text-align: left;
-            padding-left: 8px;
+            border-collapse: collapse;
             margin-top: 5px;
         }
+        .creds-table td { text-align: left; padding-left: 5px; }
         
         .label-text { 
             font-size: 7px; 
             color: #555; 
             text-transform: uppercase; 
-            font-weight: bold;
+            letter-spacing: 0.5px;
         }
         
         .value-text { 
-            font-size: 19px; /* Valor ampliado significativamente */
+            font-size: 18px; /* Valor muy grande para fácil lectura */
             font-weight: bold;
             font-family: 'Courier New', Courier, monospace;
             display: block;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
             color: #000;
         }
 
@@ -65,25 +68,24 @@
             background: #000; 
             color: #fff; 
             font-size: 11px; 
-            padding: 5px; 
-            margin: 12px 0 5px 0; 
+            padding: 4px; 
+            margin: 10px 0 5px 0; 
             font-weight: bold; 
             text-transform: uppercase;
         }
 
-        .precio { font-size: 20px; font-weight: bold; color: #000; margin-bottom: 8px; }
+        .precio { font-size: 18px; font-weight: bold; color: #000; }
         
-        /* QR Suprimido */
-        .qr { display: none; } 
+        .qr { display: none; } /* QR suprimido */
 
         .footer-info { 
-            margin-top: 15px;
+            margin-top: 10px;
             font-size: 7px; 
             border-top: 0.5pt dashed #ccc;
-            padding-top: 6px;
+            padding-top: 5px;
         }
         
-        .fecha-hora { font-size: 7px; color: #444; margin-top: 2px; }
+        .fecha-hora { font-size: 7px; color: #333; margin-top: 2px; }
 
         @media print { 
             .no-print { display: none; } 
@@ -94,7 +96,7 @@
 </head>
 <body>
     <div class="no-print">
-        <button onclick="window.print()" style="padding: 12px 40px; cursor:pointer; font-weight: bold; font-size: 16px; border-radius: 8px;">IMPRIMIR LOTE</button>
+        <button onclick="window.print()" style="padding: 10px 30px; cursor:pointer; font-weight: bold; font-size: 16px;">IMPRIMIR TICKETS</button>
     </div>
 
     <div class="container">
@@ -108,19 +110,19 @@
                 
                 <div class="comercio-nombre">{{ $router->comercio_nombre ?? 'WIFI EXPRES' }}</div>
                 
-                @if($router->comercio_direccion)
-                    <div class="comercio-direccion">{{ $router->comercio_direccion }}</div>
-                @endif
+                <div class="comercio-direccion">
+                    {{ $router->comercio_direccion ?? 'CARACAS, VENEZUELA' }}
+                </div>
 
                 <span class="ticket-id"># {{ $t->identity }}</span>
                 
-                <div class="creds-container">
-                    <span class="label-text">USUARIO</span>
-                    <span class="value-text">{{ $t->username }}</span>
+                <div class="creds-table">
+                    <div class="label-text">USUARIO</div>
+                    <div class="value-text">{{ $t->username }}</div>
                     
                     @if($t->password != $t->username)
-                        <span class="label-text">CONTRASEÑA</span>
-                        <span class="value-text">{{ $t->password }}</span>
+                        <div class="label-text">CONTRASEÑA</div>
+                        <div class="value-text">{{ $t->password }}</div>
                     @endif
                 </div>
 
@@ -129,7 +131,7 @@
                 
                 <div class="footer-info">
                     <div style="font-weight:bold;">{{ $router->hotspot_url ?? 'portal.wifi' }}</div>
-                    <div class="fecha-hora">{{ $t->created_at->format('d/m/Y H:i') }}</div>
+                    <div class="fecha-hora">EMITIDO: {{ $t->created_at->format('d/m/Y H:i') }}</div>
                 </div>
             </div>
         @endforeach
