@@ -52,7 +52,7 @@ class MikrotikController extends Controller
                     if (!$ticket->activado) {
                         
                         $currentRate = ExchangeRateService::getBcvRate();
-                        $montoBs = (float)$ticket->costo * $currentRate;
+                        $montoUsd = (float)$ticket->costo * $currentRate;
 
                         $ticket->update([
                             'activado' => true,
@@ -67,8 +67,8 @@ class MikrotikController extends Controller
                             'type'         => 'ticket_fisico',
                             'reference_id' => $ticket->id,
                             'description'  => "Activación Ticket: " . $ticket->username . " (" . $ticket->plan . ")",
-                            'amount_usd'   => $ticket->costo,
-                            'amount_bs'    => $montoBs,
+                            'amount_usd'   => $montoUsd,
+                            'amount_bs'    => $ticket->costo,
                             'rate'         => $currentRate,
                         ]);
                     } else {
