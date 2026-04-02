@@ -16,7 +16,7 @@ class ImprimirTickets extends Component
 
     protected $paginationTheme = 'bootstrap';
 
-    // Filtros de Selección
+    // Filtros
     public $selectedAliado = null;
     public $selectedRouter = null;
     public $routerStatus = [];
@@ -27,13 +27,12 @@ class ImprimirTickets extends Component
     public $desde_ticket;
     public $hasta_ticket;
     
-    // Configuración del Bridge
     protected $bridgeUrl = "http://188.95.113.44:3000";
 
     public function mount()
     {
         if (Auth::user()->role !== 'admin') {
-            abort(403, 'Acceso denegado.');
+            abort(403);
         }
         $this->refreshStatus();
     }
@@ -43,70 +42,46 @@ class ImprimirTickets extends Component
         try {
             $response = Http::timeout(5)->get("{$this->bridgeUrl}/api/routers-online");
             if ($response->successful()) {
-                $onlineRouters = $response->json();
-                $activeMacs = collect($onlineRouters)->map(fn($item) => strtoupper(trim($item['mac'])))->toArray();
-                
-                $routers = Router::all();
-                $this->routerStatus = [];
-                foreach ($routers as $r) {
-                    $macLimpia = strtoupper(trim($r->macAddress));
-                    $this->routerStatus[$r->id] = in_array($macLimpia, $activeMacs);
-                }
+                $activeMacs = collect($response->json())->map(fn($item) => strtoupper(trim($item['mac'])))->toArray();
+                $this->routerStatus = Router::all()->mapWithKeys(function ($r) use ($activeMacs) {
+                    return [$r->id => in_array(strtoupper(trim($r->macAddress)), $activeMacs)];
+                })->toArray();
             }
-        } catch (\Exception $e) { 
-            $this->routerStatus = []; 
-        }
+        } catch (\Exception $e) { $this->routerStatus = []; }
     }
 
     public function updatedSelectedAliado()
     {
         $this->selectedRouter = null;
-        $this->refreshStatus();
-        $this->resetPage();
-    }
-
-    public function updatedSelectedRouter()
-    {
         $this->resetPage();
     }
 
     public function printRange()
     {
-        $this->validate([
-            'selectedRouter' => 'required',
-            'tipo_impresion' => 'required'
-        ]);
+        $this->validate(['selectedRouter' => 'required']);
 
         if ($this->tipo_impresion == 'lote') {
             $this->validate(['lote_imprimir' => 'required']);
-            
             $patron = "{$this->selectedRouter}-{$this->lote_imprimir}-";
-            $primero = Ticket::where('router_id', $this->selectedRouter)
-                             ->where('identity', 'LIKE', $patron . '%')
-                             ->orderBy('identity', 'asc')
-                             ->first();
             
+            $primero = Ticket::where('router_id', $this->selectedRouter)
+                ->where('identity', 'LIKE', $patron . '%')->orderBy('identity', 'asc')->first();
             $ultimo = Ticket::where('router_id', $this->selectedRouter)
-                            ->where('identity', 'LIKE', $patron . '%')
-                            ->orderBy('identity', 'desc')
-                            ->first();
+                ->where('identity', 'LIKE', $patron . '%')->orderBy('identity', 'desc')->first();
 
             if (!$primero) {
-                session()->flash('error', 'No se encontraron tickets para el lote especificado.');
+                session()->flash('error', 'No se hallaron tickets para este lote.');
                 return;
             }
-
             $desde = $primero->identity;
             $hasta = $ultimo->identity;
         } else {
-            $this->validate([
-                'desde_ticket' => 'required',
-                'hasta_ticket' => 'required'
-            ]);
+            $this->validate(['desde_ticket' => 'required', 'hasta_ticket' => 'required']);
             $desde = $this->desde_ticket;
             $hasta = $this->hasta_ticket;
         }
 
+        // Generamos la URL usando tu ruta 'tickets.print'
         $url = route('tickets.print', [
             'router_id' => $this->selectedRouter, 
             'desde' => $desde, 
@@ -118,22 +93,10 @@ class ImprimirTickets extends Component
 
     public function render()
     {
-        $aliados = User::where('role', 'aliado')->get();
-        $routersList = Router::when($this->selectedAliado, function($q) {
-            $q->where('user_id', $this->selectedAliado);
-        })->get();
-
-        $tickets = [];
-        if ($this->selectedRouter) {
-            $tickets = Ticket::where('router_id', $this->selectedRouter)
-                             ->latest('id')
-                             ->paginate(15);
-        }
-
         return view('livewire.mikrotik.ticket.imprimir-tickets', [
-            'aliados' => $aliados,
-            'routersList' => $routersList,
-            'tickets' => $tickets
+            'aliados' => User::where('role', 'aliado')->get(),
+            'routersList' => Router::when($this->selectedAliado, fn($q) => $q->where('user_id', $this->selectedAliado))->get(),
+            'tickets' => $this->selectedRouter ? Ticket::where('router_id', $this->selectedRouter)->latest('id')->paginate(10) : []
         ])->layout('layouts.app');
     }
 }
