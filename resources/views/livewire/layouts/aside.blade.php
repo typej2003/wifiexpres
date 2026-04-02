@@ -200,6 +200,12 @@
                 <span class="badge rounded-pill bg-info text-dark ms-2">{{ $totalCitas ?? '0' }}</span>
             </a>
 
+            <a href="{{ route('tickets.imprimir.index') }}" 
+            class="sidebar-link {{ request()->routeIs('tickets.imprimir.index') ? 'active' : '' }}">
+                <i class="bi bi-printer"></i>
+                <span class="menu-text">CENTRO DE IMPRESIÓN</span>
+            </a>
+
             <a href="{{ route('aliado.monitor') }}" class="sidebar-link">
                 <i class="bi bi-calendar-event"></i> 
                 <span class="menu-text">Monitor de usuarios</span>
