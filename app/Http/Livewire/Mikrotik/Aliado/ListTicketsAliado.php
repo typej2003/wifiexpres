@@ -144,26 +144,26 @@ class ListTicketsAliado extends Component
             $posGlobal = $this->bulk_current_count + $i;
             $secStr = str_pad($posGlobal, 4, '0', STR_PAD_LEFT);
             
-            // Mantenemos identity con guiones para lógica interna y de impresión
+            // Identity mantiene guiones para tu lógica interna de lotes
             $identityStr = "{$this->selectedRouter}-{$this->bulk_last_lote}-{$secStr}";
             
-            // CREAMOS EL USERNAME SIN GUIONES (Solo números)
+            // USERNAME SIN GUIONES: Esto es lo que se envía a MikroTik y lo que usa el cliente
             $usernameSinGuion = "{$this->selectedRouter}{$this->bulk_last_lote}{$secStr}";
             
             $passStr = (string)rand(10000, 99999);
 
-            // IMPORTANTE: En MikroTik mandamos el name sin guiones
+            // Se usa $usernameSinGuion en el comando de MikroTik
             $comandoInterno .= "/ip hotspot user add name=\"$usernameSinGuion\" password=\"$passStr\" profile=\"$this->bulk_plan\" limit-uptime=\"$limitUptime\" comment=\"Lote {$this->bulk_last_lote}\";\n";
             
             $insertData[] = [
                 'router_id'        => $this->selectedRouter,
-                'identity'         => $identityStr, // El identity se queda con guiones para el LIKE del PDF
-                'username'         => $usernameSinGuion, // El username para loguearse no tiene guiones
+                'identity'         => $identityStr,
+                'username'         => $usernameSinGuion, // Guardamos el username limpio
                 'password'         => $passStr,
                 'plan'             => $planInfo->name,
                 'costo'            => $costoFinal,
                 'estado'           => 'disponible',
-                'tiempo_consumido' => '0s',
+                'tiempo_consumido' => '0s', 
                 'tiempo_uso'       => $limitUptime,
                 'sincronizado'     => true,
                 'created_at'       => Carbon::now(),
