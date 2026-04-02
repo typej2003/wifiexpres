@@ -7,6 +7,8 @@ use App\Models\User;
 use App\Models\Router;
 use App\Models\Ticket;
 use Livewire\WithPagination;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Auth;
 
 class ImprimirTickets extends Component
 {
@@ -15,31 +17,52 @@ class ImprimirTickets extends Component
     protected $paginationTheme = 'bootstrap';
 
     // Filtros de Selección
-    public $aliados = [];
     public $selectedAliado = null;
-    public $routers = [];
     public $selectedRouter = null;
+    public $routerStatus = [];
 
     // Lógica de Impresión
     public $tipo_impresion = 'lote';
     public $lote_imprimir;
     public $desde_ticket;
     public $hasta_ticket;
+    
+    // Configuración del Bridge
+    protected $bridgeUrl = "http://188.95.113.44:3000";
 
     public function mount()
     {
-        // Cargamos los usuarios con rol aliado (ajusta el nombre del rol según tu DB)
-        $this->aliados = User::where('role', 'aliado')->get();
+        if (Auth::user()->role !== 'admin') {
+            abort(403, 'Acceso denegado.');
+        }
+        $this->refreshStatus();
     }
 
-    public function updatedSelectedAliado($value)
+    public function refreshStatus()
+    {
+        try {
+            $response = Http::timeout(5)->get("{$this->bridgeUrl}/api/routers-online");
+            if ($response->successful()) {
+                $onlineRouters = $response->json();
+                $activeMacs = collect($onlineRouters)->map(fn($item) => strtoupper(trim($item['mac'])))->toArray();
+                
+                $routers = Router::all();
+                $this->routerStatus = [];
+                foreach ($routers as $r) {
+                    $macLimpia = strtoupper(trim($r->macAddress));
+                    $this->routerStatus[$r->id] = in_array($macLimpia, $activeMacs);
+                }
+            }
+        } catch (\Exception $e) { 
+            $this->routerStatus = []; 
+        }
+    }
+
+    public function updatedSelectedAliado()
     {
         $this->selectedRouter = null;
-        if ($value) {
-            $this->routers = Router::where('user_id', $value)->get();
-        } else {
-            $this->routers = [];
-        }
+        $this->refreshStatus();
+        $this->resetPage();
     }
 
     public function updatedSelectedRouter()
@@ -95,6 +118,11 @@ class ImprimirTickets extends Component
 
     public function render()
     {
+        $aliados = User::where('role', 'aliado')->get();
+        $routersList = Router::when($this->selectedAliado, function($q) {
+            $q->where('user_id', $this->selectedAliado);
+        })->get();
+
         $tickets = [];
         if ($this->selectedRouter) {
             $tickets = Ticket::where('router_id', $this->selectedRouter)
@@ -103,6 +131,8 @@ class ImprimirTickets extends Component
         }
 
         return view('livewire.mikrotik.ticket.imprimir-tickets', [
+            'aliados' => $aliados,
+            'routersList' => $routersList,
             'tickets' => $tickets
         ])->layout('layouts.app');
     }
