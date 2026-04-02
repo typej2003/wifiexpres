@@ -110,10 +110,6 @@
                 
                 <div class="comercio-nombre">{{ $router->comercio_nombre ?? 'WIFI EXPRES' }}</div>
                 
-                <div class="comercio-direccion">
-                    {{ $router->comercio_direccion ?? 'CARACAS, VENEZUELA' }}
-                </div>
-
                 <span class="ticket-id"># {{ $t->identity }}</span>
                 
                 <div class="creds-table">
