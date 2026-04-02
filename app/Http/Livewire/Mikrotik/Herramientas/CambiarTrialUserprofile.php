@@ -14,6 +14,7 @@ class CambiarTrialUserprofile extends Component
     public $routerStatus = [];
     public $perfiles = [];
     public $perfil_seleccionado = null;
+    public $perfil_actual = null; // Nueva variable para el estado actual
     public $loading = false;
     public $message = null;
 
@@ -44,10 +45,43 @@ class CambiarTrialUserprofile extends Component
     public function updatedRouterId($value)
     {
         if ($value && ($this->routerStatus[$value] ?? false)) {
+            $this->consultarEstadoActual();
             $this->obtenerPerfiles();
         } else {
             $this->perfiles = [];
+            $this->perfil_actual = null;
         }
+    }
+
+    /**
+     * Consulta específicamente qué perfil tiene configurado hsprof1 actualmente
+     */
+    public function consultarEstadoActual()
+    {
+        if (!$this->router_id) return;
+        
+        $this->loading = true;
+        $router = Router::findOrFail($this->router_id);
+        $mac = strtoupper(trim($router->macAddress));
+        $tid = "GETCURRENT_" . time();
+
+        $comando = ":local current [/ip hotspot profile get [find name=\"hsprof1\"] trial-user-profile]; " .
+                   "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid&data=\$current\" keep-result=no;";
+
+        try {
+            Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])->withBody($comando, 'text/plain')->post("{$this->bridgeUrl}/set-command");
+
+            for ($i = 0; $i < 10; $i++) {
+                usleep(800000);
+                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
+                if ($res->successful() && $res->json('status') === 'ready') {
+                    $this->perfil_actual = $res->json('data');
+                    $this->loading = false;
+                    return;
+                }
+            }
+        } catch (\Exception $e) { }
+        $this->loading = false;
     }
 
     public function obtenerPerfiles()
@@ -57,7 +91,6 @@ class CambiarTrialUserprofile extends Component
         $mac = strtoupper(trim($router->macAddress));
         $tid = "GETPROFILES_" . time();
 
-        // Comando para listar todos los User Profiles disponibles
         $comando = ":local res \"P:\"; :foreach i in=[/ip hotspot user profile find] do={ " .
                    ":set res (\$res . [/ip hotspot user profile get \$i name] . \",\"); " .
                    "}; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\$res keep-result=no;";
@@ -91,7 +124,6 @@ class CambiarTrialUserprofile extends Component
         $mac = strtoupper(trim($router->macAddress));
         $tid = "SETTRIAL_" . time();
 
-        // Comando para cambiar el trial-user-profile del profile hsprof1
         $comando = ":do { /ip hotspot profile set [find name=\"hsprof1\"] trial-user-profile=\"{$this->perfil_seleccionado}\"; " .
                    "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid&data=OK\" keep-result=no; " .
                    "} on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid&data=ERROR\" keep-result=no; }";
@@ -103,7 +135,13 @@ class CambiarTrialUserprofile extends Component
                 usleep(800000);
                 $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
                 if ($res->successful() && $res->json('status') === 'ready') {
-                    $this->message = $res->json('data') == 'OK' ? "✅ Perfil Trial actualizado a: {$this->perfil_seleccionado}" : "❌ Error al actualizar.";
+                    if($res->json('data') == 'OK') {
+                        $this->message = "✅ Perfil Trial actualizado correctamente.";
+                        $this->perfil_actual = $this->perfil_seleccionado;
+                        $this->perfil_seleccionado = null;
+                    } else {
+                        $this->message = "❌ Error al actualizar.";
+                    }
                     $this->loading = false;
                     return;
                 }
