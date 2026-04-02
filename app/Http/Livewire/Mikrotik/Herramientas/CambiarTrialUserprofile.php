@@ -14,7 +14,7 @@ class CambiarTrialUserprofile extends Component
     public $routerStatus = [];
     public $perfiles = [];
     public $perfil_seleccionado = null;
-    public $perfil_actual = null; // Nueva variable para el estado actual
+    public $perfil_actual = null;
     public $loading = false;
     public $message = null;
 
@@ -45,79 +45,62 @@ class CambiarTrialUserprofile extends Component
     public function updatedRouterId($value)
     {
         if ($value && ($this->routerStatus[$value] ?? false)) {
-            $this->consultarEstadoActual();
-            $this->obtenerPerfiles();
+            $this->obtenerDatosCompletos();
         } else {
-            $this->perfiles = [];
-            $this->perfil_actual = null;
+            $this->reset(['perfiles', 'perfil_actual', 'perfil_seleccionado']);
         }
     }
 
     /**
-     * Consulta específicamente qué perfil tiene configurado hsprof1 actualmente
+     * UNIFICADO: Obtiene el perfil actual y la lista de perfiles en un solo comando
      */
-    public function consultarEstadoActual()
+    public function obtenerDatosCompletos()
     {
         if (!$this->router_id) return;
+
+        $this->loading = true;
+        $router = Router::findOrFail($this->router_id);
+        $mac = strtoupper(trim($router->macAddress));
+        $tid = "DATA_" . time();
+
+        // Script unificado: 
+        // 1. Obtiene el perfil actual de hsprof1
+        // 2. Recorre los perfiles y los concatena
+        // 3. Envía todo en un solo string separado por un delimitador '|'
+        $comando = ":local actual [/ip hotspot profile get [find name=\"hsprof1\"] trial-user-profile]; " .
+                   ":local lista \"\"; :foreach i in=[/ip hotspot user profile find] do={ " .
+                   ":set lista (\$lista . [/ip hotspot user profile get \$i name] . \",\"); }; " .
+                   "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid&data=\$actual|\$lista\" keep-result=no;";
+
+        try {
+            Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])->withBody($comando, 'text/plain')->post("{$this->bridgeUrl}/set-command");
+
+            for ($i = 0; $i < 12; $i++) {
+                usleep(800000);
+                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
+                
+                if ($res->successful() && $res->json('status') === 'ready') {
+                    $payload = $res->json('data');
+                    // Separamos el actual de la lista usando el pipe |
+                    $parts = explode('|', $payload);
+                    
+                    $this->perfil_actual = $parts[0] ?? 'No definido';
+                    $rawLista = $parts[1] ?? '';
+                    $this->perfiles = array_filter(explode(',', trim($rawLista, ",")));
+                    
+                    $this->loading = false;
+                    return;
+                }
+            }
+        } catch (\Exception $e) { }
         
-        $this->loading = true;
-        $router = Router::findOrFail($this->router_id);
-        $mac = strtoupper(trim($router->macAddress));
-        $tid = "GETCURRENT_" . time();
-
-        $comando = ":local current [/ip hotspot profile get [find name=\"hsprof1\"] trial-user-profile]; " .
-                   "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid&data=\$current\" keep-result=no;";
-
-        try {
-            Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])->withBody($comando, 'text/plain')->post("{$this->bridgeUrl}/set-command");
-
-            for ($i = 0; $i < 10; $i++) {
-                usleep(800000);
-                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
-                if ($res->successful() && $res->json('status') === 'ready') {
-                    $this->perfil_actual = $res->json('data');
-                    $this->loading = false;
-                    return;
-                }
-            }
-        } catch (\Exception $e) { }
         $this->loading = false;
-    }
-
-    public function obtenerPerfiles()
-    {
-        $this->loading = true;
-        $router = Router::findOrFail($this->router_id);
-        $mac = strtoupper(trim($router->macAddress));
-        $tid = "GETPROFILES_" . time();
-
-        $comando = ":local res \"P:\"; :foreach i in=[/ip hotspot user profile find] do={ " .
-                   ":set res (\$res . [/ip hotspot user profile get \$i name] . \",\"); " .
-                   "}; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\$res keep-result=no;";
-
-        try {
-            Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])->withBody($comando, 'text/plain')->post("{$this->bridgeUrl}/set-command");
-
-            for ($i = 0; $i < 10; $i++) {
-                usleep(800000);
-                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
-                if ($res->successful() && $res->json('status') === 'ready') {
-                    $raw = str_replace('P:', '', $res->json('data'));
-                    $this->perfiles = array_filter(explode(',', trim($raw, ",")));
-                    $this->loading = false;
-                    return;
-                }
-            }
-        } catch (\Exception $e) { }
-        $this->loading = false;
+        $this->message = "⚠️ No se recibió respuesta del Router.";
     }
 
     public function aplicarCambio()
     {
-        $this->validate([
-            'router_id' => 'required',
-            'perfil_seleccionado' => 'required'
-        ]);
+        $this->validate(['router_id' => 'required', 'perfil_seleccionado' => 'required']);
 
         $this->loading = true;
         $router = Router::findOrFail($this->router_id);
@@ -140,13 +123,13 @@ class CambiarTrialUserprofile extends Component
                         $this->perfil_actual = $this->perfil_seleccionado;
                         $this->perfil_seleccionado = null;
                     } else {
-                        $this->message = "❌ Error al actualizar.";
+                        $this->message = "❌ Error al aplicar cambio.";
                     }
                     $this->loading = false;
                     return;
                 }
             }
-        } catch (\Exception $e) { $this->message = "❌ Error de comunicación."; }
+        } catch (\Exception $e) { $this->message = "❌ Error de conexión."; }
         $this->loading = false;
     }
 

@@ -5,12 +5,17 @@
                 <div class="card-header bg-gradient-primary p-4 d-flex justify-content-between align-items-center">
                     <h5 class="text-white mb-0"><i class="bi bi-gear-wide-connected me-2"></i> Ajuste de Perfil Trial (hsprof1)</h5>
                     @if($router_id)
-                        <button wire:click="consultarEstadoActual" class="btn btn-sm btn-outline-light rounded-pill px-3" wire:loading.attr="disabled">
-                            <i class="bi bi-search me-1" wire:loading.remove wire:target="consultarEstadoActual"></i>
-                            <span class="spinner-border spinner-border-sm me-1" wire:loading wire:target="consultarEstadoActual"></span>
-                            Consultar Actual
+                        <button wire:click="obtenerDatosCompletos()" class="btn btn-sm btn-outline-light rounded-pill px-3" wire:loading.attr="disabled">
+                            <i class="bi bi-arrow-repeat me-1" wire:loading.remove wire:target="obtenerDatosCompletos"></i>
+                            <span class="spinner-border spinner-border-sm me-1" wire:loading wire:target="obtenerDatosCompletos"></span>
+                            Sincronizar Datos
                         </button>
                     @endif
+                    <button wire:click="obtenerDatosCompletos()" class="btn btn-primary" wire:loading.attr="disabled" {{ !$router_id ? 'disabled' : '' }}>
+                        <i class="bi bi-arrow-clockwise" wire:loading.remove wire:target="obtenerDatosCompletos"></i>
+                        <span class="spinner-border spinner-border-sm" wire:loading wire:target="obtenerDatosCompletos"></span>
+                        Actualizar Lista
+                    </button>
                 </div>
                 <div class="card-body p-4">
                     
