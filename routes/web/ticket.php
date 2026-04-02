@@ -9,6 +9,8 @@ use App\Models\Ticket;
 use App\Models\Router;
 use Illuminate\Http\Request;
 
+use App\Http\Livewire\Mikrotik\Ticket\ImprimirTickets;
+
 // Gestión de Tickets para el Staff/Admin
 Route::middleware(['auth'])->group(function () {
     Route::get('/tickets', ListTickets::class)->name('tickets.index');
@@ -41,4 +43,10 @@ Route::get('/acceso/salir', [TicketAuthController::class, 'logout'])->name('tick
 // Rutas protegidas para el cliente final
 Route::middleware(['ticket.auth'])->group(function () {
     Route::get('/mi-cuenta', TicketDashboard::class)->name('ticket.dashboard');
+});
+
+
+Route::middleware(['auth'])->group(function () {
+    // Nueva ruta para el módulo independiente de impresión
+    Route::get('/tickets/impresion-masiva', ImprimirTickets::class)->name('tickets.imprimir.index');
 });

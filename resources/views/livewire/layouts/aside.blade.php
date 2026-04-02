@@ -281,6 +281,12 @@
                 <span class="menu-text">MIS ROUTERS</span>
             </a>
 
+            <a href="{{ route('tickets.imprimir.index') }}" 
+            class="sidebar-link {{ request()->routeIs('tickets.imprimir.index') ? 'active' : '' }}">
+                <i class="bi bi-printer"></i>
+                <span class="menu-text">CENTRO DE IMPRESIÓN</span>
+            </a>
+
             <a href="{{ route('aliado.ventas') }}" class="sidebar-link {{ request()->routeIs('aliado.ventas') ? 'active' : '' }}">
                 <i class="bi bi-cash-coin"></i>
                 <span class="menu-text">MIS VENTAS</span>
