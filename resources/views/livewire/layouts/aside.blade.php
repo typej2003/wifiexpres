@@ -211,6 +211,14 @@
                 <span class="menu-text">Monitor de usuarios</span>
             </a>
 
+            <a class="sidebar-link {{ request()->routeIs('mikrotik.users-online') ? 'active bg-gradient-primary' : '' }}" 
+            href="{{ route('mikrotik.users-online') }}">
+                <div class="icon icon-shape icon-sm border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                    <i class="fas fa-users-cog text-success text-sm opacity-10"></i>
+                </div>
+                <span class="nav-link-text ms-1">USUARIOS ONLINE</span>
+            </a>
+
             <a href="{{ route('mikrotik.crear-directorios') }}" class="sidebar-link">
                 <i class="fas fa-folder-plus"></i>  
                 <span class="menu-text">Gestionar Directorios</span>
@@ -310,6 +318,14 @@
                 <i class="bi bi-trophy"></i> 
                 <span class="menu-text">RANKING DE USUARIOS</span>
             </a>
+
+            <a class="sidebar-link {{ request()->routeIs('mikrotik.users-online') ? 'active bg-gradient-primary' : '' }}" 
+                href="{{ route('mikrotik.users-online') }}">
+                    <div class="icon icon-shape icon-sm border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                        <i class="fas fa-users-cog text-success text-sm opacity-10"></i>
+                    </div>
+                    <span class="nav-link-text ms-1">USUARIOS ONLINE</span>
+                </a>
 
             <!-- <a href="{{ route('habladores.index') }}" class="sidebar-link {{ request()->routeIs('habladores.index') ? 'active' : '' }}">
                 <i class="bi bi-tv"></i> 

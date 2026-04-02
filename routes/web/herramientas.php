@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 
 use App\Http\Livewire\Mikrotik\Herramientas\Interfaces;
 
+use App\Http\Livewire\Mikrotik\Herramientas\UsersOnline;
+
 Route::middleware(['auth', 'admin'])->group(function () {
     
     // ... otras rutas ...
@@ -14,4 +16,10 @@ Route::middleware(['auth', 'admin'])->group(function () {
         });
     });
 
+});
+
+Route::middleware(['auth', 'admin', 'aliado'])->group(function () {
+   
+    Route::get('/mikrotik/herramientas/users-online', UsersOnline::class)
+        ->name('mikrotik.users-online');
 });
