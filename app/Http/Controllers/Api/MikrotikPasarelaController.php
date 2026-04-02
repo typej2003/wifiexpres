@@ -111,6 +111,8 @@ class MikrotikPasarelaController extends Controller
 				// Calculamos la tasa real aplicada en esta transacción
 				$tasaTransaccion = ($costoUsd > 0) ? ($montoBs / $costoUsd) : null;
 
+				$costoUsd = round($montoBs / $tasaTransaccion, 2);
+
 				\App\Models\Sale::create([
 					'user_id'      => $router->user_id,
 					'router_id'    => $router->id,
