@@ -85,7 +85,10 @@ class MikrotikPasarelaController extends Controller
 			$telefono = $referenceArray[1];
 			$identity = $referenceArray[2];
 			$plan = $referenceArray[3];
-			$costoUsd = (float)$referenceArray[4]; // Costo del plan en USD
+			$costoUsd1 = (float)$referenceArray[4]; // Costo del plan en USD
+
+			$costoUsd = round($costoUsd1, 2);
+
 			$montoBs = (float)$datos->amount; // Lo que entró en Bs a la pasarela
 
 			$transaccion = Pagomovil::create([
