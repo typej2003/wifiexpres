@@ -6,6 +6,7 @@ use Livewire\Component;
 use App\Models\Sale;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use App\Services\ExchangeRateService;
 
 class SalesReports extends Component
 {
@@ -15,7 +16,6 @@ class SalesReports extends Component
 
     public function mount()
     {
-        // Inicializamos las fechas con el día de hoy por defecto
         $this->fromDate = now()->format('Y-m-d');
         $this->toDate = now()->format('Y-m-d');
     }
@@ -24,7 +24,6 @@ class SalesReports extends Component
     { 
         $this->period = $val; 
         
-        // Al elegir un periodo rápido, reseteamos las fechas visuales para evitar confusión
         [$start, $end] = match($val) {
             'today'  => [now()->startOfDay(), now()],
             'weekly' => [now()->startOfWeek(), now()],
@@ -38,15 +37,13 @@ class SalesReports extends Component
 
     public function render()
     {
-        // Si el periodo es 'custom' o si se han modificado las fechas manualmente
+        $currentRate = ExchangeRateService::getBcvRate();
         $start = Carbon::parse($this->fromDate)->startOfDay();
         $end = Carbon::parse($this->toDate)->endOfDay();
 
-        // Query base: Ventas del aliado dentro del rango seleccionado
         $query = Sale::where('user_id', Auth::id())
                      ->whereBetween('created_at', [$start, $end]);
 
-        // Cargamos la relación router
         $sales = (clone $query)->with('router')->latest()->get();
 
         $stats = [
@@ -59,7 +56,8 @@ class SalesReports extends Component
 
         return view('livewire.mikrotik.aliado.sales-reports', [
             'sales' => $sales,
-            'stats' => $stats
+            'stats' => $stats,
+            'currentRate' => $currentRate
         ])->layout('layouts.app');
     }
 }
