@@ -17,9 +17,8 @@ class CambiarTrialUserprofile extends Component
     public $perfil_seleccionado = null;
     public $perfil_actual = null;
     
-    // Nuevas variables para el Uptime
     public $uptime_actual = null;
-    public $uptime_seleccionado = "00:05:00"; // Default sugerido
+    public $uptime_seleccionado = "00:05:00"; 
     
     public $loading = false;
     public $message = null;
@@ -68,8 +67,8 @@ class CambiarTrialUserprofile extends Component
 
     protected function esperarRespuesta($mac, $tid)
     {
-        set_time_limit(60);
-        for ($i = 0; $i < 20; $i++) {
+        set_time_limit(90);
+        for ($i = 0; $i < 60; $i++) {
             sleep(1);
             try {
                 $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
@@ -93,18 +92,19 @@ class CambiarTrialUserprofile extends Component
     {
         if (!$this->router_id) return;
         $this->loading = true;
-        $this->message = "Consultando configuración de Trial...";
+        $this->message = "Consultando configuración...";
         
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
         $tid = "GETTRL_" . time();
 
-        // Obtenemos Perfil Y Uptime en un solo string separado por pipe |
+        // Usando formato de post-result con http-data como en tu código funcional
         $comando = ":local m \"$mac\"; :local t \"$tid\"; " .
                    ":local p [/ip hotspot profile get [find name=\"hsprof1\"] trial-user-profile]; " .
                    ":local u [/ip hotspot profile get [find name=\"hsprof1\"] trial-uptime-limit]; " .
+                   ":if ([:len \$u] = 0) do={ :set u \"00:00:00\" }; " .
                    ":local res (\$p . \"|\" . \$u); " .
-                   "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t&data=\$res\" keep-result=no;";
+                   "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$res keep-result=no;";
 
         try {
             $this->emitirAlSocket($comando, $mac, $tid);
@@ -117,7 +117,7 @@ class CambiarTrialUserprofile extends Component
                 $this->uptime_seleccionado = $parts[1];
                 $this->message = "✅ Datos obtenidos.";
             } else {
-                $this->message = "⚠️ No se recibió respuesta detallada.";
+                $this->message = "⚠️ Respuesta incompleta del router.";
             }
         } catch (\Exception $e) { 
             $this->message = "❌ " . $e->getMessage();
@@ -129,13 +129,13 @@ class CambiarTrialUserprofile extends Component
     {
         if (!$this->router_id) return;
         $this->loading = true;
-        $this->message = "Obteniendo lista de perfiles...";
+        $this->message = "Cargando perfiles...";
 
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
-        $tid = "GETLST_" . time();
+        $tid = "LST_" . time();
 
-        $comando = ":local m \"$mac\"; :local t \"$tid\"; :local res \"P:\"; " .
+        $comando = ":local m \"$mac\"; :local t \"$tid\"; :local res \"LISTA:\"; " .
                    ":foreach i in=[/ip hotspot user profile find] do={ " .
                    ":set res (\$res . [/ip hotspot user profile get \$i name] . \",\"); " .
                    "}; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$res keep-result=no;";
@@ -145,11 +145,11 @@ class CambiarTrialUserprofile extends Component
             $res = $this->esperarRespuesta($mac, $tid);
 
             if ($res) {
-                $raw = str_replace('P:', '', $res);
+                $raw = str_replace('LISTA:', '', $res);
                 $this->perfiles = array_filter(explode(',', trim($raw, ",")));
-                $this->message = "✅ Lista de perfiles actualizada.";
+                $this->message = "✅ Lista cargada.";
             } else {
-                $this->message = "⚠️ Timeout al cargar perfiles.";
+                $this->message = "⚠️ No se recibió la lista.";
             }
         } catch (\Exception $e) { 
             $this->message = "❌ " . $e->getMessage();
@@ -159,36 +159,31 @@ class CambiarTrialUserprofile extends Component
 
     public function aplicarCambio()
     {
-        $this->validate([
-            'router_id' => 'required', 
-            'perfil_seleccionado' => 'required',
-            'uptime_seleccionado' => 'required'
-        ]);
-
+        $this->validate(['router_id' => 'required', 'perfil_seleccionado' => 'required']);
         $this->loading = true;
 
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
-        $tid = "SETTRLALL_" . time();
+        $tid = "SET_" . time();
 
-        // Aplicamos AMBOS cambios: Perfil y Uptime Limit
+        // Formato robusto con :do y on-error enviando SUCCESS/FAIL
         $comando = ":local m \"$mac\"; :local t \"$tid\"; " .
                    ":do { /ip hotspot profile set [find name=\"hsprof1\"] " .
                    "trial-user-profile=\"{$this->perfil_seleccionado}\" " .
                    "trial-uptime-limit=\"{$this->uptime_seleccionado}\"; " .
-                   "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t&data=OK\" keep-result=no; " .
-                   "} on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t&data=ERROR\" keep-result=no; }";
+                   "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"SUCCESS\" keep-result=no; " .
+                   "} on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; };";
 
         try {
             $this->emitirAlSocket($comando, $mac, $tid);
             $res = $this->esperarRespuesta($mac, $tid);
 
-            if ($res === 'OK') {
-                $this->message = "✅ Configuración Trial actualizada (Perfil y Tiempo).";
+            if ($res === 'SUCCESS') {
+                $this->message = "✅ Configuración Trial actualizada.";
                 $this->perfil_actual = $this->perfil_seleccionado;
                 $this->uptime_actual = $this->uptime_seleccionado;
             } else {
-                $this->message = "❌ MikroTik rechazó el comando.";
+                $this->message = "❌ Error: MikroTik devolvió FAIL.";
             }
         } catch (\Exception $e) { 
             $this->message = "❌ " . $e->getMessage(); 
