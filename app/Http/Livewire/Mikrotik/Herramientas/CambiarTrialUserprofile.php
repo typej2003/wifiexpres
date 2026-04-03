@@ -6,6 +6,7 @@ use Livewire\Component;
 use App\Models\Router;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class CambiarTrialUserprofile extends Component
 {
@@ -44,39 +45,77 @@ class CambiarTrialUserprofile extends Component
         }
     }
 
+    // --- MÉTODOS DE COMUNICACIÓN OPTIMIZADOS (Lógica de Diagnóstico) ---
+
+    protected function emitirAlSocket($comando, $mac, $tid)
+    {
+        try {
+            // Limpia el comando de saltos de línea y espacios extra
+            $comandoLimpio = trim(preg_replace('/\s+/', ' ', $comando));
+            $response = Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])
+                ->withBody($comandoLimpio, 'text/plain')
+                ->post("{$this->bridgeUrl}/set-command");
+
+            if (!$response->successful()) throw new \Exception("Bridge Offline");
+            return true;
+        } catch (\Exception $e) {
+            Log::error("Error Bridge: " . $e->getMessage());
+            throw new \Exception("Error al conectar con el Bridge.");
+        }
+    }
+
+    protected function esperarRespuesta($mac, $tid)
+    {
+        set_time_limit(60); // Ajustado a 60s para no colgar el servidor
+        for ($i = 0; $i < 20; $i++) {
+            sleep(1);
+            try {
+                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
+                if ($res->successful() && $res->json('status') === 'ready') { 
+                    return $res->json('data');
+                }
+            } catch (\Exception $e) { }
+        }
+        return null;
+    }
+
+    // --- ACCIONES DEL COMPONENTE ---
+
     public function updatedRouterId()
     {
         $this->reset(['perfiles', 'perfil_actual', 'perfil_seleccionado', 'message']);
+        if($this->router_id) {
+            $this->consultarPerfilActual();
+        }
     }
 
     public function consultarPerfilActual()
     {
         if (!$this->router_id) return;
-        $this->message = null;
         $this->loading = true;
+        $this->message = "Consultando perfil actual...";
         
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
         $tid = "GETCUR_" . time();
 
-        $comando = ":local current [/ip hotspot profile get [find name=\"hsprof1\"] trial-user-profile]; " .
-                   "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid&data=\$current\" keep-result=no;";
+        // Comando simplificado y robusto
+        $comando = ":local m \"$mac\"; :local t \"$tid\"; " .
+                   ":local res [/ip hotspot profile get [find name=\"hsprof1\"] trial-user-profile]; " .
+                   "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t&data=\$res\" keep-result=no;";
 
         try {
-            Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])->withBody($comando, 'text/plain')->post("{$this->bridgeUrl}/set-command");
-
-            for ($i = 0; $i < 15; $i++) {
-                usleep(800000);
-                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
-                if ($res->successful() && $res->json('status') === 'ready') {
-                    $this->perfil_actual = $res->json('data');
-                    $this->loading = false;
-                    return;
-                }
+            $this->emitirAlSocket($comando, $mac, $tid);
+            $res = $this->esperarRespuesta($mac, $tid);
+            
+            if ($res) {
+                $this->perfil_actual = $res;
+                $this->message = "✅ Perfil actual obtenido.";
+            } else {
+                $this->message = "⚠️ No se recibió respuesta del perfil actual.";
             }
-            $this->message = "⚠️ Tiempo de espera agotado al consultar perfil.";
         } catch (\Exception $e) { 
-            $this->message = "❌ Error: " . $e->getMessage();
+            $this->message = "❌ " . $e->getMessage();
         }
         $this->loading = false;
     }
@@ -84,33 +123,31 @@ class CambiarTrialUserprofile extends Component
     public function obtenerListaPerfiles()
     {
         if (!$this->router_id) return;
-        $this->message = null;
         $this->loading = true;
+        $this->message = "Obteniendo lista de perfiles...";
 
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
         $tid = "GETLST_" . time();
 
-        $comando = ":local res \"P:\"; :foreach i in=[/ip hotspot user profile find] do={ " .
+        $comando = ":local m \"$mac\"; :local t \"$tid\"; :local res \"P:\"; " .
+                   ":foreach i in=[/ip hotspot user profile find] do={ " .
                    ":set res (\$res . [/ip hotspot user profile get \$i name] . \",\"); " .
-                   "}; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\$res keep-result=no;";
+                   "}; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\$res keep-result=no;";
 
         try {
-            Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])->withBody($comando, 'text/plain')->post("{$this->bridgeUrl}/set-command");
+            $this->emitirAlSocket($comando, $mac, $tid);
+            $res = $this->esperarRespuesta($mac, $tid);
 
-            for ($i = 0; $i < 15; $i++) {
-                usleep(800000);
-                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
-                if ($res->successful() && $res->json('status') === 'ready') {
-                    $raw = str_replace('P:', '', $res->json('data'));
-                    $this->perfiles = array_filter(explode(',', trim($raw, ",")));
-                    $this->loading = false;
-                    return;
-                }
+            if ($res) {
+                $raw = str_replace('P:', '', $res);
+                $this->perfiles = array_filter(explode(',', trim($raw, ",")));
+                $this->message = "✅ Lista de perfiles actualizada.";
+            } else {
+                $this->message = "⚠️ Timeout: MikroTik no envió la lista.";
             }
-            $this->message = "⚠️ No se pudo obtener la lista de perfiles (Timeout).";
         } catch (\Exception $e) { 
-            $this->message = "❌ Error: " . $e->getMessage();
+            $this->message = "❌ " . $e->getMessage();
         }
         $this->loading = false;
     }
@@ -118,39 +155,30 @@ class CambiarTrialUserprofile extends Component
     public function aplicarCambio()
     {
         $this->validate(['router_id' => 'required', 'perfil_seleccionado' => 'required']);
-        $this->message = null;
         $this->loading = true;
 
         $router = Router::findOrFail($this->router_id);
         $mac = strtoupper(trim($router->macAddress));
         $tid = "SETTRL_" . time();
 
-        $comando = ":do { /ip hotspot profile set [find name=\"hsprof1\"] trial-user-profile=\"{$this->perfil_seleccionado}\"; " .
-                   "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid&data=OK\" keep-result=no; " .
-                   "} on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid&data=ERROR\" keep-result=no; }";
+        $comando = ":local m \"$mac\"; :local t \"$tid\"; " .
+                   ":do { /ip hotspot profile set [find name=\"hsprof1\"] trial-user-profile=\"{$this->perfil_seleccionado}\"; " .
+                   "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t&data=OK\" keep-result=no; " .
+                   "} on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t&data=ERROR\" keep-result=no; }";
 
         try {
-            Http::withHeaders(['x-mac' => $mac, 'x-id' => $tid])->withBody($comando, 'text/plain')->post("{$this->bridgeUrl}/set-command");
+            $this->emitirAlSocket($comando, $mac, $tid);
+            $res = $this->esperarRespuesta($mac, $tid);
 
-            for ($i = 0; $i < 15; $i++) {
-                usleep(900000); // Un poco más de tiempo entre intentos para aplicar cambios
-                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
-                
-                if ($res->successful() && $res->json('status') === 'ready') {
-                    if($res->json('data') == 'OK') {
-                        $this->message = "✅ Perfil Trial actualizado correctamente en MikroTik.";
-                        $this->perfil_actual = $this->perfil_seleccionado;
-                        $this->perfil_seleccionado = null;
-                    } else {
-                        $this->message = "❌ MikroTik reportó un error al aplicar el perfil.";
-                    }
-                    $this->loading = false;
-                    return;
-                }
+            if ($res === 'OK') {
+                $this->message = "✅ Perfil Trial actualizado con éxito.";
+                $this->perfil_actual = $this->perfil_seleccionado;
+                $this->perfil_seleccionado = null;
+            } else {
+                $this->message = "❌ Error en MikroTik al aplicar cambio.";
             }
-            $this->message = "⚠️ El comando se envió, pero no se recibió confirmación de éxito.";
         } catch (\Exception $e) { 
-            $this->message = "❌ Error de comunicación: " . $e->getMessage(); 
+            $this->message = "❌ " . $e->getMessage(); 
         }
         $this->loading = false;
     }
