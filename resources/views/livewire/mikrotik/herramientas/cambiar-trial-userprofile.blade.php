@@ -73,6 +73,7 @@
                             <div class="col-md-6">
                                 <label class="form-label fw-bold">Nuevo Uptime (HH:MM:SS)</label>
                                 <select wire:model="uptime_seleccionado" class="form-select border-2">
+                                    <option value="00:00:00">Sin tiempo</option>
                                     <option value="00:01:00">1 Minuto (Pruebas)</option>
                                     <option value="00:05:00">5 Minutos</option>
                                     <option value="00:10:00">10 Minutos</option>
