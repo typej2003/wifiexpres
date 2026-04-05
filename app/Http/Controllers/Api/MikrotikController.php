@@ -48,12 +48,13 @@ class MikrotikController extends Controller
                     ->first();
 
                 if ($ticket) {
+                    $currentRate = ExchangeRateService::getBcvRate();
+
+                    $montoUsd = round((float)$ticket->costo / $currentRate, 4);
+
                     // Si el ticket se usa por PRIMERA VEZ
                     if (!$ticket->activado) {
                         
-                        $currentRate = ExchangeRateService::getBcvRate();
-
-                        $montoUsd = round((float)$ticket->costo / $currentRate, 4);
 
                         $ticket->update([
                             'activado' => true,
