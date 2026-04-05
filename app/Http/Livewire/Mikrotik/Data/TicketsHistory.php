@@ -149,6 +149,7 @@ class TicketsHistory extends Component
         $user = Auth::user();
         $query = Ticket::query()->with(['router', 'router.user']);
 
+        // Seguridad por Rol
         if ($user->role !== 'admin') {
             $query->whereHas('router', function($q) use ($user) {
                 $q->where('user_id', $user->id);
@@ -159,16 +160,19 @@ class TicketsHistory extends Component
             });
         }
 
+        // Filtros Básicos
         if ($this->filterRouter) $query->where('router_id', $this->filterRouter);
         if ($this->filterPlan) $query->where('plan', $this->filterPlan);
         if ($this->filterEstado) $query->where('estado', $this->filterEstado);
 
-        // Lógica de Filtro por Origen Detallada
+        // Lógica de Filtro por Origen (Tickets, Pasarela, Trial)
         if ($this->filterOrigen === 'tickets') {
-            $query->where('identity', 'like', '%Lote%')
-                    ->Orwhere('identity', 'like', '%2026-04-02%')
-                    ->Orwhere('identity', 'like', '%2026-04-03%')
-                    ->Orwhere('identity', 'like', '%2026-04-04%');
+            $query->where(function($q) {
+                $q->where('identity', 'like', '%Lote%')
+                  ->orWhere('identity', 'like', '%2026-04-02%')
+                  ->orWhere('identity', 'like', '%2026-04-03%')
+                  ->orWhere('identity', 'like', '%2026-04-04%');
+            });
         } elseif ($this->filterOrigen === 'pasarela') {
             $query->where('identity', 'like', '%IMP-%')
                   ->where('identity', 'not like', '%IMP-T-%');
@@ -176,6 +180,7 @@ class TicketsHistory extends Component
             $query->where('identity', 'like', '%IMP-T-%');
         }
         
+        // Búsqueda General
         if ($this->search) {
             $query->where(function($q) {
                 $q->where('username', 'like', '%' . $this->search . '%')
