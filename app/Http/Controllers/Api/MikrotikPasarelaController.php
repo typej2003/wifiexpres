@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Services\ExchangeRateService;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\ApiProcessPaymentController;
 use App\Http\Controllers\Api\IpgBdvPaymentRequest;
@@ -108,10 +109,9 @@ class MikrotikPasarelaController extends Controller
 			$router = \App\Models\Router::where('identity', $identity)->first();
 
 			if ($router) {
-				// Calculamos la tasa real aplicada en esta transacción
-				$tasaTransaccion = ($costoUsd > 0) ? ($montoBs / $costoUsd) : null;
 
-				$costoUsd = round($montoBs / $tasaTransaccion, 2);
+				$currentRate = ExchangeRateService::getBcvRate();
+				$costoUsd = round(montoBs / $currentRate, 2);
 
 				\App\Models\Sale::create([
 					'user_id'      => $router->user_id,
@@ -121,7 +121,7 @@ class MikrotikPasarelaController extends Controller
 					'description'  => "Pago Pasarela: Plan " . $plan . " - Ref: " . $reference,
 					'amount_bs'    => $montoBs, 
 					'amount_usd'   => $costoUsd,
-					'rate'         => $tasaTransaccion,
+					'rate'         => $currentRate,
 				]);
 			}
 
