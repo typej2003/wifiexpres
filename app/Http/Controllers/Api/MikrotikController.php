@@ -53,7 +53,7 @@ class MikrotikController extends Controller
                         
                         $currentRate = ExchangeRateService::getBcvRate();
 
-                        $montoUsd = round((float)$ticket->costo / $currentRate, 2);
+                        $montoUsd = round((float)$ticket->costo / $currentRate, 4);
 
                         $ticket->update([
                             'activado' => true,

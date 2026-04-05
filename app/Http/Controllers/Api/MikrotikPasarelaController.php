@@ -88,7 +88,7 @@ class MikrotikPasarelaController extends Controller
 			$plan = $referenceArray[3];
 			$costoUsd1 = (float)$referenceArray[4]; // Costo del plan en USD
 
-			$costoUsd = round($costoUsd1, 2);
+			$costoUsd = round($costoUsd1, 4);
 
 			$montoBs = (float)$datos->amount; // Lo que entró en Bs a la pasarela
 
@@ -111,7 +111,7 @@ class MikrotikPasarelaController extends Controller
 			if ($router) {
 
 				$currentRate = ExchangeRateService::getBcvRate();
-				$costoUsd = round($montoBs / $currentRate, 2);
+				$costoUsd = round($montoBs / $currentRate, 4);
 
 				\App\Models\Sale::create([
 					'user_id'      => $router->user_id,
