@@ -110,10 +110,10 @@
                             </span>
                         </td>
                         <td class="text-end fw-bold text-primary">
-                            {{ $sale->amount_bs > 0 ? number_format($sale->amount_bs, 2, ',', '.') : '-' }}
+                            {{ $sale->amount_bs > 0 ? number_format($sale->amount_bs, 4, ',', '.') : '-' }}
                         </td>
                         <td class="text-end pe-4 fw-bold text-dark">
-                            ${{ number_format($sale->amount_usd, 2) }}
+                            ${{ number_format($sale->amount_usd, 4) }}
                         </td>
                     </tr>
                     @empty
