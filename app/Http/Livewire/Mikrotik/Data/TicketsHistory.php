@@ -23,12 +23,20 @@ class TicketsHistory extends Component
     public $filterRouter = '';
     public $filterPlan = '';
     public $filterEstado = '';
-    public $sortDirection = 'desc'; // Para consumo
+    public $sortDirection = 'desc';
 
-    // Control de Modal Sincronización
+    // Control de Modales
     public $isSyncModalOpen = false;
+    public $isSummaryModalOpen = false; // Nuevo modal de resultados
     public $syncAmount = 50;
     public $showOverlay = false;
+
+    // Resultados de la sincronización
+    public $syncResults = [
+        'nuevos' => 0,
+        'actualizados' => 0,
+        'sin_cambios' => 0
+    ];
 
     protected $bridgeUrl = "http://188.95.113.44:3000";
 
@@ -41,6 +49,7 @@ class TicketsHistory extends Component
 
     public function openSyncModal() { $this->isSyncModalOpen = true; }
     public function closeSyncModal() { $this->isSyncModalOpen = false; }
+    public function closeSummaryModal() { $this->isSummaryModalOpen = false; }
 
     public function syncData()
     {
@@ -52,11 +61,13 @@ class TicketsHistory extends Component
         $this->showOverlay = true;
         $this->isSyncModalOpen = false;
 
+        // Reiniciar contadores
+        $this->syncResults = ['nuevos' => 0, 'actualizados' => 0, 'sin_cambios' => 0];
+
         $router = Router::find($this->filterRouter);
         $mac = strtoupper($router->macAddress);
         $tid = "HSYNC" . time();
 
-        // Comando optimizado para traer solo la cantidad solicitada
         $comando = ":local count 0; :local res \"D:\"; :foreach i in=[/ip hotspot user find where name!=\"default-trial\"] do={ " .
                    ":if (\$count < {$this->syncAmount}) do={ " .
                    ":local n [/ip hotspot user get \$i name]; :local p [/ip hotspot user get \$i password]; " .
@@ -71,14 +82,22 @@ class TicketsHistory extends Component
                 ->withBody(trim($comando), 'text/plain')
                 ->post("{$this->bridgeUrl}/set-command");
 
-            // Simulación de espera de resultado (basado en tu lógica sendCommandQuick)
-            sleep(2); 
-            $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
+            // Reintentos para obtener el resultado
+            $raw = null;
+            for ($i = 0; $i < 10; $i++) {
+                sleep(1);
+                $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
+                if ($res->successful() && $res->json('status') === 'ready') {
+                    $raw = $res->json('data');
+                    break;
+                }
+            }
             
-            if ($res->successful() && $res->json('status') === 'ready') {
-                $raw = $res->json('data');
+            if ($raw) {
                 $this->processSyncRawData($raw, $router->id);
-                session()->flash('message', 'Sincronización de '.$this->syncAmount.' registros completada.');
+                $this->isSummaryModalOpen = true; // Abrimos el resumen al terminar
+            } else {
+                session()->flash('error', 'El router no respondió a tiempo.');
             }
         } catch (\Exception $e) {
             session()->flash('error', 'Error de conexión con el Bridge.');
@@ -91,15 +110,26 @@ class TicketsHistory extends Component
     {
         $datos = str_replace('D:', '', $raw);
         $filas = array_filter(explode('|', trim($datos, "| ")));
-        $planes = Plan::where('router_id', $routerId)->get()->keyBy('mikrotik_profile');
-
+        
         foreach ($filas as $fila) {
             $p = explode(',', $fila);
             if (count($p) < 3) continue;
 
             $uName = $p[0];
             $uptime = $p[3] ?: '0s';
-            $planInfo = $planes->get($p[2]);
+
+            // --- LÓGICA DE COMPARACIÓN ---
+            $ticketExistente = Ticket::where('router_id', $routerId)
+                                     ->where('username', $uName)
+                                     ->first();
+
+            if (!$ticketExistente) {
+                $this->syncResults['nuevos']++;
+            } elseif ($ticketExistente->tiempo_consumido !== $uptime) {
+                $this->syncResults['actualizados']++;
+            } else {
+                $this->syncResults['sin_cambios']++;
+            }
 
             Ticket::updateOrCreate(
                 ['router_id' => $routerId, 'username' => $uName],
@@ -115,11 +145,8 @@ class TicketsHistory extends Component
     public function render()
     {
         $user = Auth::user();
-        
-        // Query base
         $query = Ticket::query()->with('router');
 
-        // Si es aliado, filtrar solo sus routers
         if ($user->role !== 'admin') {
             $query->whereHas('router', function($q) use ($user) {
                 $q->where('user_id', $user->id);
@@ -130,10 +157,10 @@ class TicketsHistory extends Component
             });
         }
 
-        // Filtros adicionales
         if ($this->filterRouter) $query->where('router_id', $this->filterRouter);
         if ($this->filterPlan) $query->where('plan', $this->filterPlan);
         if ($this->filterEstado) $query->where('estado', $this->filterEstado);
+        
         if ($this->search) {
             $query->where(function($q) {
                 $q->where('username', 'like', '%' . $this->search . '%')
@@ -141,7 +168,6 @@ class TicketsHistory extends Component
             });
         }
 
-        // Orden de consumo (Hack para ordenar strings de MikroTik como 1h2m)
         $query->orderBy('tiempo_consumido', $this->sortDirection);
 
         return view('livewire.mikrotik.data.tickets-history', [

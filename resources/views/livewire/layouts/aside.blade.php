@@ -310,7 +310,7 @@
 
             <a href="{{ route('mikrotik.history') }}" class="sidebar-link {{ request()->routeIs('mikrotik.history') ? 'active' : '' }}">
                 <i class="bi bi-clock-history"></i> 
-                <span class="menu-text">Historial de Tickets</span>
+                <span class="menu-text">HISTORIAL DE TICKETS</span>
             </a>
 
             <a href="{{ route('tickets.imprimir.index') }}" 
