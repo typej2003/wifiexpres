@@ -11,6 +11,7 @@
         "php": "^7.3|^8.0",
         "barryvdh/laravel-dompdf": "^2.2",
         "darryldecode/cart": "^4.2",
+        "doctrine/dbal": "^4.4",
         "elephantio/elephant.io": "^2.0",
         "evilfreelancer/routeros-api-php": "^1.5",
         "fideloper/proxy": "^4.4",
