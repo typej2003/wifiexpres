@@ -166,7 +166,9 @@ class TicketsHistory extends Component
         // Lógica de Filtro por Origen Detallada
         if ($this->filterOrigen === 'tickets') {
             $query->where('identity', 'like', '%Lote%')
-                    ->Orwhere('identity', 'like', '%2026-04-02%');
+                    ->Orwhere('identity', 'like', '%2026-04-02%')
+                    ->Orwhere('identity', 'like', '%2026-04-03%')
+                    ->Orwhere('identity', 'like', '%2026-04-04%');
         } elseif ($this->filterOrigen === 'pasarela') {
             $query->where('identity', 'like', '%IMP-%')
                   ->where('identity', 'not like', '%IMP-T-%');
