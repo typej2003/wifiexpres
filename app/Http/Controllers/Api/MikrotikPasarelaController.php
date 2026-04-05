@@ -111,7 +111,7 @@ class MikrotikPasarelaController extends Controller
 			if ($router) {
 
 				$currentRate = ExchangeRateService::getBcvRate();
-				$costoUsd = round(montoBs / $currentRate, 2);
+				$costoUsd = round($montoBs / $currentRate, 2);
 
 				\App\Models\Sale::create([
 					'user_id'      => $router->user_id,
