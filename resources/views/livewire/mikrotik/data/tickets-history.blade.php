@@ -10,62 +10,59 @@
     </div>
     @endif
 
-    {{-- CABECERA Y FILTROS --}}
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm rounded-4">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h4 class="fw-800 mb-0"><i class="bi bi-clock-history text-primary me-2"></i>Historial de Tickets</h4>
-                        <button wire:click="openSyncModal" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm">
-                            <i class="bi bi-arrow-repeat me-1"></i> SINCRONIZAR SMART
-                        </button>
+    {{-- FILTROS --}}
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-800 mb-0"><i class="bi bi-clock-history text-primary me-2"></i>Historial de Tickets</h4>
+                <button wire:click="openSyncModal" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm">
+                    <i class="bi bi-arrow-repeat me-1"></i> SINCRONIZAR SMART
+                </button>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+                        <input type="text" wire:model="search" class="form-control border-start-0" placeholder="PIN o Identidad...">
                     </div>
+                </div>
 
-                    <div class="row g-3">
-                        <div class="col-md-3">
-                            <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-                                <input type="text" wire:model="search" class="form-control border-start-0" placeholder="Buscar PIN o Usuario...">
-                            </div>
-                        </div>
+                {{-- Filtro Origen con Trial --}}
+                <div class="col-md-2">
+                    <select wire:model="filterOrigen" class="form-select border-2 border-primary-soft">
+                        <option value="">Todos los Orígenes</option>
+                        <option value="tickets">🎫 Lotes (Tickets)</option>
+                        <option value="pasarela">💳 Pasarela (Venta)</option>
+                        <option value="trial">🎁 Trial (Gratis)</option>
+                    </select>
+                </div>
 
-                        {{-- Filtro Origen (Actualizado) --}}
-                        <div class="col-md-2">
-                            <select wire:model="filterOrigen" class="form-select border-2 border-primary-soft">
-                                <option value="">Todos los Orígenes</option>
-                                <option value="tickets">🎫 Por Lotes (Tickets)</option>
-                                <option value="pasarela">💳 Pasarela (Venta IMP-)</option>
-                            </select>
-                        </div>
+                @if(auth()->user()->role === 'admin')
+                <div class="col-md-2">
+                    <select wire:model="filterAliado" class="form-select">
+                        <option value="">Todos los Aliados</option>
+                        @foreach($aliados as $a) <option value="{{ $a->id }}">{{ $a->name }}</option> @endforeach
+                    </select>
+                </div>
+                @endif
 
-                        @if(auth()->user()->role === 'admin')
-                        <div class="col-md-2">
-                            <select wire:model="filterAliado" class="form-select">
-                                <option value="">Todos los Aliados</option>
-                                @foreach($aliados as $a) <option value="{{ $a->id }}">{{ $a->name }}</option> @endforeach
-                            </select>
-                        </div>
-                        @endif
+                <div class="col-md-2">
+                    <select wire:model="filterRouter" class="form-select">
+                        <option value="">Todos los Routers</option>
+                        @foreach($routers as $r) 
+                            <option value="{{ $r->id }}">{{ $r->active ? '🟢' : '🔴' }} {{ $r->identity }}</option> 
+                        @endforeach
+                    </select>
+                </div>
 
-                        <div class="col-md-2">
-                            <select wire:model="filterRouter" class="form-select">
-                                <option value="">Todos los Routers</option>
-                                @foreach($routers as $r) 
-                                    <option value="{{ $r->id }}">{{ $r->active ? '🟢' : '🔴' }} {{ $r->identity }}</option> 
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div class="col-md-3">
-                            <select wire:model="filterEstado" class="form-select">
-                                <option value="">Cualquier Estado</option>
-                                <option value="disponible">DISPONIBLE</option>
-                                <option value="en_uso">EN USO (ACTIVOS)</option>
-                                <option value="agotado">AGOTADO</option>
-                            </select>
-                        </div>
-                    </div>
+                <div class="col-md-3">
+                    <select wire:model="filterEstado" class="form-select">
+                        <option value="">Cualquier Estado</option>
+                        <option value="disponible">DISPONIBLE</option>
+                        <option value="en_uso">EN USO</option>
+                        <option value="agotado">AGOTADO</option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -79,10 +76,9 @@
                     <tr>
                         <th class="px-4 py-3">IDENTIDAD / TIPO</th>
                         <th class="py-3">ROUTER / ALIADO</th>
-                        <th class="py-3 text-center">PLAN</th>
-                        <th class="py-3 text-center cursor-pointer" wire:click="toggleSort" style="user-select: none;">
-                            CONSUMO 
-                            @if($sortDirection === 'asc') <i class="bi bi-sort-numeric-down text-primary ms-1"></i> @else <i class="bi bi-sort-numeric-up-alt text-primary ms-1"></i> @endif
+                        <th class="py-3 text-center">PLAN / COSTO</th>
+                        <th class="py-3 text-center cursor-pointer" wire:click="toggleSort">
+                            CONSUMO @if($sortDirection === 'asc') <i class="bi bi-sort-numeric-down"></i> @else <i class="bi bi-sort-numeric-up-alt"></i> @endif
                         </th>
                         <th class="py-3 text-center">ESTADO</th>
                         <th class="text-end px-4">FECHA</th>
@@ -90,16 +86,23 @@
                 </thead>
                 <tbody>
                     @forelse($tickets as $t)
+                    @php 
+                        $isTrial = str_contains($t->identity, 'IMP-T-');
+                        $isLote = str_contains($t->identity, 'Lote');
+                        $isVenta = str_contains($t->identity, 'IMP-') && !$isTrial;
+
+                        // Lógica de costo según el nombre del plan
+                        $planLower = strtolower($t->plan);
+                        $isGratis = (str_contains($planLower, 'neutro') || str_contains($planLower, 'cortesia') || str_contains($planLower, 'trial'));
+                        $costo = $isGratis ? 0 : 1;
+                    @endphp
                     <tr>
                         <td class="px-4">
                             <div class="d-flex align-items-center">
-                                @php 
-                                    $isLote = str_contains($t->identity, 'Lote');
-                                    $isImp = str_contains($t->identity, 'IMP-');
-                                @endphp
-                                <div class="avatar-sm me-2 bg-light rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                                    @if($isLote) <i class="bi bi-layers-fill text-primary"></i> 
-                                    @elseif($isImp) <i class="bi bi-credit-card-fill text-warning"></i>
+                                <div class="avatar-sm me-2 bg-light rounded d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                    @if($isTrial) <i class="bi bi-gift-fill text-success"></i>
+                                    @elseif($isLote) <i class="bi bi-layers-fill text-primary"></i> 
+                                    @elseif($isVenta) <i class="bi bi-credit-card-fill text-warning"></i>
                                     @else <i class="bi bi-person-fill text-secondary"></i> @endif
                                 </div>
                                 <div>
@@ -112,7 +115,12 @@
                             <span class="badge bg-light text-dark border">{{ $t->router->identity }}</span>
                             <div class="small text-muted">{{ $t->router->user->name }}</div>
                         </td>
-                        <td class="text-center"><span class="fw-bold">{{ $t->plan }}</span></td>
+                        <td class="text-center">
+                            <span class="fw-bold d-block">{{ $t->plan }}</span>
+                            <span class="badge {{ $costo > 0 ? 'bg-soft-primary text-primary' : 'bg-soft-success text-success' }} small">
+                                Costo: {{ $costo }}
+                            </span>
+                        </td>
                         <td class="text-center">
                             <code class="text-primary fw-bold" style="font-size: 1.1rem;">{{ $t->tiempo_consumido ?: '0s' }}</code>
                         </td>
@@ -136,7 +144,7 @@
         </div>
     </div>
 
-    {{-- MODALES (Sincronización y Resumen) --}}
+    {{-- MODAL SINCRONIZACIÓN --}}
     @if($isSyncModalOpen)
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); z-index: 1055;">
         <div class="modal-dialog modal-dialog-centered">
@@ -147,13 +155,12 @@
                 </div>
                 <div class="modal-body p-4 text-center">
                     <div class="display-5 text-warning mb-3"><i class="bi bi-cloud-download"></i></div>
-                    <p class="text-muted">¿Cuántos registros del MikroTik desea actualizar?</p>
+                    <p class="text-muted">¿Cuántos registros desea actualizar del MikroTik?</p>
                     <div class="px-5 mb-4">
                         <select wire:model.defer="syncAmount" class="form-select form-select-lg text-center fw-bold border-2 border-warning">
                             <option value="50">50 Registros</option>
                             <option value="100">100 Registros</option>
                             <option value="250">250 Registros</option>
-                            <option value="500">500 Registros</option>
                         </select>
                     </div>
                 </div>
@@ -166,18 +173,19 @@
     </div>
     @endif
 
+    {{-- MODAL RESUMEN --}}
     @if($isSummaryModalOpen)
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); z-index: 1056;">
         <div class="modal-dialog modal-dialog-centered modal-sm">
             <div class="modal-content rounded-4 border-0 shadow-lg text-center p-4">
                 <i class="bi bi-check-circle-fill text-success display-4 mb-3"></i>
                 <h4 class="fw-bold">Completado</h4>
-                <div class="my-3 small">
-                    <div class="d-flex justify-content-between mb-1"><span>Nuevos:</span> <strong>{{ $syncResults['nuevos'] }}</strong></div>
-                    <div class="d-flex justify-content-between mb-1"><span>Actualizados:</span> <strong>{{ $syncResults['actualizados'] }}</strong></div>
-                    <div class="d-flex justify-content-between"><span>Sin cambios:</span> <strong>{{ $syncResults['sin_cambios'] }}</strong></div>
+                <div class="my-3 small text-start">
+                    <div class="d-flex justify-content-between mb-1 text-success"><span>Nuevos:</span> <strong>+{{ $syncResults['nuevos'] }}</strong></div>
+                    <div class="d-flex justify-content-between mb-1 text-primary"><span>Actualizados:</span> <strong>{{ $syncResults['actualizados'] }}</strong></div>
+                    <div class="d-flex justify-content-between text-muted"><span>Sin cambios:</span> <strong>{{ $syncResults['sin_cambios'] }}</strong></div>
                 </div>
-                <button wire:click="closeSummaryModal" class="btn btn-dark rounded-pill w-100 fw-bold">OK</button>
+                <button wire:click="closeSummaryModal" class="btn btn-dark rounded-pill w-100 fw-bold">ENTENDIDO</button>
             </div>
         </div>
     </div>

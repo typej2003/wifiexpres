@@ -41,7 +41,6 @@ class TicketsHistory extends Component
 
     protected $bridgeUrl = "http://188.95.113.44:3000";
 
-    // Resetear paginación al filtrar
     public function updatingSearch() { $this->resetPage(); }
     public function updatingFilterAliado() { $this->resetPage(); }
     public function updatingFilterRouter() { $this->resetPage(); }
@@ -148,7 +147,7 @@ class TicketsHistory extends Component
     public function render()
     {
         $user = Auth::user();
-        $query = Ticket::query()->with('router');
+        $query = Ticket::query()->with(['router', 'router.user']);
 
         if ($user->role !== 'admin') {
             $query->whereHas('router', function($q) use ($user) {
@@ -164,11 +163,14 @@ class TicketsHistory extends Component
         if ($this->filterPlan) $query->where('plan', $this->filterPlan);
         if ($this->filterEstado) $query->where('estado', $this->filterEstado);
 
-        // Lógica de Filtro por Origen (Lote vs IMP-)
+        // Lógica de Filtro por Origen Detallada
         if ($this->filterOrigen === 'tickets') {
             $query->where('identity', 'like', '%Lote%');
         } elseif ($this->filterOrigen === 'pasarela') {
-            $query->where('identity', 'like', '%IMP-%');
+            $query->where('identity', 'like', '%IMP-%')
+                  ->where('identity', 'not like', '%IMP-T-%');
+        } elseif ($this->filterOrigen === 'trial') {
+            $query->where('identity', 'like', '%IMP-T-%');
         }
         
         if ($this->search) {
