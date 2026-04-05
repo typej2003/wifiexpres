@@ -200,6 +200,11 @@
                 <span class="badge rounded-pill bg-info text-dark ms-2">{{ $totalCitas ?? '0' }}</span>
             </a>
 
+            <a href="{{ route('mikrotik.history') }}" class="sidebar-link {{ request()->routeIs('mikrotik.history') ? 'active' : '' }}">
+                <i class="bi bi-clock-history"></i> 
+                <span class="menu-text">Historial de Tickets</span>
+            </a>
+
             <a href="{{ route('tickets.imprimir.index') }}" 
             class="sidebar-link {{ request()->routeIs('tickets.imprimir.index') ? 'active' : '' }}">
                 <i class="bi bi-printer"></i>
@@ -301,6 +306,11 @@
             <a href="{{ route('aliado.routers') }}" class="sidebar-link {{ request()->routeIs('aliado.routers') ? 'active' : '' }}">
                 <i class="bi bi-router"></i>
                 <span class="menu-text">MIS ROUTERS</span>
+            </a>
+
+            <a href="{{ route('mikrotik.history') }}" class="sidebar-link {{ request()->routeIs('mikrotik.history') ? 'active' : '' }}">
+                <i class="bi bi-clock-history"></i> 
+                <span class="menu-text">Historial de Tickets</span>
             </a>
 
             <a href="{{ route('tickets.imprimir.index') }}" 
