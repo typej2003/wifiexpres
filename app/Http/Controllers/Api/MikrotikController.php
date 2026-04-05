@@ -74,6 +74,18 @@ class MikrotikController extends Controller
                         ]);
                     } else {
                         $ticket->update(['estado' => 'activo']);
+
+                        // REGISTRAMOS LA VENTA
+                        Sale::create([
+                            'user_id'      => $router->user_id, // El dueño del router
+                            'router_id'    => $routerId,
+                            'type'         => 'ticket_fisico',
+                            'reference_id' => $ticket->id,
+                            'description'  => "Activación Ticket: " . $ticket->username . " (" . $ticket->plan . ")",
+                            'amount_usd'   => $montoUsd,
+                            'amount_bs'    => $ticket->costo,
+                            'rate'         => $currentRate,
+                        ]);
                     }
                 }
                 return response()->json(['status' => 'logged_in', 'router' => $identity]);
