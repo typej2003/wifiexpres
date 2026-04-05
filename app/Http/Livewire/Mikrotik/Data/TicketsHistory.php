@@ -23,11 +23,12 @@ class TicketsHistory extends Component
     public $filterRouter = '';
     public $filterPlan = '';
     public $filterEstado = '';
+    public $filterOrigen = ''; 
     public $sortDirection = 'desc';
 
     // Control de Modales
     public $isSyncModalOpen = false;
-    public $isSummaryModalOpen = false; // Nuevo modal de resultados
+    public $isSummaryModalOpen = false;
     public $syncAmount = 50;
     public $showOverlay = false;
 
@@ -40,7 +41,13 @@ class TicketsHistory extends Component
 
     protected $bridgeUrl = "http://188.95.113.44:3000";
 
+    // Resetear paginación al filtrar
     public function updatingSearch() { $this->resetPage(); }
+    public function updatingFilterAliado() { $this->resetPage(); }
+    public function updatingFilterRouter() { $this->resetPage(); }
+    public function updatingFilterPlan() { $this->resetPage(); }
+    public function updatingFilterEstado() { $this->resetPage(); }
+    public function updatingFilterOrigen() { $this->resetPage(); }
 
     public function toggleSort()
     {
@@ -60,8 +67,6 @@ class TicketsHistory extends Component
 
         $this->showOverlay = true;
         $this->isSyncModalOpen = false;
-
-        // Reiniciar contadores
         $this->syncResults = ['nuevos' => 0, 'actualizados' => 0, 'sin_cambios' => 0];
 
         $router = Router::find($this->filterRouter);
@@ -78,11 +83,10 @@ class TicketsHistory extends Component
                    "} }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\$res keep-result=no;";
 
         try {
-            $response = Http::timeout(15)->withHeaders(['x-mac' => $mac, 'x-id' => $tid])
+            Http::timeout(15)->withHeaders(['x-mac' => $mac, 'x-id' => $tid])
                 ->withBody(trim($comando), 'text/plain')
                 ->post("{$this->bridgeUrl}/set-command");
 
-            // Reintentos para obtener el resultado
             $raw = null;
             for ($i = 0; $i < 10; $i++) {
                 sleep(1);
@@ -95,7 +99,7 @@ class TicketsHistory extends Component
             
             if ($raw) {
                 $this->processSyncRawData($raw, $router->id);
-                $this->isSummaryModalOpen = true; // Abrimos el resumen al terminar
+                $this->isSummaryModalOpen = true;
             } else {
                 session()->flash('error', 'El router no respondió a tiempo.');
             }
@@ -118,7 +122,6 @@ class TicketsHistory extends Component
             $uName = $p[0];
             $uptime = $p[3] ?: '0s';
 
-            // --- LÓGICA DE COMPARACIÓN ---
             $ticketExistente = Ticket::where('router_id', $routerId)
                                      ->where('username', $uName)
                                      ->first();
@@ -160,6 +163,13 @@ class TicketsHistory extends Component
         if ($this->filterRouter) $query->where('router_id', $this->filterRouter);
         if ($this->filterPlan) $query->where('plan', $this->filterPlan);
         if ($this->filterEstado) $query->where('estado', $this->filterEstado);
+
+        // Lógica de Filtro por Origen (Lote vs IMP-)
+        if ($this->filterOrigen === 'tickets') {
+            $query->where('identity', 'like', '%Lote%');
+        } elseif ($this->filterOrigen === 'pasarela') {
+            $query->where('identity', 'like', '%IMP-%');
+        }
         
         if ($this->search) {
             $query->where(function($q) {
