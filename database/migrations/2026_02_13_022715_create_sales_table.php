@@ -25,8 +25,8 @@ class CreateSalesTable extends Migration
             $table->string('description'); // Ej: "Activación Ticket: XYZ" o "Pago Pasarela: Plan 1H"
             
             // Bimoneda
-            $table->decimal('amount_usd', 10, 2)->default(0.00);
-            $table->decimal('amount_bs', 15, 2)->default(0.00);
+            $table->decimal('amount_usd', 15, 4)->default(0.00);
+            $table->decimal('amount_bs', 15, 4)->default(0.00);
             $table->decimal('rate', 15, 4)->nullable(); // Tasa de cambio (BCV u otra) al momento
             
             $table->timestamps();
