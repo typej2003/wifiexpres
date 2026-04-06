@@ -44,7 +44,10 @@
                         @if($t->activado) <span class="small text-primary">(Act.)</span> @endif
                         <br><small>{{ $t->identity }}</small>
                     </td>
-                    <td>{{ $t->router->identity }}</td>
+                    <td>
+                        {{ $t->router->comercio_name }}
+                        <br><small>{{ $t->router->identity }}</small>
+                    </td>
                     <td class="text-center">{{ $t->plan }}</td>
                     <td class="text-center">{{ $costo }}</td>
                     <td class="text-center"><code>{{ $t->tiempo_consumido }}</code></td>
