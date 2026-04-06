@@ -18,14 +18,17 @@ class TicketsHistory extends Component
 
     protected $paginationTheme = 'bootstrap';
 
+    // Filtros
     public $search = '';
     public $filterAliado = '';
     public $filterRouter = '';
     public $filterPlan = '';
     public $filterEstado = '';
     public $filterOrigen = ''; 
+    public $filterActivado = false; // Nueva propiedad
     public $sortDirection = 'desc';
 
+    // Control de Modales e Impresión
     public $isSyncModalOpen = false;
     public $isSummaryModalOpen = false;
     public $syncAmount = 50;
@@ -39,6 +42,7 @@ class TicketsHistory extends Component
     public function updatingFilterPlan() { $this->resetPage(); }
     public function updatingFilterEstado() { $this->resetPage(); }
     public function updatingFilterOrigen() { $this->resetPage(); }
+    public function updatingFilterActivado() { $this->resetPage(); }
 
     public function toggleSort()
     {
@@ -92,8 +96,9 @@ class TicketsHistory extends Component
                 $this->isSummaryModalOpen = true;
             }
         } catch (\Exception $e) {
-            session()->flash('error', 'Error de conexión.');
+            session()->flash('error', 'Error de conexión con el Bridge.');
         }
+
         $this->showOverlay = false;
     }
 
@@ -101,6 +106,7 @@ class TicketsHistory extends Component
     {
         $datos = str_replace('D:', '', $raw);
         $filas = array_filter(explode('|', trim($datos, "| ")));
+        
         foreach ($filas as $fila) {
             $p = explode(',', $fila);
             if (count($p) < 3) continue;
@@ -111,7 +117,7 @@ class TicketsHistory extends Component
         }
     }
 
-    // MÉTODO PARA LA IMPRESIÓN (Llamado desde la ruta)
+    // MÉTODO PARA LA IMPRESIÓN (GET)
     public function printReport(Request $request)
     {
         $user = Auth::user();
@@ -126,7 +132,8 @@ class TicketsHistory extends Component
         if ($request->router) $query->where('router_id', $request->router);
         if ($request->plan) $query->where('plan', $request->plan);
         if ($request->estado) $query->where('estado', $request->estado);
-        
+        if ($request->activado === 'true') $query->where('activado', 1);
+
         if ($request->origen === 'tickets') {
             $query->where(fn($q) => $q->where('identity', 'like', '%Lote%')->orWhere('identity', 'like', '%2026-04%'));
         } elseif ($request->origen === 'pasarela') {
@@ -140,7 +147,7 @@ class TicketsHistory extends Component
         }
 
         $tickets = $query->orderBy('tiempo_consumido', $request->sort ?? 'desc')->get();
-        return view('pdf.tickets-report', compact('tickets'));
+        return view('livewire.mikrotik.data.tickets-report', compact('tickets'));
     }
 
     public function render()
@@ -157,6 +164,7 @@ class TicketsHistory extends Component
         if ($this->filterRouter) $query->where('router_id', $this->filterRouter);
         if ($this->filterPlan) $query->where('plan', $this->filterPlan);
         if ($this->filterEstado) $query->where('estado', $this->filterEstado);
+        if ($this->filterActivado) $query->where('activado', 1);
 
         if ($this->filterOrigen === 'tickets') {
             $query->where(fn($q) => $q->where('identity', 'like', '%Lote%')->orWhere('identity', 'like', '%2026-04%'));

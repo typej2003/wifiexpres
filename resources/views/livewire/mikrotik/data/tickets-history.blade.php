@@ -17,7 +17,7 @@
                 <h4 class="fw-800 mb-0"><i class="bi bi-clock-history text-primary me-2"></i>Historial de Tickets</h4>
                 
                 <div class="d-flex gap-2">
-                    {{-- BOTÓN DE IMPRESIÓN (RUTA TRADICIONAL) --}}
+                    {{-- BOTÓN IMPRIMIR ACTUALIZADO --}}
                     <a href="{{ route('tickets.report', [
                         'search' => $search,
                         'aliado' => $filterAliado,
@@ -25,6 +25,7 @@
                         'plan'   => $filterPlan,
                         'estado' => $filterEstado,
                         'origen' => $filterOrigen,
+                        'activado' => $filterActivado ? 'true' : 'false',
                         'sort'   => $sortDirection
                     ]) }}" target="_blank" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm">
                         <i class="bi bi-printer me-1"></i> IMPRIMIR CONSULTA
@@ -71,7 +72,7 @@
                     </select>
                 </div>
 
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <select wire:model="filterEstado" class="form-select">
                         <option value="">Cualquier Estado</option>
                         <option value="disponible">DISPONIBLE</option>
@@ -79,6 +80,14 @@
                         <option value="agotado">AGOTADO</option>
                         <option value="anulado">ANULADO</option>
                     </select>
+                </div>
+
+                {{-- NUEVO CHECKBOX EN TU DISEÑO --}}
+                <div class="col-md-1 d-flex align-items-center">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="checkActivado" wire:model="filterActivado">
+                        <label class="form-check-label fw-bold text-primary" for="checkActivado">Activados</label>
+                    </div>
                 </div>
             </div>
         </div>
@@ -121,7 +130,10 @@
                                     @else <i class="bi bi-person-fill text-secondary"></i> @endif
                                 </div>
                                 <div>
-                                    <span class="fw-bold text-dark d-block">{{ $t->username }}</span>
+                                    <span class="fw-bold text-dark d-block">
+                                        {{ $t->username }}
+                                        @if($t->activado) <i class="bi bi-patch-check-fill text-primary small ms-1" title="Activado"></i> @endif
+                                    </span>
                                     <small class="text-muted" style="font-size: 0.7rem;">{{ $t->identity }}</small>
                                 </div>
                             </div>
