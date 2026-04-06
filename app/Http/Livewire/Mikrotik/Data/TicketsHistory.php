@@ -121,18 +121,6 @@ class TicketsHistory extends Component
             $uName = $p[0];
             $uptime = $p[3] ?: '0s';
 
-            $ticketExistente = Ticket::where('router_id', $routerId)
-                                     ->where('username', $uName)
-                                     ->first();
-
-            if (!$ticketExistente) {
-                $this->syncResults['nuevos']++;
-            } elseif ($ticketExistente->tiempo_consumido !== $uptime) {
-                $this->syncResults['actualizados']++;
-            } else {
-                $this->syncResults['sin_cambios']++;
-            }
-
             Ticket::updateOrCreate(
                 ['router_id' => $routerId, 'username' => $uName],
                 [
@@ -149,7 +137,6 @@ class TicketsHistory extends Component
         $user = Auth::user();
         $query = Ticket::query()->with(['router', 'router.user']);
 
-        // Seguridad por Rol
         if ($user->role !== 'admin') {
             $query->whereHas('router', function($q) use ($user) {
                 $q->where('user_id', $user->id);
@@ -160,12 +147,10 @@ class TicketsHistory extends Component
             });
         }
 
-        // Filtros Básicos
         if ($this->filterRouter) $query->where('router_id', $this->filterRouter);
         if ($this->filterPlan) $query->where('plan', $this->filterPlan);
         if ($this->filterEstado) $query->where('estado', $this->filterEstado);
 
-        // Lógica de Filtro por Origen (Tickets, Pasarela, Trial)
         if ($this->filterOrigen === 'tickets') {
             $query->where(function($q) {
                 $q->where('identity', 'like', '%Lote%')
@@ -180,7 +165,6 @@ class TicketsHistory extends Component
             $query->where('identity', 'like', '%IMP-T-%');
         }
         
-        // Búsqueda General
         if ($this->search) {
             $query->where(function($q) {
                 $q->where('username', 'like', '%' . $this->search . '%')
