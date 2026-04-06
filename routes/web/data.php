@@ -20,4 +20,7 @@ Route::middleware(['auth', 'role:admin,aliado'])->prefix('admin/mikrotik')->grou
     // La URL final será: /admin/mikrotik/history
     Route::get('/history', \App\Http\Livewire\Mikrotik\Data\TicketsHistory::class)->name('mikrotik.history');
 
+    // Ruta para el reporte de impresión
+    Route::get('/tickets-report', [\App\Http\Livewire\Mikrotik\Data\TicketsHistory::class, 'printReport'])->name('tickets.report');
+
 });
