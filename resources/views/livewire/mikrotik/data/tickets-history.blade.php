@@ -20,24 +20,21 @@
         <hr>
     </div>
 
-    {{-- FILTROS Y BOTONES (Ocultos en impresión) --}}
+    {{-- FILTROS (Ocultos en impresión) --}}
     <div class="card border-0 shadow-sm rounded-4 mb-4 d-print-none">
         <div class="card-body p-4">
-            <div class="row align-items-center mb-4">
-                <div class="col-12 col-md-6">
-                    <h4 class="fw-800 mb-0">
-                        <i class="bi bi-clock-history text-primary me-2"></i>Historial de Tickets
-                    </h4>
-                </div>
-                <div class="col-12 col-md-6 text-md-end mt-3 mt-md-0">
-                    <div class="d-flex gap-2 justify-content-md-end">
-                        <button type="button" onclick="window.print()" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm">
-                            <i class="bi bi-printer me-1"></i> IMPRIMIR
-                        </button>
-                        <button type="button" wire:click="openSyncModal" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm">
-                            <i class="bi bi-arrow-repeat me-1"></i> SINCRONIZAR SMART
-                        </button>
-                    </div>
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+                <h4 class="fw-800 mb-0"><i class="bi bi-clock-history text-primary me-2"></i>Historial de Tickets</h4>
+                
+                <div class="d-flex gap-2">
+                    {{-- Botón de Impresión con Ver-Todo --}}
+                    <button wire:click="$set('isPrinting', true)" wire:loading.attr="disabled" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm">
+                        <span wire:loading.remove wire:target="$set('isPrinting', true)"><i class="bi bi-printer me-1"></i> IMPRIMIR TODO</span>
+                        <span wire:loading wire:target="$set('isPrinting', true)"><span class="spinner-border spinner-border-sm me-2"></span>PREPARANDO...</span>
+                    </button>
+                    <button wire:click="openSyncModal" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm">
+                        <i class="bi bi-arrow-repeat me-1"></i> SINCRONIZAR SMART
+                    </button>
                 </div>
             </div>
 
@@ -89,7 +86,7 @@
         </div>
     </div>
 
-    {{-- TABLA - AQUÍ ESTÁ EL CAMBIO DE CLASES PARA IMPRESIÓN --}}
+    {{-- TABLA --}}
     <div class="card border-0 shadow-sm rounded-4 card-print-flat">
         <div class="table-responsive table-print-visible">
             <table class="table table-hover align-middle mb-0">
@@ -118,6 +115,7 @@
                                   str_contains($t->identity, '2026-04-03') || 
                                   str_contains($t->identity, '2026-04-04');
                         $isVenta = str_contains($t->identity, 'IMP-') && !$isTrial;
+
                         $planLower = strtolower($t->plan);
                         $isGratis = (str_contains($planLower, 'neutro') || str_contains($planLower, 'cortesia') || str_contains($planLower, 'trial'));
                         $costo = $isGratis ? 0 : 1;
@@ -166,10 +164,27 @@
             </table>
         </div>
         
+        @if(!$isPrinting)
         <div class="card-footer bg-white border-0 p-3 d-print-none">
             {{ $tickets->links() }}
         </div>
+        @endif
     </div>
+
+    {{-- Script para disparar impresión automática --}}
+    <script>
+        document.addEventListener('livewire:load', function () {
+            Livewire.hook('message.processed', (message, component) => {
+                if (component.getProperty('isPrinting') === true) {
+                    setTimeout(() => {
+                        window.print();
+                        @this.set('isPrinting', false);
+                    }, 800);
+                }
+            })
+        })
+    </script>
+
 </div>
 
 <style>
@@ -179,63 +194,15 @@
     .fw-800 { font-weight: 800; }
 
     @media print {
-        /* Reset de márgenes de página */
-        @page { 
-            size: portrait; 
-            margin: 0.5cm; 
-        }
-
-        /* Forzar visibilidad de todo el contenido */
-        body { 
-            background: white !important; 
-            overflow: visible !important;
-        }
-
-        .container-fluid { 
-            padding: 0 !important; 
-            width: 100% !important;
-        }
-
-        /* Quitar scroll de la tabla y sombras del card */
-        .card-print-flat { 
-            box-shadow: none !important; 
-            border: none !important; 
-            overflow: visible !important;
-        }
-
-        .table-print-visible { 
-            overflow: visible !important; 
-            display: block !important;
-        }
-
-        /* Ajustes de tabla */
-        .table { 
-            width: 100% !important; 
-            border-collapse: collapse !important;
-            font-size: 8.5pt !important; /* Texto un poco más pequeño para que quepa todo */
-        }
-
-        .table td, .table th {
-            padding: 4px !important;
-            border: 1px solid #eee !important;
-        }
-
-        /* Badges y estilos visuales en blanco y negro para mejor lectura */
-        .badge { 
-            border: 1px solid #ddd !important; 
-            background: transparent !important; 
-            color: black !important; 
-            text-shadow: none !important;
-        }
-
-        .text-primary, .text-success, .text-warning, code { 
-            color: black !important; 
-            font-weight: bold !important;
-        }
-
-        /* Ocultar elementos innecesarios */
-        .d-print-none, .card-footer, .avatar-sm { 
-            display: none !important; 
-        }
+        @page { size: portrait; margin: 0.5cm; }
+        body { background: white !important; overflow: visible !important; }
+        .container-fluid { padding: 0 !important; }
+        .card-print-flat { box-shadow: none !important; border: none !important; overflow: visible !important; }
+        .table-print-visible { overflow: visible !important; display: block !important; }
+        .table { width: 100% !important; font-size: 8.5pt !important; border-collapse: collapse !important; }
+        .table td, .table th { border: 1px solid #eee !important; padding: 4px !important; }
+        .badge { border: 1px solid #ddd !important; background: transparent !important; color: black !important; }
+        .text-primary, .text-success, .text-warning, code { color: black !important; font-weight: bold !important; }
+        .d-print-none { display: none !important; }
     }
 </style>
