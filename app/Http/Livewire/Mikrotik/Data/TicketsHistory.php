@@ -26,11 +26,12 @@ class TicketsHistory extends Component
     public $filterOrigen = ''; 
     public $sortDirection = 'desc';
 
-    // Control de Modales
+    // Control de Modales e Impresión
     public $isSyncModalOpen = false;
     public $isSummaryModalOpen = false;
     public $syncAmount = 50;
     public $showOverlay = false;
+    public $isPrinting = false; // Control de modo impresión
 
     // Resultados de la sincronización
     public $syncResults = [
@@ -121,6 +122,18 @@ class TicketsHistory extends Component
             $uName = $p[0];
             $uptime = $p[3] ?: '0s';
 
+            $ticketExistente = Ticket::where('router_id', $routerId)
+                                     ->where('username', $uName)
+                                     ->first();
+
+            if (!$ticketExistente) {
+                $this->syncResults['nuevos']++;
+            } elseif ($ticketExistente->tiempo_consumido !== $uptime) {
+                $this->syncResults['actualizados']++;
+            } else {
+                $this->syncResults['sin_cambios']++;
+            }
+
             Ticket::updateOrCreate(
                 ['router_id' => $routerId, 'username' => $uName],
                 [
@@ -174,8 +187,11 @@ class TicketsHistory extends Component
 
         $query->orderBy('tiempo_consumido', $this->sortDirection);
 
+        // Lógica de Impresión vs Paginación
+        $tickets = $this->isPrinting ? $query->get() : $query->paginate(15);
+
         return view('livewire.mikrotik.data.tickets-history', [
-            'tickets' => $query->paginate(15),
+            'tickets' => $tickets,
             'aliados' => User::where('role', 'aliado')->get(),
             'routers' => Router::when($user->role !== 'admin', function($q) use ($user) {
                             return $q->where('user_id', $user->id);
