@@ -47,7 +47,10 @@
                         <span class="fw-bold">{{ $t->username }}</span><br>
                         <small class="text-muted">{{ $t->identity }}</small>
                     </td>
-                    <td>{{ $t->router->identity }}</td>
+                    <td>{{ $t->router->comercio_nombre }}
+                        <br>
+                        <small class="text-muted">{{ $t->router->identity }}</small>
+                    </td>
                     <td class="text-center">{{ $t->plan }}</td>
                     <td class="text-center">{{ $costo }}</td>
                     <td class="text-center"><code>{{ $t->tiempo_consumido ?: '0s' }}</code></td>
