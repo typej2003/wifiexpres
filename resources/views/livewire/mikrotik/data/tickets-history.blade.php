@@ -1,5 +1,5 @@
 <div class="container-fluid py-4">
-    {{-- OVERLAY DE CARGA (Oculto en impresión) --}}
+    {{-- OVERLAY DE CARGA --}}
     @if($showOverlay)
     <div class="d-print-none" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
         <div class="text-center text-white">
@@ -23,8 +23,6 @@
     {{-- FILTROS Y BOTONES (Ocultos en impresión) --}}
     <div class="card border-0 shadow-sm rounded-4 mb-4 d-print-none">
         <div class="card-body p-4">
-            
-            {{-- ENCABEZADO DE SECCIÓN --}}
             <div class="row align-items-center mb-4">
                 <div class="col-12 col-md-6">
                     <h4 class="fw-800 mb-0">
@@ -43,7 +41,6 @@
                 </div>
             </div>
 
-            {{-- SELECTORES DE FILTRO --}}
             <div class="row g-3">
                 <div class="col-md-3">
                     <div class="input-group">
@@ -92,20 +89,20 @@
         </div>
     </div>
 
-    {{-- TABLA --}}
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-        <div class="table-responsive">
+    {{-- TABLA - AQUÍ ESTÁ EL CAMBIO DE CLASES PARA IMPRESIÓN --}}
+    <div class="card border-0 shadow-sm rounded-4 card-print-flat">
+        <div class="table-responsive table-print-visible">
             <table class="table table-hover align-middle mb-0">
                 <thead class="bg-light text-muted small fw-bold">
                     <tr>
                         <th class="px-4 py-3">IDENTIDAD / TIPO</th>
                         <th class="py-3">ROUTER / ALIADO</th>
                         <th class="py-3 text-center">PLAN / COSTO</th>
-                        <th class="py-3 text-center cursor-pointer d-print-black" wire:click="toggleSort" style="user-select: none;">
+                        <th class="py-3 text-center cursor-pointer" wire:click="toggleSort">
                             CONSUMO 
                             <span class="d-print-none">
-                                @if($sortDirection === 'asc') <i class="bi bi-sort-numeric-down text-primary"></i> 
-                                @else <i class="bi bi-sort-numeric-up-alt text-primary"></i> @endif
+                                @if($sortDirection === 'asc') <i class="bi bi-sort-numeric-down"></i> 
+                                @else <i class="bi bi-sort-numeric-up-alt"></i> @endif
                             </span>
                         </th>
                         <th class="py-3 text-center">ESTADO</th>
@@ -121,7 +118,6 @@
                                   str_contains($t->identity, '2026-04-03') || 
                                   str_contains($t->identity, '2026-04-04');
                         $isVenta = str_contains($t->identity, 'IMP-') && !$isTrial;
-
                         $planLower = strtolower($t->plan);
                         $isGratis = (str_contains($planLower, 'neutro') || str_contains($planLower, 'cortesia') || str_contains($planLower, 'trial'));
                         $costo = $isGratis ? 0 : 1;
@@ -169,7 +165,7 @@
                 </tbody>
             </table>
         </div>
-        {{-- PAGINACIÓN (Oculta en impresión) --}}
+        
         <div class="card-footer bg-white border-0 p-3 d-print-none">
             {{ $tickets->links() }}
         </div>
@@ -183,14 +179,63 @@
     .fw-800 { font-weight: 800; }
 
     @media print {
-        @page { size: portrait; margin: 1cm; }
-        body { background: white !important; }
-        .container-fluid { padding: 0 !important; }
-        .card { box-shadow: none !important; border: none !important; }
-        .table { width: 100% !important; font-size: 9pt; }
-        .badge { border: 1px solid #ddd !important; background: transparent !important; color: black !important; }
-        .text-primary, .text-success, .text-warning { color: black !important; }
-        code { background: transparent !important; color: black !important; padding: 0 !important; }
-        .border-print-0 { border: none !important; }
+        /* Reset de márgenes de página */
+        @page { 
+            size: portrait; 
+            margin: 0.5cm; 
+        }
+
+        /* Forzar visibilidad de todo el contenido */
+        body { 
+            background: white !important; 
+            overflow: visible !important;
+        }
+
+        .container-fluid { 
+            padding: 0 !important; 
+            width: 100% !important;
+        }
+
+        /* Quitar scroll de la tabla y sombras del card */
+        .card-print-flat { 
+            box-shadow: none !important; 
+            border: none !important; 
+            overflow: visible !important;
+        }
+
+        .table-print-visible { 
+            overflow: visible !important; 
+            display: block !important;
+        }
+
+        /* Ajustes de tabla */
+        .table { 
+            width: 100% !important; 
+            border-collapse: collapse !important;
+            font-size: 8.5pt !important; /* Texto un poco más pequeño para que quepa todo */
+        }
+
+        .table td, .table th {
+            padding: 4px !important;
+            border: 1px solid #eee !important;
+        }
+
+        /* Badges y estilos visuales en blanco y negro para mejor lectura */
+        .badge { 
+            border: 1px solid #ddd !important; 
+            background: transparent !important; 
+            color: black !important; 
+            text-shadow: none !important;
+        }
+
+        .text-primary, .text-success, .text-warning, code { 
+            color: black !important; 
+            font-weight: bold !important;
+        }
+
+        /* Ocultar elementos innecesarios */
+        .d-print-none, .card-footer, .avatar-sm { 
+            display: none !important; 
+        }
     }
 </style>
