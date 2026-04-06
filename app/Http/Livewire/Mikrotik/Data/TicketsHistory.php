@@ -140,7 +140,7 @@ class TicketsHistory extends Component
         }
 
         $tickets = $query->orderBy('tiempo_consumido', $request->sort ?? 'desc')->get();
-        return view('livewire.mikrotik.data.tickets-report', compact('tickets'));
+        return view('pdf.tickets-report', compact('tickets'));
     }
 
     public function render()
