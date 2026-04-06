@@ -20,22 +20,30 @@
         <hr>
     </div>
 
-    {{-- FILTROS (Ocultos en impresión) --}}
+    {{-- FILTROS Y BOTONES (Ocultos en impresión) --}}
     <div class="card border-0 shadow-sm rounded-4 mb-4 d-print-none">
         <div class="card-body p-4">
-            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
-                <h4 class="fw-800 mb-0"><i class="bi bi-clock-history text-primary me-2"></i>Historial de Tickets</h4>
-                
-                <div class="d-flex gap-2">
-                    <button onclick="window.print()" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm">
-                        <i class="bi bi-printer me-1"></i> IMPRIMIR
-                    </button>
-                    <button wire:click="openSyncModal" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm">
-                        <i class="bi bi-arrow-repeat me-1"></i> SINCRONIZAR SMART
-                    </button>
+            
+            {{-- ENCABEZADO DE SECCIÓN --}}
+            <div class="row align-items-center mb-4">
+                <div class="col-12 col-md-6">
+                    <h4 class="fw-800 mb-0">
+                        <i class="bi bi-clock-history text-primary me-2"></i>Historial de Tickets
+                    </h4>
+                </div>
+                <div class="col-12 col-md-6 text-md-end mt-3 mt-md-0">
+                    <div class="d-flex gap-2 justify-content-md-end">
+                        <button type="button" onclick="window.print()" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm">
+                            <i class="bi bi-printer me-1"></i> IMPRIMIR
+                        </button>
+                        <button type="button" wire:click="openSyncModal" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm">
+                            <i class="bi bi-arrow-repeat me-1"></i> SINCRONIZAR SMART
+                        </button>
+                    </div>
                 </div>
             </div>
 
+            {{-- SELECTORES DE FILTRO --}}
             <div class="row g-3">
                 <div class="col-md-3">
                     <div class="input-group">
@@ -166,16 +174,13 @@
             {{ $tickets->links() }}
         </div>
     </div>
-
-    {{-- MODALES (Ocultos en impresión por defecto al ser .modal) --}}
-    ... (resto de modales iguales) ...
-
 </div>
 
 <style>
     .bg-soft-primary { background-color: rgba(13, 110, 253, 0.1); }
     .bg-soft-success { background-color: rgba(25, 135, 84, 0.1); }
     .cursor-pointer { cursor: pointer; }
+    .fw-800 { font-weight: 800; }
 
     @media print {
         @page { size: portrait; margin: 1cm; }
