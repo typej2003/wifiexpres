@@ -18,7 +18,6 @@ class TicketsHistory extends Component
 
     protected $paginationTheme = 'bootstrap';
 
-    // Filtros
     public $search = '';
     public $filterAliado = '';
     public $filterRouter = '';
@@ -27,7 +26,6 @@ class TicketsHistory extends Component
     public $filterOrigen = ''; 
     public $sortDirection = 'desc';
 
-    // Control de Modales
     public $isSyncModalOpen = false;
     public $isSummaryModalOpen = false;
     public $syncAmount = 50;
@@ -92,13 +90,10 @@ class TicketsHistory extends Component
             if ($raw) {
                 $this->processSyncRawData($raw, $router->id);
                 $this->isSummaryModalOpen = true;
-            } else {
-                session()->flash('error', 'El router no respondió a tiempo.');
             }
         } catch (\Exception $e) {
-            session()->flash('error', 'Error de conexión con el Bridge.');
+            session()->flash('error', 'Error de conexión.');
         }
-
         $this->showOverlay = false;
     }
 
@@ -106,31 +101,22 @@ class TicketsHistory extends Component
     {
         $datos = str_replace('D:', '', $raw);
         $filas = array_filter(explode('|', trim($datos, "| ")));
-        
         foreach ($filas as $fila) {
             $p = explode(',', $fila);
             if (count($p) < 3) continue;
-            $uName = $p[0];
-            $uptime = $p[3] ?: '0s';
-
             Ticket::updateOrCreate(
-                ['router_id' => $routerId, 'username' => $uName],
-                [
-                    'tiempo_consumido' => $uptime,
-                    'estado' => ($uptime !== '0s') ? 'en_uso' : 'disponible',
-                    'sincronizado' => true
-                ]
+                ['router_id' => $routerId, 'username' => $p[0]],
+                ['tiempo_consumido' => $p[3] ?: '0s', 'estado' => ($p[3] !== '0s') ? 'en_uso' : 'disponible', 'sincronizado' => true]
             );
         }
     }
 
-    // MÉTODO PARA LA IMPRESIÓN (GET COMPLETO)
+    // MÉTODO PARA LA IMPRESIÓN (Llamado desde la ruta)
     public function printReport(Request $request)
     {
         $user = Auth::user();
         $query = Ticket::query()->with(['router', 'router.user']);
 
-        // Aplicamos exactamente los mismos filtros que en el render
         if ($user->role !== 'admin') {
             $query->whereHas('router', fn($q) => $q->where('user_id', $user->id));
         } elseif ($request->aliado) {
@@ -154,7 +140,6 @@ class TicketsHistory extends Component
         }
 
         $tickets = $query->orderBy('tiempo_consumido', $request->sort ?? 'desc')->get();
-
         return view('livewire.mikrotik.data.tickets-report', compact('tickets'));
     }
 
