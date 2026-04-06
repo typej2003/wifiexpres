@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Plan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Http\Request;
 
 class TicketsHistory extends Component
 {
@@ -26,15 +27,11 @@ class TicketsHistory extends Component
     public $filterOrigen = ''; 
     public $sortDirection = 'desc';
 
-    // Control de Modales e Impresión
+    // Control de Modales
     public $isSyncModalOpen = false;
     public $isSummaryModalOpen = false;
     public $syncAmount = 50;
     public $showOverlay = false;
-    public $isPrinting = false; 
-
-    // Resultados de la sincronización
-    public $syncResults = ['nuevos' => 0, 'actualizados' => 0, 'sin_cambios' => 0];
 
     protected $bridgeUrl = "http://188.95.113.44:3000";
 
@@ -113,7 +110,6 @@ class TicketsHistory extends Component
         foreach ($filas as $fila) {
             $p = explode(',', $fila);
             if (count($p) < 3) continue;
-
             $uName = $p[0];
             $uptime = $p[3] ?: '0s';
 
@@ -128,21 +124,49 @@ class TicketsHistory extends Component
         }
     }
 
+    // MÉTODO PARA LA IMPRESIÓN (GET COMPLETO)
+    public function printReport(Request $request)
+    {
+        $user = Auth::user();
+        $query = Ticket::query()->with(['router', 'router.user']);
+
+        // Aplicamos exactamente los mismos filtros que en el render
+        if ($user->role !== 'admin') {
+            $query->whereHas('router', fn($q) => $q->where('user_id', $user->id));
+        } elseif ($request->aliado) {
+            $query->whereHas('router', fn($q) => $q->where('user_id', $request->aliado));
+        }
+
+        if ($request->router) $query->where('router_id', $request->router);
+        if ($request->plan) $query->where('plan', $request->plan);
+        if ($request->estado) $query->where('estado', $request->estado);
+        
+        if ($request->origen === 'tickets') {
+            $query->where(fn($q) => $q->where('identity', 'like', '%Lote%')->orWhere('identity', 'like', '%2026-04%'));
+        } elseif ($request->origen === 'pasarela') {
+            $query->where('identity', 'like', '%IMP-%')->where('identity', 'not like', '%IMP-T-%');
+        } elseif ($request->origen === 'trial') {
+            $query->where('identity', 'like', '%IMP-T-%');
+        }
+
+        if ($request->search) {
+            $query->where(fn($q) => $q->where('username', 'like', "%{$request->search}%")->orWhere('identity', 'like', "%{$request->search}%"));
+        }
+
+        $tickets = $query->orderBy('tiempo_consumido', $request->sort ?? 'desc')->get();
+
+        return view('livewire.mikrotik.data.tickets-report', compact('tickets'));
+    }
+
     public function render()
     {
         $user = Auth::user();
-        
-        // 1. Base de la consulta con filtros aplicados
         $query = Ticket::query()->with(['router', 'router.user']);
 
         if ($user->role !== 'admin') {
-            $query->whereHas('router', function($q) use ($user) {
-                $q->where('user_id', $user->id);
-            });
+            $query->whereHas('router', fn($q) => $q->where('user_id', $user->id));
         } elseif ($this->filterAliado) {
-            $query->whereHas('router', function($q) {
-                $q->where('user_id', $this->filterAliado);
-            });
+            $query->whereHas('router', fn($q) => $q->where('user_id', $this->filterAliado));
         }
 
         if ($this->filterRouter) $query->where('router_id', $this->filterRouter);
@@ -150,12 +174,7 @@ class TicketsHistory extends Component
         if ($this->filterEstado) $query->where('estado', $this->filterEstado);
 
         if ($this->filterOrigen === 'tickets') {
-            $query->where(function($q) {
-                $q->where('identity', 'like', '%Lote%')
-                  ->orWhere('identity', 'like', '%2026-04-02%')
-                  ->orWhere('identity', 'like', '%2026-04-03%')
-                  ->orWhere('identity', 'like', '%2026-04-04%');
-            });
+            $query->where(fn($q) => $q->where('identity', 'like', '%Lote%')->orWhere('identity', 'like', '%2026-04%'));
         } elseif ($this->filterOrigen === 'pasarela') {
             $query->where('identity', 'like', '%IMP-%')->where('identity', 'not like', '%IMP-T-%');
         } elseif ($this->filterOrigen === 'trial') {
@@ -163,24 +182,15 @@ class TicketsHistory extends Component
         }
         
         if ($this->search) {
-            $query->where(function($q) {
-                $q->where('username', 'like', '%' . $this->search . '%')
-                  ->orWhere('identity', 'like', '%' . $this->search . '%');
-            });
+            $query->where(fn($q) => $q->where('username', 'like', "%{$this->search}%")->orWhere('identity', 'like', "%{$this->search}%"));
         }
 
         $query->orderBy('tiempo_consumido', $this->sortDirection);
 
-        // 2. Duplicamos: Una para vista paginada, otra para impresión completa
-        $ticketsPrint = clone $query;
-
         return view('livewire.mikrotik.data.tickets-history', [
             'tickets' => $query->paginate(15),
-            'ticketsPrint' => $ticketsPrint->get(), // Todos los registros filtrados para el PDF
             'aliados' => User::where('role', 'aliado')->get(),
-            'routers' => Router::when($user->role !== 'admin', function($q) use ($user) {
-                            return $q->where('user_id', $user->id);
-                         })->get(),
+            'routers' => Router::when($user->role !== 'admin', fn($q) => $q->where('user_id', $user->id))->get(),
             'planes'  => Plan::select('name')->distinct()->get()
         ])->layout('layouts.app');
     }

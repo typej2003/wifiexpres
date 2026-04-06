@@ -28,10 +28,17 @@
                 <h4 class="fw-800 mb-0"><i class="bi bi-clock-history text-primary me-2"></i>Historial de Tickets</h4>
                 
                 <div class="d-flex gap-2">
-                    <button wire:click="$set('isPrinting', true)" wire:loading.attr="disabled" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm">
-                        <span wire:loading.remove wire:target="$set('isPrinting', true)"><i class="bi bi-printer me-1"></i> IMPRIMIR TODO</span>
-                        <span wire:loading wire:target="$set('isPrinting', true)"><span class="spinner-border spinner-border-sm me-2"></span>PREPARANDO...</span>
-                    </button>
+                    <a href="{{ route('tickets.report', [
+                        'search' => $search,
+                        'aliado' => $filterAliado,
+                        'router' => $filterRouter,
+                        'plan'   => $filterPlan,
+                        'estado' => $filterEstado,
+                        'origen' => $filterOrigen,
+                        'sort'   => $sortDirection
+                    ]) }}" target="_blank" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm">
+                        <i class="bi bi-printer me-1"></i> IMPRIMIR CONSULTA
+                    </a>
                     <button wire:click="openSyncModal" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm">
                         <i class="bi bi-arrow-repeat me-1"></i> SINCRONIZAR SMART
                     </button>

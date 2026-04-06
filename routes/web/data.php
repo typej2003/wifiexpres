@@ -8,6 +8,9 @@ use App\Http\Livewire\Mikrotik\Data\GraficoRouters;
 
 use App\Http\Livewire\Mikrotik\Data\GraficoConexiones;
 
+use App\Http\Livewire\Mikrotik\Data\TicketsHistory;
+
+
 Route::get('/mikrotik/user-history/{username?}', UserHistory::class)->name('mikrotik.user-history');
 
 Route::get('/mikrotik/grafico-uso', GraficoRouters::class)->name('mikrotik.grafico');
@@ -20,7 +23,7 @@ Route::middleware(['auth', 'role:admin,aliado'])->prefix('admin/mikrotik')->grou
     // La URL final será: /admin/mikrotik/history
     Route::get('/history', \App\Http\Livewire\Mikrotik\Data\TicketsHistory::class)->name('mikrotik.history');
 
-    // Ruta para el reporte de impresión
+    // Ruta para generar el reporte de impresión
     Route::get('/tickets-report', [\App\Http\Livewire\Mikrotik\Data\TicketsHistory::class, 'printReport'])->name('tickets.report');
 
 });
