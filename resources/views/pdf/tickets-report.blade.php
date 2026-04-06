@@ -45,7 +45,7 @@
                         <br><small>{{ $t->identity }}</small>
                     </td>
                     <td>
-                        {{ $t->router->comercio_name }}
+                        {{ $t->router->comercio_nombre }}
                         <br><small>{{ $t->router->identity }}</small>
                     </td>
                     <td class="text-center">{{ $t->plan }}</td>
