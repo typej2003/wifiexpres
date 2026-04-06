@@ -16,6 +16,7 @@
         <p class="text-muted">
             Generado el: {{ now()->format('d/m/Y h:i A') }} 
             @if($filterRouter) | Router: {{ \App\Models\Router::find($filterRouter)->identity }} @endif
+            | Total Registros: {{ count($ticketsPrint) }}
         </p>
         <hr>
     </div>
@@ -27,7 +28,6 @@
                 <h4 class="fw-800 mb-0"><i class="bi bi-clock-history text-primary me-2"></i>Historial de Tickets</h4>
                 
                 <div class="d-flex gap-2">
-                    {{-- Botón de Impresión con Ver-Todo --}}
                     <button wire:click="$set('isPrinting', true)" wire:loading.attr="disabled" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm">
                         <span wire:loading.remove wire:target="$set('isPrinting', true)"><i class="bi bi-printer me-1"></i> IMPRIMIR TODO</span>
                         <span wire:loading wire:target="$set('isPrinting', true)"><span class="spinner-border spinner-border-sm me-2"></span>PREPARANDO...</span>
@@ -107,7 +107,8 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($tickets as $t)
+                    {{-- Selección dinámica de la fuente de datos --}}
+                    @forelse($isPrinting ? $ticketsPrint : $tickets as $t)
                     @php 
                         $isTrial = str_contains($t->identity, 'IMP-T-');
                         $isLote = str_contains($t->identity, 'Lote') || 
@@ -184,7 +185,6 @@
             })
         })
     </script>
-
 </div>
 
 <style>
