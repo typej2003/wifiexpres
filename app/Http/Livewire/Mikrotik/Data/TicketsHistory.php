@@ -31,14 +31,10 @@ class TicketsHistory extends Component
     public $isSummaryModalOpen = false;
     public $syncAmount = 50;
     public $showOverlay = false;
-    public $isPrinting = false; // Control de modo impresión
+    public $isPrinting = false; 
 
     // Resultados de la sincronización
-    public $syncResults = [
-        'nuevos' => 0,
-        'actualizados' => 0,
-        'sin_cambios' => 0
-    ];
+    public $syncResults = ['nuevos' => 0, 'actualizados' => 0, 'sin_cambios' => 0];
 
     protected $bridgeUrl = "http://188.95.113.44:3000";
 
@@ -67,8 +63,7 @@ class TicketsHistory extends Component
 
         $this->showOverlay = true;
         $this->isSyncModalOpen = false;
-        $this->syncResults = ['nuevos' => 0, 'actualizados' => 0, 'sin_cambios' => 0];
-
+        
         $router = Router::find($this->filterRouter);
         $mac = strtoupper($router->macAddress);
         $tid = "HSYNC" . time();
@@ -122,18 +117,6 @@ class TicketsHistory extends Component
             $uName = $p[0];
             $uptime = $p[3] ?: '0s';
 
-            $ticketExistente = Ticket::where('router_id', $routerId)
-                                     ->where('username', $uName)
-                                     ->first();
-
-            if (!$ticketExistente) {
-                $this->syncResults['nuevos']++;
-            } elseif ($ticketExistente->tiempo_consumido !== $uptime) {
-                $this->syncResults['actualizados']++;
-            } else {
-                $this->syncResults['sin_cambios']++;
-            }
-
             Ticket::updateOrCreate(
                 ['router_id' => $routerId, 'username' => $uName],
                 [
@@ -148,6 +131,8 @@ class TicketsHistory extends Component
     public function render()
     {
         $user = Auth::user();
+        
+        // 1. Base de la consulta con filtros aplicados
         $query = Ticket::query()->with(['router', 'router.user']);
 
         if ($user->role !== 'admin') {
@@ -172,8 +157,7 @@ class TicketsHistory extends Component
                   ->orWhere('identity', 'like', '%2026-04-04%');
             });
         } elseif ($this->filterOrigen === 'pasarela') {
-            $query->where('identity', 'like', '%IMP-%')
-                  ->where('identity', 'not like', '%IMP-T-%');
+            $query->where('identity', 'like', '%IMP-%')->where('identity', 'not like', '%IMP-T-%');
         } elseif ($this->filterOrigen === 'trial') {
             $query->where('identity', 'like', '%IMP-T-%');
         }
@@ -187,11 +171,12 @@ class TicketsHistory extends Component
 
         $query->orderBy('tiempo_consumido', $this->sortDirection);
 
-        // Lógica de Impresión vs Paginación
-        $tickets = $this->isPrinting ? $query->get() : $query->paginate(15);
+        // 2. Duplicamos: Una para vista paginada, otra para impresión completa
+        $ticketsPrint = clone $query;
 
         return view('livewire.mikrotik.data.tickets-history', [
-            'tickets' => $tickets,
+            'tickets' => $query->paginate(15),
+            'ticketsPrint' => $ticketsPrint->get(), // Todos los registros filtrados para el PDF
             'aliados' => User::where('role', 'aliado')->get(),
             'routers' => Router::when($user->role !== 'admin', function($q) use ($user) {
                             return $q->where('user_id', $user->id);
