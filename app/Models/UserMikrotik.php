@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon; // Importante para manejar fechas
 
 class UserMikrotik extends Model
 {
@@ -15,9 +16,9 @@ class UserMikrotik extends Model
         'server',
         'name',
         'password',
-        'full_name', // Nuevo
-        'gender',    // Nuevo
-        'birthday',  // Nuevo
+        'full_name',
+        'gender',    
+        'birthday',  
         'address',
         'macaddress',
         'cellphone',
@@ -36,6 +37,13 @@ class UserMikrotik extends Model
         'packetsOut',
         'active',
     ];
+
+    // Accessor para obtener la edad actual basada en birthday
+    public function getAgeAttribute()
+    {
+        if (!$this->birthday) return null;
+        return Carbon::parse($this->birthday)->age;
+    }
 
     public function router()
     {

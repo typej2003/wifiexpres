@@ -15,6 +15,7 @@ use App\Http\Livewire\Mikrotik\Aliado\MonitorAccounts; // <--- NUEVA IMPORTACIÓ
 use App\Http\Livewire\Hablador\HabladorManager;
 use App\Models\Pantalla;
 use App\Http\Livewire\Mikrotik\Aliado\SalesReports;
+use App\Http\Livewire\Mikrotik\Aliado\ListAdvertisingCampaign;
 
 // Rutas accesibles para ambos roles (Admin y Aliado)
 Route::middleware(['auth'])->group(function () {
@@ -68,4 +69,11 @@ Route::get('/tv/{slug_pantalla}', function ($slug_pantalla) {
 
 Route::middleware(['role:aliado'])->group(function () {
     Route::get('/mis-ventas', SalesReports::class)->name('aliado.ventas');
+});
+
+Route::middleware(['auth'])->group(function () {
+    // ... otras rutas
+    
+    Route::get('/mikrotik/aliado/campaigns', ListAdvertisingCampaign::class)
+        ->name('mikrotik.aliado.campaigns');
 });

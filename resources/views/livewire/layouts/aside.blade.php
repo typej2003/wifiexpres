@@ -275,6 +275,12 @@
                 <span class="menu-text">Ventas Globales</span>
             </a>
 
+            {{-- NUEVO: Enlace para Campañas de Encuestas --}}
+            <a href="{{ route('mikrotik.aliado.campaigns') }}" class="sidebar-link {{ request()->routeIs('mikrotik.aliado.campaigns') ? 'active' : '' }}">
+                <i class="bi bi-megaphone"></i> 
+                <span class="menu-text">CAMPAÑAS / ENCUESTAS</span>
+            </a>
+
             <a href="{{ route('admin.configuraciones') }}" class="sidebar-link {{ request()->routeIs('admin.configuraciones') ? 'active' : '' }}">
                 <i class="bi bi-gear-wide-connected"></i> 
                 <span class="menu-text">Configuraciones</span>
@@ -344,6 +350,12 @@
                     </div>
                     <span class="nav-link-text ms-1">USUARIOS ONLINE</span>
                 </a>
+
+            {{-- NUEVO: Enlace para Campañas de Encuestas --}}
+            <a href="{{ route('mikrotik.aliado.campaigns') }}" class="sidebar-link {{ request()->routeIs('mikrotik.aliado.campaigns') ? 'active' : '' }}">
+                <i class="bi bi-megaphone"></i> 
+                <span class="menu-text">CAMPAÑAS / ENCUESTAS</span>
+            </a>
 
             <!-- <a href="{{ route('habladores.index') }}" class="sidebar-link {{ request()->routeIs('habladores.index') ? 'active' : '' }}">
                 <i class="bi bi-tv"></i> 
