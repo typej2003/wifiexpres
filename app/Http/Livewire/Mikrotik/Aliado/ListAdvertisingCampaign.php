@@ -54,7 +54,14 @@ class ListAdvertisingCampaign extends Component
         if(!$this->isAdmin) $this->user_id = Auth::id();
     }
 
-    // FUNCIÓN EDITAR CORREGIDA
+    // FUNCIÓN PARA CAMBIAR ESTADO ACTIVO/INACTIVO
+    public function toggleStatus($id)
+    {
+        $campaign = AdvertisingCampaign::findOrFail($id);
+        $campaign->active = !$campaign->active;
+        $campaign->save();
+    }
+
     public function edit($id)
     {
         $campaign = AdvertisingCampaign::findOrFail($id);
@@ -72,7 +79,6 @@ class ListAdvertisingCampaign extends Component
         $this->isModalOpen = true;
     }
 
-    // FUNCIÓN ELIMINAR CORREGIDA
     public function delete($id)
     {
         $campaign = AdvertisingCampaign::findOrFail($id);
@@ -104,12 +110,9 @@ class ListAdvertisingCampaign extends Component
         ];
 
         if ($this->media) {
-            // Eliminar imagen anterior si existe (Editar)
             if ($this->selected_id && $this->current_media_path) {
                 Storage::disk('public')->delete($this->current_media_path);
             }
-
-            // Guardar con NOMBRE ORIGINAL en public/campaign
             $originalName = $this->media->getClientOriginalName();
             $path = $this->media->storeAs('campaign', $originalName, 'public');
             $data['media_path'] = $path;
@@ -124,13 +127,11 @@ class ListAdvertisingCampaign extends Component
     public function render()
     {
         $query = AdvertisingCampaign::query()->with('user');
-
         if (!$this->isAdmin) {
             $query->where('user_id', Auth::id());
         } else {
             if ($this->filterAliado) $query->where('user_id', $this->filterAliado);
         }
-
         if ($this->search) {
             $query->where('name', 'like', '%' . $this->search . '%');
         }

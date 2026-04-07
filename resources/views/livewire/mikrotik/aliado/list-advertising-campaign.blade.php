@@ -61,11 +61,7 @@
                     <tr>
                         <td class="px-4">
                             <span class="fw-bold d-block text-dark">{{ $camp->name }}</span>
-                            @if($isAdmin) 
-                                <small class="text-primary fw-semibold">
-                                    <i class="bi bi-person me-1"></i>{{ $camp->user->name }}
-                                </small> 
-                            @endif
+                            @if($isAdmin) <small class="text-primary fw-semibold">{{ $camp->user->name }}</small> @endif
                         </td>
                         <td>
                             <span class="badge bg-soft-info text-info rounded-pill px-3">
@@ -74,41 +70,39 @@
                         </td>
                         <td class="text-center">
                             @if($camp->media_type == 'imagen')
-                                <i class="bi bi-image text-primary fs-5" title="Imagen"></i>
+                                <i class="bi bi-image text-primary fs-5"></i>
                             @else
-                                <i class="bi bi-play-circle-fill text-danger fs-5" title="Video"></i>
+                                <i class="bi bi-play-circle-fill text-danger fs-5"></i>
                             @endif
                         </td>
                         <td class="text-center">
                             <div class="form-check form-switch d-inline-block">
-                                <input class="form-check-input" type="checkbox" role="switch" {{ $camp->active ? 'checked' : '' }}>
+                                {{-- SWITCH CORREGIDO --}}
+                                <input class="form-check-input" type="checkbox" role="switch" 
+                                    wire:click="toggleStatus({{ $camp->id }})" {{ $camp->active ? 'checked' : '' }}
+                                    style="cursor: pointer;">
                             </div>
                         </td>
                         <td class="text-end px-4">
                             <div class="btn-group shadow-sm rounded-3">
-                                <button wire:click="edit({{ $camp->id }})" class="btn btn-sm btn-white border" title="Editar">
+                                <button wire:click="edit({{ $camp->id }})" class="btn btn-sm btn-white border">
                                     <i class="bi bi-pencil text-primary"></i>
                                 </button>
-                                <button onclick="confirm('¿Estás seguro de eliminar esta campaña?') || event.stopImmediatePropagation()" 
+                                <button onclick="confirm('¿Estás seguro?') || event.stopImmediatePropagation()" 
                                         wire:click="delete({{ $camp->id }})" 
-                                        class="btn btn-sm btn-white border" title="Eliminar">
+                                        class="btn btn-sm btn-white border">
                                     <i class="bi bi-trash text-danger"></i>
                                 </button>
                             </div>
                         </td>
                     </tr>
                     @empty
-                    <tr>
-                        <td colspan="5" class="text-center py-5 text-muted">
-                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                            No se encontraron campañas configuradas.
-                        </td>
-                    </tr>
+                    <tr><td colspan="5" class="text-center py-5 text-muted">No se encontraron campañas.</td></tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
-        <div class="card-footer bg-white border-0 p-3 text-center">
+        <div class="card-footer bg-white border-0 p-3">
             {{ $campaigns->links() }}
         </div>
     </div>
@@ -116,12 +110,11 @@
     {{-- MODAL DINÁMICO --}}
     @if($isModalOpen)
     <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.6); backdrop-filter: blur(5px);">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
+        {{-- MARGIN TOP 6REM APLICADO AQUÍ --}}
+        <div class="modal-dialog modal-lg" style="margin-top: 6rem;">
             <div class="modal-content border-0 shadow-lg rounded-4">
-                <div class="modal-header border-0 p-4 pb-2">
-                    <h5 class="fw-bold mb-0 text-dark">
-                        {{ $selected_id ? 'Actualizar Campaña' : 'Nueva Campaña Publicitaria' }}
-                    </h5>
+                <div class="modal-header border-0 p-4 pb-0">
+                    <h5 class="fw-bold mb-0 text-dark">{{ $selected_id ? 'Editar Campaña' : 'Nueva Campaña' }}</h5>
                     <button type="button" class="btn-close" wire:click="closeModal"></button>
                 </div>
                 
@@ -129,102 +122,63 @@
                     <div class="row g-3">
                         @if($isAdmin)
                         <div class="col-md-12">
-                            <label class="form-label small fw-bold text-muted">Aliado Propietario</label>
+                            <label class="form-label small fw-bold text-muted">Aliado</label>
                             <select wire:model="user_id" class="form-select @error('user_id') is-invalid @enderror">
-                                <option value="">-- Seleccionar Aliado --</option>
+                                <option value="">Seleccionar...</option>
                                 @foreach($aliados as $aliado)
                                     <option value="{{ $aliado->id }}">{{ $aliado->name }}</option>
                                 @endforeach
                             </select>
-                            @error('user_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                         @endif
 
                         <div class="col-md-8">
-                            <label class="form-label small fw-bold text-muted">Nombre del Proyecto</label>
-                            <input type="text" wire:model="name" class="form-control @error('name') is-invalid @enderror" placeholder="Ej: Promo Rednetve">
-                            @error('name') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            <label class="form-label small fw-bold text-muted">Nombre</label>
+                            <input type="text" wire:model="name" class="form-control" placeholder="Ej: Promo Verano">
                         </div>
 
                         <div class="col-md-4">
-                            <label class="form-label small fw-bold text-muted">Segmento Género</label>
+                            <label class="form-label small fw-bold text-muted">Género</label>
                             <select wire:model="target_gender" class="form-select">
-                                <option value="todos">Todos los géneros</option>
+                                <option value="todos">Todos</option>
                                 <option value="masculino">Masculino</option>
                                 <option value="femenino">Femenino</option>
                             </select>
                         </div>
 
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold text-muted">Edad Min.</label>
-                            <input type="number" wire:model="age_min" class="form-control">
-                        </div>
-
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold text-muted">Edad Max.</label>
-                            <input type="number" wire:model="age_max" class="form-control">
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted">Formato Multimedia</label>
-                            <select wire:model="media_type" class="form-select">
-                                <option value="imagen">Imagen Estática (Banner)</option>
-                                <option value="video">Video (Spot publicitario)</option>
-                            </select>
-                        </div>
-
                         <div class="col-md-12">
-                            <label class="form-label small fw-bold text-muted">Cargar Archivo</label>
-                            <input type="file" wire:model="media" class="form-control @error('media') is-invalid @enderror">
+                            <label class="form-label small fw-bold text-muted">Multimedia</label>
+                            <input type="file" wire:model="media" class="form-control">
                             
-                            {{-- ÁREA DE VISTA PREVIA --}}
-                            <div class="preview-container mt-3 p-3 border rounded-4 bg-light text-center">
+                            {{-- VISTA PREVIA --}}
+                            <div class="mt-3 p-3 border rounded-4 bg-light text-center" style="border-style: dashed !important;">
                                 @if ($media) 
-                                    <div class="mb-2 small text-primary fw-bold text-uppercase">Vista Previa Nueva:</div>
                                     @if($media_type == 'imagen')
-                                        <img src="{{ $media->temporaryUrl() }}" class="img-fluid rounded-3 shadow-sm preview-img">
+                                        <img src="{{ $media->temporaryUrl() }}" class="img-fluid rounded shadow-sm" style="max-height: 150px;">
                                     @else
-                                        <div class="alert alert-info py-2 small">
-                                            <i class="bi bi-camera-video me-1"></i> Video seleccionado: <strong>{{ $media->getClientOriginalName() }}</strong>
-                                        </div>
+                                        <div class="small text-primary">Video: {{ $media->getClientOriginalName() }}</div>
                                     @endif
                                 @elseif($selected_id && $current_media_path)
-                                    <div class="mb-2 small text-muted fw-bold text-uppercase">Archivo Actual:</div>
                                     @if($media_type == 'imagen')
-                                        <img src="{{ asset('storage/' . $current_media_path) }}" class="img-fluid rounded-3 shadow-sm preview-img">
-                                    @else
-                                        <video width="100%" height="180" controls class="rounded-3 shadow-sm">
-                                            <source src="{{ asset('storage/' . $current_media_path) }}" type="video/mp4">
-                                            Tu navegador no soporta video.
-                                        </video>
+                                        <img src="{{ asset('storage/' . $current_media_path) }}" class="img-fluid rounded shadow-sm" style="max-height: 150px;">
                                     @endif
                                 @else
-                                    <div class="py-4 text-muted">
-                                        <i class="bi bi-images fs-2 d-block mb-2 text-secondary opacity-50"></i>
-                                        <span class="small">No hay multimedia seleccionado</span>
-                                    </div>
+                                    <span class="text-muted small">Sin archivo seleccionado</span>
                                 @endif
-
-                                <div wire:loading wire:target="media" class="mt-2">
-                                    <div class="spinner-border spinner-border-sm text-primary"></div>
-                                    <span class="text-primary small ms-1">Subiendo...</span>
-                                </div>
                             </div>
-                            @error('media') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                         </div>
 
                         <div class="col-md-12">
                             <label class="form-label small fw-bold text-muted">Pregunta de Encuesta</label>
-                            <input type="text" wire:model="question" class="form-control @error('question') is-invalid @enderror" placeholder="¿Le interesa nuestra nueva oferta?">
-                            @error('question') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            <input type="text" wire:model="question" class="form-control">
                         </div>
                     </div>
                 </div>
 
                 <div class="modal-footer border-0 p-4 pt-0">
-                    <button wire:click="closeModal" class="btn btn-light rounded-pill px-4 fw-bold text-muted">Cerrar</button>
-                    <button wire:click="save" class="btn btn-primary rounded-pill px-5 shadow-sm fw-bold text-white">
-                        {{ $selected_id ? 'Guardar Cambios' : 'Lanzar Campaña' }}
+                    <button wire:click="closeModal" class="btn btn-light rounded-pill px-4">Cerrar</button>
+                    <button wire:click="save" class="btn btn-primary rounded-pill px-5 shadow-sm fw-bold">
+                        {{ $selected_id ? 'Guardar Cambios' : 'Crear Campaña' }}
                     </button>
                 </div>
             </div>
@@ -236,19 +190,6 @@
 <style>
     .bg-soft-info { background-color: rgba(13, 202, 240, 0.12); }
     .btn-white { background-color: #fff; color: #6c757d; }
-    .btn-white:hover { background-color: #f8f9fa; color: #212529; }
-    .modal-header .btn-close { filter: grayscale(1) opacity(0.5); }
+    .btn-white:hover { background-color: #f8f9fa; }
     .form-switch .form-check-input:checked { background-color: #198754; border-color: #198754; }
-    
-    /* Estilos de Vista Previa */
-    .preview-container {
-        border-style: dashed !important;
-        border-width: 2px !important;
-        border-color: #dee2e6 !important;
-    }
-    .preview-img {
-        max-height: 200px;
-        width: auto;
-        object-fit: contain;
-    }
 </style>
