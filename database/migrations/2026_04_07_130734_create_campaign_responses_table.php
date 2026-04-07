@@ -15,8 +15,17 @@ class CreateCampaignResponsesTable extends Migration
     {
         Schema::create('campaign_responses', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('campaign_id')->constrained()->onDelete('cascade');
-            $table->foreignId('user_mikrotik_id')->constrained('user_mikrotiks')->onDelete('cascade'); // Relación directa
+            
+            // Referencia explícita a la tabla advertising_campaigns
+            $table->foreignId('campaign_id')
+                ->constrained('advertising_campaigns') 
+                ->onDelete('cascade');
+
+            // Referencia al modelo UserMikrotik que definimos (tabla user_mikrotiks)
+            $table->foreignId('user_mikrotik_id')
+                ->constrained('user_mikrotiks')
+                ->onDelete('cascade');
+
             $table->enum('response', ['aprobado', 'no_interesado']);
             $table->timestamps();
         });
