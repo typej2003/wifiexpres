@@ -86,6 +86,13 @@ return [
             'url' => env('APP_URL').'/storage/logoticket',
             'visibility' => 'public',
         ],
+
+        'campaign' => [
+            'driver' => 'local',
+            'root' => storage_path('app/public/campaign'),
+            'url' => env('APP_URL').'/storage/campaign',
+            'visibility' => 'public',
+        ],
         
     ],
 
@@ -107,6 +114,7 @@ return [
         public_path('storage/logoticket') => storage_path('app/public/logoticket'),
         public_path('storage/carruselhotspot') => storage_path('app/public/carruselhotspot'),
         public_path('storage/bannerrouter') => storage_path('app/public/bannerrouter'),
+        public_path('storage/bannerrouter') => storage_path('app/public/campaign'),
     ],
 
 ];

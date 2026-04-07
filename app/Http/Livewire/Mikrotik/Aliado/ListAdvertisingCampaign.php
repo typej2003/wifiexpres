@@ -4,7 +4,7 @@ namespace App\Http\Livewire\Mikrotik\Aliado;
 
 use Livewire\Component;
 use Livewire\WithPagination;
-use Livewire\WithFileUploads; // Necesario para imágenes/video
+use Livewire\WithFileUploads;
 use App\Models\AdvertisingCampaign;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -20,12 +20,12 @@ class ListAdvertisingCampaign extends Component
     
     // Propiedades del Formulario
     public $isModalOpen = false;
-    public $selected_id, $name, $description, $target_gender = 'todos', $age_min = 0, $age_max = 99, $media_type = 'imagen', $media, $question, $user_id;
+    public $selected_id, $name, $description, $target_gender = 'todos', $age_min = 0, $age_max = 99, $media_type = 'imagen', $media, $question, $user_id, $current_media_path;
 
     public function mount()
     {
         $this->isAdmin = Auth::user()->role === 'admin';
-        $this->user_id = Auth::id(); // Por defecto el usuario actual
+        $this->user_id = Auth::id();
     }
 
     public function openModal()
@@ -50,7 +50,37 @@ class ListAdvertisingCampaign extends Component
         $this->media = null;
         $this->question = '';
         $this->selected_id = null;
+        $this->current_media_path = null;
         if(!$this->isAdmin) $this->user_id = Auth::id();
+    }
+
+    // FUNCIÓN EDITAR CORREGIDA
+    public function edit($id)
+    {
+        $campaign = AdvertisingCampaign::findOrFail($id);
+        $this->selected_id = $id;
+        $this->name = $campaign->name;
+        $this->description = $campaign->description;
+        $this->target_gender = $campaign->target_gender;
+        $this->age_min = $campaign->age_min;
+        $this->age_max = $campaign->age_max;
+        $this->media_type = $campaign->media_type;
+        $this->question = $campaign->question;
+        $this->user_id = $campaign->user_id;
+        $this->current_media_path = $campaign->media_path;
+        
+        $this->isModalOpen = true;
+    }
+
+    // FUNCIÓN ELIMINAR CORREGIDA
+    public function delete($id)
+    {
+        $campaign = AdvertisingCampaign::findOrFail($id);
+        if ($campaign->media_path) {
+            Storage::disk('public')->delete($campaign->media_path);
+        }
+        $campaign->delete();
+        session()->flash('message', 'Campaña eliminada correctamente.');
     }
 
     public function save()
@@ -58,7 +88,7 @@ class ListAdvertisingCampaign extends Component
         $this->validate([
             'name' => 'required',
             'user_id' => 'required',
-            'media' => $this->selected_id ? 'nullable' : 'required|max:20480', // 20MB max para video
+            'media' => $this->selected_id ? 'nullable|max:20480' : 'required|max:20480',
             'question' => 'required',
         ]);
 
@@ -74,7 +104,14 @@ class ListAdvertisingCampaign extends Component
         ];
 
         if ($this->media) {
-            $path = $this->media->store('campaigns', 'public');
+            // Eliminar imagen anterior si existe (Editar)
+            if ($this->selected_id && $this->current_media_path) {
+                Storage::disk('public')->delete($this->current_media_path);
+            }
+
+            // Guardar con NOMBRE ORIGINAL en public/campaign
+            $originalName = $this->media->getClientOriginalName();
+            $path = $this->media->storeAs('campaign', $originalName, 'public');
             $data['media_path'] = $path;
         }
 
