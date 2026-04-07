@@ -15,7 +15,7 @@ use App\Http\Controllers\Api\MikrotikController;
 use App\Http\Controllers\Api\HotspotController;
 use App\Http\Controllers\Api\MikrotikSocket;
 use App\Http\Controllers\Api\V2\UserController;
-
+use App\Models\NotificationApp;
 use App\Models\HotspotVersion;
 
 Route::get('/portal-download/{id}', function ($id) {
@@ -97,3 +97,15 @@ Route::options('{any}', function() {
         ->header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS, PUT, DELETE')
         ->header('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, X-Requested-With');
 })->where('any', '.*');
+
+Route::post('/save-notifications', function (Request $request) {
+    // Validamos y guardamos
+    NotificationApp::create([
+        'app_name'  => $request->app,
+        'title'     => $request->titulo,
+        'body'      => $request->mensaje,
+        'device_id' => $request->device_id ?? 'Android_Unknown'
+    ]);
+
+    return response()->json(['status' => 'success'], 201);
+});

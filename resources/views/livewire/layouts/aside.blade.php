@@ -281,6 +281,12 @@
                 <span class="menu-text">CAMPAÑAS / ENCUESTAS</span>
             </a>
 
+            <a href="{{ route('mikrotik.data.notificaciones') }}" 
+                class="sidebar-link {{ request()->routeIs('mikrotik.data.notificaciones') ? 'active' : '' }}">
+                    <i class="bi bi-bell-fill"></i> 
+                    <span class="menu-text">NOTIFICACIONES APP</span>
+                </a>
+
             <a href="{{ route('admin.configuraciones') }}" class="sidebar-link {{ request()->routeIs('admin.configuraciones') ? 'active' : '' }}">
                 <i class="bi bi-gear-wide-connected"></i> 
                 <span class="menu-text">Configuraciones</span>
