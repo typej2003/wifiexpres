@@ -109,3 +109,21 @@ Route::post('/save-notifications', function (Request $request) {
 
     return response()->json(['status' => 'success'], 201);
 });
+
+
+use App\Http\Controllers\Api\AuthController;
+use App\Models\Hablador;
+
+// Ruta para Login
+Route::post('/login-aliado', [AuthController::class, 'loginAliado']);
+
+// Rutas protegidas (Requieren el token que devuelve el login)
+Route::middleware('auth:sanctum')->group(function () {
+    
+    // Obtener la lista de habladores del aliado autenticado
+    Route::get('/habladores', function (Request $request) {
+        return Hablador::where('user_id', $request->user()->id)
+                       ->where('activo', true)
+                       ->get();
+    });
+});

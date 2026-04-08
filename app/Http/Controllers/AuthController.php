@@ -237,5 +237,30 @@ class AuthController extends Controller
     }
 
     
+    public function loginAliado(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
 
+        $user = User::where('email', $request->email)->first();
+
+        // Validamos contraseña y que sea ROL_ALIADO
+        if (! $user || ! Hash::check($request->password, $user->password) || ! $user->isAliado()) {
+            return response()->json(['message' => 'Credenciales inválidas o no es un Aliado autorizado.'], 401);
+        }
+
+        // Creamos el token de acceso
+        $token = $user->createToken('hablador-token')->plainTextToken;
+
+        return response()->json([
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+            'user' => [
+                'name' => $user->name,
+                'email' => $user->email
+            ]
+        ]);
+    }
 }
