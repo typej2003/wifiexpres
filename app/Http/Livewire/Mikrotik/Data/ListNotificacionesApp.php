@@ -12,7 +12,23 @@ class ListNotificacionesApp extends Component
 
     public $search = '';
 
-    // Polling de 5 segundos para que la lista se actualice sola si llegan notificaciones
+    // Método para eliminar un registro individual
+    public function delete($id)
+    {
+        $notificacion = NotificationApp::find($id);
+        if ($notificacion) {
+            $notificacion->delete();
+            session()->flash('message', 'Registro eliminado correctamente.');
+        }
+    }
+
+    // Método para limpiar todo el historial si lo deseas
+    public function clearAll()
+    {
+        NotificationApp::truncate();
+        session()->flash('message', 'Historial vaciado.');
+    }
+
     public function render()
     {
         $query = NotificationApp::query();
