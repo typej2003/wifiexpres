@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Hash;
 use App\Http\Controllers\Api\EnviarDatos;
 use App\Http\Controllers\Api\ApiController;
 use App\Http\Controllers\Api\ApiProcessPaymentController;
@@ -108,47 +109,47 @@ Route::post('/save-notifications', function (Request $request) {
 // Ruta de prueba para verificar qué está llegando al servidor
 Route::post('/auth-sync-service', function (Request $request) {
     try {
-        // 1. Preparamos las credenciales (exactamente como en tu controlador web)
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required']
-        ]);
+        // 1. Validar que lleguen los datos del JSON
+        $email = $request->input('email');
+        $password = $request->input('password');
 
-        // 2. Intentamos el login con Auth::attempt
-        if (Auth::attempt($credentials)) {
-            
-            $user = Auth::user();
-            // 3. Verificamos que sea Rol Aliado (Igual que tu lógica de redirección)
-            if (auth()->user()->role !== 'aliado') {
-                return response()->json([
-                    'message' => 'Acceso denegado: No tienes rol de aliado.'
-                ], 403);
-            }
-
-            // 4. Generamos el Token para la App
-            // Recuerda que el modelo User debe tener "use HasApiTokens"
-            $token = $user->createToken('hablador-token')->plainTextToken;
-
-            return response()->json([
-                'access_token' => $token,
-                'token_type' => 'Bearer',
-                'user' => [
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'role' => $user->role
-                ]
-            ], 200);
+        if (!$email || !$password) {
+            return response()->json(['message' => 'Email y password son requeridos'], 400);
         }
 
-        // 5. Si falla el attempt, devolvemos error de credenciales
+        // 2. Buscar al usuario manualmente
+        $user = User::where('email', $email)->first();
+
+        // --- DIAGNÓSTICO ---
+        if (!$user) {
+            return response()->json(['message' => 'El correo no existe en la base de datos'], 401);
+        }
+
+        // 3. Verificar la contraseña manualmente usando el Facade Hash
+        if (!Hash::check($password, $user->password)) {
+            return response()->json(['message' => 'La contraseña es incorrecta'], 401);
+        }
+
+        // 4. Verificar el Rol
+        if ($user->role !== 'aliado') {
+            return response()->json(['message' => 'Acceso denegado: No eres Aliado'], 403);
+        }
+
+        // 5. Todo OK -> Generar Token
+        $token = $user->createToken('hablador-token')->plainTextToken;
+
         return response()->json([
-            'message' => 'El email no está registrado o la clave es incorrecta.'
-        ], 401);
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+            'user' => [
+                'name' => $user->name,
+                'email' => $user->email
+            ]
+        ], 200);
 
     } catch (\Exception $e) {
-        // Captura errores de base de datos o de HasApiTokens faltante
         return response()->json([
-            'message' => 'Error en el servidor: ' . $e->getMessage()
+            'message' => 'Error técnico: ' . $e->getMessage()
         ], 500);
     }
 });
