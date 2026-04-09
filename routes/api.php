@@ -108,41 +108,48 @@ Route::post('/save-notifications', function (Request $request) {
 // Ruta de prueba para verificar qué está llegando al servidor
 Route::post('/auth-sync-service', function (Request $request) {
     try {
-        // 1. Validar que lleguen los datos
-        if (!$request->has(['email', 'password'])) {
-            return response()->json(['message' => 'Faltan datos requeridos'], 400);
+        // 1. Preparamos las credenciales (exactamente como en tu controlador web)
+        $credentials = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required']
+        ]);
+
+        // 2. Intentamos el login con Auth::attempt
+        if (Auth::attempt($credentials)) {
+            
+            $user = Auth::user();
+
+            // 3. Verificamos que sea Rol Aliado (Igual que tu lógica de redirección)
+            if ($user->role !== 'aliado') {
+                return response()->json([
+                    'message' => 'Acceso denegado: No tienes rol de aliado.'
+                ], 403);
+            }
+
+            // 4. Generamos el Token para la App
+            // Recuerda que el modelo User debe tener "use HasApiTokens"
+            $token = $user->createToken('hablador-token')->plainTextToken;
+
+            return response()->json([
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+                'user' => [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role
+                ]
+            ], 200);
         }
 
-        // 2. Buscar al usuario por email
-        $user = User::where('email', $request->email)->first();
-
-        // 3. Verificar credenciales y si es aliado
-        // Nota: Asegúrate de que el modelo User tenga el método isAliado() o usa $user->role === 'aliado'
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json(['message' => 'Credenciales inválidas'], 401);
-        }
-
-        if (!$user->isAliado()) {
-            return response()->json(['message' => 'Usuario no autorizado como aliado'], 403);
-        }
-
-        // 4. Generar el token (Requiere HasApiTokens en el modelo User)
-        $token = $user->createToken('hablador-token')->plainTextToken;
-
-        // 5. Respuesta con el formato que espera tu App de Android
+        // 5. Si falla el attempt, devolvemos error de credenciales
         return response()->json([
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-            'user' => [
-                'name' => $user->name,
-                'email' => $user->email
-            ]
-        ], 200);
+            'message' => 'El email no está registrado o la clave es incorrecta.'
+        ], 401);
 
     } catch (\Exception $e) {
-        // Si ocurre un error (ej. falta tabla de tokens), lo capturamos aquí
+        // Captura errores de base de datos o de HasApiTokens faltante
         return response()->json([
-            'message' => 'Error en servidor: ' . $e->getMessage()
+            'message' => 'Error en el servidor: ' . $e->getMessage()
         ], 500);
     }
 });
