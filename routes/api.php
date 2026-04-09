@@ -108,55 +108,46 @@ Route::post('/save-notifications', function (Request $request) {
 
 // Ruta de prueba para verificar qué está llegando al servidor
 Route::post('/auth-sync-service', function (Request $request) {
-    try {
-        // 1. Limpiamos espacios en blanco accidentales (muy común en móviles)
-        $email = trim($request->input('email'));
-        $password = $request->input('password'); // No usar trim aquí si la clave puede tener espacios
+    // 1. Capturamos los datos crudos para ver qué está llegando exactamente
+    $email = $request->input('email');
+    $password = $request->input('password');
 
-        if (!$email || !$password) {
-            return response()->json(['message' => 'Faltan datos'], 400);
-        }
+    // 2. Buscamos al usuario
+    $user = User::where('email', $email)->first();
 
-        // 2. Buscamos al usuario
-        $user = User::where('email', $email)->first();
-
-        if (!$user) {
-            return response()->json(['message' => 'El correo no existe'], 401);
-        }
-
-        // --- BLOQUE DE DIAGNÓSTICO ---
-        // Comprobamos si la clave coincide. 
-        // Si falla, enviamos información para comparar (solo en desarrollo)
-        if (!Hash::check($password, $user->password)) {
-            return response()->json([
-                'message' => 'La contraseña es incorrecta',
-                'debug' => [
-                    'password_enviada_length' => strlen($password),
-                    'hash_en_db_comienza_con' => substr($user->password, 0, 4), // Debería ser $2y$
-                ]
-            ], 401);
-        }
-
-        // 3. Validar Rol
-        if ($user->role !== 'aliado') {
-            return response()->json(['message' => 'No eres un aliado'], 403);
-        }
-
-        // 4. Todo bien -> Crear Token
-        $token = $user->createToken('hablador-token')->plainTextToken;
-
-        return response()->json([
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-            'user' => [
-                'name' => $user->name,
-                'email' => $user->email
-            ]
-        ], 200);
-
-    } catch (\Exception $e) {
-        return response()->json(['message' => 'Error: ' . $e->getMessage()], 500);
+    if (!$user) {
+        return response()->json(['message' => 'El correo no existe'], 401);
     }
+
+    // --- TEST DE DIAGNÓSTICO PROFUNDO ---
+    $isCorrect = Hash::check($password, $user->password);
+    
+    // Si falla, vamos a forzar una prueba manual con un texto plano
+    // para ver si el motor de Hash está funcionando bien.
+    if (!$isCorrect) {
+        return response()->json([
+            'message' => 'La contraseña es incorrecta',
+            'debug_info' => [
+                'password_recibida' => $password, // Cuidado: solo para pruebas, borrar luego
+                'longitud_recibida' => strlen($password),
+                'hash_en_db' => $user->password,
+                'longitud_hash_db' => strlen($user->password),
+                'test_manual_con_123456' => Hash::check('123456', $user->password),
+            ]
+        ], 401);
+    }
+
+    // 3. Si llega aquí, es que funcionó
+    if ($user->role !== 'aliado') {
+        return response()->json(['message' => 'No eres un aliado'], 403);
+    }
+
+    $token = $user->createToken('hablador-token')->plainTextToken;
+
+    return response()->json([
+        'access_token' => $token,
+        'user' => ['name' => $user->name, 'email' => $user->email]
+    ], 200);
 });
 //**** fin de habladores ****/
 // MANEJO GLOBAL DE CORS
