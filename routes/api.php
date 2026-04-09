@@ -18,6 +18,9 @@ use App\Http\Controllers\Api\V2\UserController;
 use App\Models\NotificationApp;
 use App\Models\HotspotVersion;
 
+use App\Http\Controllers\Api\AuthController;
+use App\Models\Hablador;
+
 Route::get('/portal-download/{id}', function ($id) {
     $version = HotspotVersion::findOrFail($id);
     
@@ -110,9 +113,6 @@ Route::post('/save-notifications', function (Request $request) {
     return response()->json(['status' => 'success'], 201);
 });
 
-
-use App\Http\Controllers\Api\AuthController;
-use App\Models\Hablador;
 
 // Ruta para Login
 Route::post('/login-aliado', [AuthController::class, 'loginAliado']);
