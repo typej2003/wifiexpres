@@ -19,7 +19,7 @@ use App\Http\Controllers\Api\V2\UserController;
 use App\Models\NotificationApp;
 use App\Models\HotspotVersion;
 use App\Models\User;
-use App\Models\hablador;
+use App\Models\Hablador;
 
 Route::get('/portal-download/{id}', function ($id) {
     $version = HotspotVersion::findOrFail($id);
