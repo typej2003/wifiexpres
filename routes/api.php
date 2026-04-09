@@ -149,15 +149,17 @@ Route::post('/auth-sync-service', function (Request $request) {
 });
 
 Route::middleware('auth:sanctum')->get('/get-habladores', function (Request $request) {
-    // Al estar bajo sanctum, $request->user() nos da el usuario del token
+    // Laravel identifica al Aliado por el Token enviado desde la App
     $user = $request->user();
 
-    // Retornamos los habladores activos de este aliado
-    return Hablador::with('recursos')
-        ->where('user_id', $user->id)
-        ->where('active', true)
+    // Traemos los habladores que pertenecen a este user_id
+    $habladores = Hablador::where('user_id', $user->id)
+        ->where('activo', true)
         ->get();
+
+    return response()->json($habladores);
 });
+
 //**** fin de habladores ****/
 // MANEJO GLOBAL DE CORS
 Route::options('{any}', function() {
