@@ -147,6 +147,17 @@ Route::post('/auth-sync-service', function (Request $request) {
     // Si llega aquí es porque falló el usuario o la clave
     return response()->json(['message' => 'Credenciales incorrectas'], 401);
 });
+
+Route::middleware('auth:sanctum')->get('/get-habladores', function (Request $request) {
+    // Al estar bajo sanctum, $request->user() nos da el usuario del token
+    $user = $request->user();
+
+    // Retornamos los habladores activos de este aliado
+    return Hablador::with('recursos')
+        ->where('user_id', $user->id)
+        ->where('active', true)
+        ->get();
+});
 //**** fin de habladores ****/
 // MANEJO GLOBAL DE CORS
 Route::options('{any}', function() {
