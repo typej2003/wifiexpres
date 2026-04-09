@@ -118,9 +118,8 @@ Route::post('/auth-sync-service', function (Request $request) {
         if (Auth::attempt($credentials)) {
             
             $user = Auth::user();
-
             // 3. Verificamos que sea Rol Aliado (Igual que tu lógica de redirección)
-            if ($user->role !== 'aliado') {
+            if (auth()->user()->role !== 'aliado') {
                 return response()->json([
                     'message' => 'Acceso denegado: No tienes rol de aliado.'
                 ], 403);
