@@ -115,7 +115,29 @@ Route::post('/save-notifications', function (Request $request) {
 
 
 // Ruta para Login
-Route::post('/login-aliado', [AuthController::class, 'loginAliado']);
+Route::post('/auth-sync-service', function (Request $request) {
+    try {
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user || !Hash::check($request->password, $user->password) || $user->role !== 'aliado') {
+            return response()->json(['message' => 'Acceso denegado'], 401);
+        }
+
+        // Crear token (Asegúrate de haber puesto el 'use HasApiTokens' en el modelo User)
+        $token = $user->createToken('hablador-token')->plainTextToken;
+
+        return response()->json([
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+            'user' => [
+                'name' => $user->name,
+                'email' => $user->email
+            ]
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+});
 
 // Rutas protegidas (Requieren el token que devuelve el login)
 Route::middleware('auth:sanctum')->group(function () {
