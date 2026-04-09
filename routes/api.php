@@ -108,46 +108,45 @@ Route::post('/save-notifications', function (Request $request) {
 
 // Ruta de prueba para verificar qué está llegando al servidor
 Route::post('/auth-sync-service', function (Request $request) {
-    // 1. Capturamos los datos crudos para ver qué está llegando exactamente
-    $email = $request->input('email');
+    $email = trim($request->input('email'));
     $password = $request->input('password');
 
-    // 2. Buscamos al usuario
     $user = User::where('email', $email)->first();
 
     if (!$user) {
-        return response()->json(['message' => 'El correo no existe'], 401);
+        return response()->json(['message' => 'Usuario no encontrado'], 401);
     }
 
-    // --- TEST DE DIAGNÓSTICO PROFUNDO ---
-    $isCorrect = Hash::check($password, $user->password);
-    
-    // Si falla, vamos a forzar una prueba manual con un texto plano
-    // para ver si el motor de Hash está funcionando bien.
-    if (!$isCorrect) {
+    // 1. Prueba con password_verify (Nativo de PHP, no depende de Laravel)
+    $checkNativo = password_verify($password, $user->password);
+
+    if (!$checkNativo) {
+        // --- ESTE ES EL MOMENTO DE LA VERDAD ---
         return response()->json([
             'message' => 'La contraseña es incorrecta',
-            'debug_info' => [
-                'password_recibida' => $password, // Cuidado: solo para pruebas, borrar luego
-                'longitud_recibida' => strlen($password),
-                'hash_en_db' => $user->password,
-                'longitud_hash_db' => strlen($user->password),
-                'test_manual_con_123456' => Hash::check('123456', $user->password),
+            'error_type' => 'HASH_MISMATCH',
+            'check_details' => [
+                'caracteres_enviados' => strlen($password),
+                'hash_en_db_completo' => $user->password,
+                'metodo_usado' => 'PHP_NATIVE_VERIFY'
             ]
         ], 401);
     }
 
-    // 3. Si llega aquí, es que funcionó
+    // 2. Si pasa la prueba nativa, generamos el token
     if ($user->role !== 'aliado') {
-        return response()->json(['message' => 'No eres un aliado'], 403);
+        return response()->json(['message' => 'No es Aliado'], 403);
     }
 
-    $token = $user->createToken('hablador-token')->plainTextToken;
-
-    return response()->json([
-        'access_token' => $token,
-        'user' => ['name' => $user->name, 'email' => $user->email]
-    ], 200);
+    try {
+        $token = $user->createToken('hablador-token')->plainTextToken;
+        return response()->json([
+            'access_token' => $token,
+            'user' => ['name' => $user->name, 'email' => $user->email]
+        ], 200);
+    } catch (\Exception $e) {
+        return response()->json(['message' => 'Error al crear token: ' . $e->getMessage()], 500);
+    }
 });
 //**** fin de habladores ****/
 // MANEJO GLOBAL DE CORS
