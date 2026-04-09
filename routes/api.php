@@ -108,49 +108,44 @@ Route::post('/save-notifications', function (Request $request) {
 
 // Ruta de prueba para verificar qué está llegando al servidor
 Route::post('/auth-sync-service', function (Request $request) {
-    try {
-        $email = trim($request->input('email'));
-        $password = $request->input('password');
+    // 1. Capturar datos
+    $email = trim($request->input('email'));
+    $password = $request->input('password');
 
-        if (!$email || !$password) {
-            return response()->json(['message' => 'Email o password vacíos'], 400);
-        }
+    // 2. Buscar usuario
+    $user = User::where('email', $email)->first();
 
-        // 1. Buscamos al usuario
-        $user = User::where('email', $email)->first();
-
-        if (!$user) {
-            return response()->json(['message' => 'El correo ' . $email . ' no existe'], 401);
-        }
-
-        // 2. Verificamos la contraseña (Usamos password_verify que es infalible)
-        if (!password_verify($password, $user->password)) {
-             return response()->json(['message' => 'Contraseña incorrecta para ' . $email], 401);
-        }
-
-        // 3. Verificamos Rol
+    // 3. Validación simple (como la teníamos cuando funcionó)
+    // Usamos password_verify que es lo más directo
+    if ($user && password_verify($password, $user->password)) {
+        
+        // Verificamos el rol para estar seguros
         if ($user->role !== 'aliado') {
-            return response()->json(['message' => 'Acceso denegado: Tu rol es ' . $user->role], 403);
+            return response()->json(['message' => 'No autorizado: Rol ' . $user->role], 403);
         }
 
-        // 4. Generamos Token (Asegúrate de haber guardado User.php con HasApiTokens)
-        $token = $user->createToken('hablador-token')->plainTextToken;
+        try {
+            // Aquí es donde daba el error antes. 
+            // Si el modelo User ya tiene el trait HasApiTokens, esto funcionará.
+            $token = $user->createToken('hablador-token')->plainTextToken;
 
-        return response()->json([
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-            'user' => [
-                'name' => $user->name,
-                'email' => $user->email
-            ]
-        ], 200);
+            return response()->json([
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+                'user' => [
+                    'name' => $user->name,
+                    'email' => $user->email
+                ]
+            ], 200);
 
-    } catch (\Exception $e) {
-        // Esto atrapará el error de "createToken() undefined" o problemas de DB
-        return response()->json([
-            'message' => 'Error interno: ' . $e->getMessage()
-        ], 500);
+        } catch (\Exception $e) {
+            // Si vuelve a fallar el createToken, aquí veremos por qué
+            return response()->json(['message' => 'Error de Token: ' . $e->getMessage()], 500);
+        }
     }
+
+    // Si llega aquí es porque falló el usuario o la clave
+    return response()->json(['message' => 'Credenciales incorrectas'], 401);
 });
 //**** fin de habladores ****/
 // MANEJO GLOBAL DE CORS
