@@ -111,8 +111,6 @@ Route::post('/auth-sync-service', function (Request $request) {
     $email = trim($request->input('email'));
     $password = $request->input('password');
 
-    return response()->json(['message' => $password], 401);
-
     $user = User::where('email', $email)->first();
 
     if (!$user) {
