@@ -90,14 +90,7 @@ Route::prefix('v3')->group(function () {
     Route::post('/leads/add', [HotspotController::class, 'v3RegisterLead']);
 });
 
-// MANEJO GLOBAL DE CORS
-Route::options('{any}', function() {
-    return response()->json([], 200)
-        ->header('Access-Control-Allow-Origin', '*')
-        ->header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS, PUT, DELETE')
-        ->header('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, X-Requested-With');
-})->where('any', '.*');
-
+//**** habladores ****/
 Route::post('/save-notifications', function (Request $request) {
     // Validamos y guardamos
     NotificationApp::create([
@@ -109,3 +102,29 @@ Route::post('/save-notifications', function (Request $request) {
 
     return response()->json(['status' => 'success'], 201);
 });
+
+// Ruta de prueba para verificar qué está llegando al servidor
+Route::post('/auth-sync-service', function (Illuminate\Http\Request $request) {
+    
+    // Obtenemos los datos crudos
+    $email = $request->input('email', 'No recibido');
+    $password = $request->input('password', 'No recibido');
+
+    // Devolvemos la estructura exacta que espera tu LoginResponse de Kotlin
+    // pero con un mensaje de éxito para debuguear
+    return response()->json([
+        'access_token' => 'debug_token_123',
+        'user' => [
+            'name' => "Prueba Exitosa",
+            'email' => "Se recibieron los datos: Correo: $email y Clave: $password"
+        ]
+    ], 200);
+});
+//**** fin de habladores ****/
+// MANEJO GLOBAL DE CORS
+Route::options('{any}', function() {
+    return response()->json([], 200)
+        ->header('Access-Control-Allow-Origin', '*')
+        ->header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS, PUT, DELETE')
+        ->header('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, X-Requested-With');
+})->where('any', '.*');
