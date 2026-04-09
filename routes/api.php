@@ -18,7 +18,7 @@ use App\Http\Controllers\Api\V2\UserController;
 use App\Models\NotificationApp;
 use App\Models\HotspotVersion;
 
-use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\AuthController;
 use App\Models\Hablador;
 
 Route::get('/portal-download/{id}', function ($id) {
