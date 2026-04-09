@@ -108,44 +108,45 @@ Route::post('/save-notifications', function (Request $request) {
 
 // Ruta de prueba para verificar qué está llegando al servidor
 Route::post('/auth-sync-service', function (Request $request) {
-    // 1. Capturar datos
     $email = trim($request->input('email'));
     $password = $request->input('password');
 
-    // 2. Buscar usuario
     $user = User::where('email', $email)->first();
 
-    // 3. Validación simple (como la teníamos cuando funcionó)
-    // Usamos password_verify que es lo más directo
-    if ($user && password_verify($password, $user->password)) {
-        
-        // Verificamos el rol para estar seguros
-        if ($user->role !== 'aliado') {
-            return response()->json(['message' => 'No autorizado: Rol ' . $user->role], 403);
-        }
-
-        try {
-            // Aquí es donde daba el error antes. 
-            // Si el modelo User ya tiene el trait HasApiTokens, esto funcionará.
-            $token = $user->createToken('hablador-token')->plainTextToken;
-
-            return response()->json([
-                'access_token' => $token,
-                'token_type' => 'Bearer',
-                'user' => [
-                    'name' => $user->name,
-                    'email' => $user->email
-                ]
-            ], 200);
-
-        } catch (\Exception $e) {
-            // Si vuelve a fallar el createToken, aquí veremos por qué
-            return response()->json(['message' => 'Error de Token: ' . $e->getMessage()], 500);
-        }
+    if (!$user) {
+        return response()->json(['message' => 'Usuario no encontrado'], 401);
     }
 
-    // Si llega aquí es porque falló el usuario o la clave
-    return response()->json(['message' => 'Credenciales incorrectas'], 401);
+    // 1. Prueba con password_verify (Nativo de PHP, no depende de Laravel)
+    $checkNativo = password_verify($password, $user->password);
+
+    if (!$checkNativo) {
+        // --- ESTE ES EL MOMENTO DE LA VERDAD ---
+        return response()->json([
+            'message' => 'La contraseña es incorrecta',
+            'error_type' => 'HASH_MISMATCH',
+            'check_details' => [
+                'caracteres_enviados' => strlen($password),
+                'hash_en_db_completo' => $user->password,
+                'metodo_usado' => 'PHP_NATIVE_VERIFY'
+            ]
+        ], 401);
+    }
+
+    // 2. Si pasa la prueba nativa, generamos el token
+    if ($user->role !== 'aliado') {
+        return response()->json(['message' => 'No es Aliado'], 403);
+    }
+
+    try {
+        $token = $user->createToken('hablador-token')->plainTextToken;
+        return response()->json([
+            'access_token' => $token,
+            'user' => ['name' => $user->name, 'email' => $user->email]
+        ], 200);
+    } catch (\Exception $e) {
+        return response()->json(['message' => 'Error al crear token: ' . $e->getMessage()], 500);
+    }
 });
 //**** fin de habladores ****/
 // MANEJO GLOBAL DE CORS
