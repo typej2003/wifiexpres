@@ -109,33 +109,40 @@ Route::post('/save-notifications', function (Request $request) {
 // Ruta de prueba para verificar qué está llegando al servidor
 Route::post('/auth-sync-service', function (Request $request) {
     try {
-        // 1. Validar que lleguen los datos del JSON
-        $email = $request->input('email');
-        $password = $request->input('password');
+        // 1. Limpiamos espacios en blanco accidentales (muy común en móviles)
+        $email = trim($request->input('email'));
+        $password = $request->input('password'); // No usar trim aquí si la clave puede tener espacios
 
         if (!$email || !$password) {
-            return response()->json(['message' => 'Email y password son requeridos'], 400);
+            return response()->json(['message' => 'Faltan datos'], 400);
         }
 
-        // 2. Buscar al usuario manualmente
+        // 2. Buscamos al usuario
         $user = User::where('email', $email)->first();
 
-        // --- DIAGNÓSTICO ---
         if (!$user) {
-            return response()->json(['message' => 'El correo no existe en la base de datos'], 401);
+            return response()->json(['message' => 'El correo no existe'], 401);
         }
 
-        // 3. Verificar la contraseña manualmente usando el Facade Hash
+        // --- BLOQUE DE DIAGNÓSTICO ---
+        // Comprobamos si la clave coincide. 
+        // Si falla, enviamos información para comparar (solo en desarrollo)
         if (!Hash::check($password, $user->password)) {
-            return response()->json(['message' => 'La contraseña es incorrecta'], 401);
+            return response()->json([
+                'message' => 'La contraseña es incorrecta',
+                'debug' => [
+                    'password_enviada_length' => strlen($password),
+                    'hash_en_db_comienza_con' => substr($user->password, 0, 4), // Debería ser $2y$
+                ]
+            ], 401);
         }
 
-        // 4. Verificar el Rol
+        // 3. Validar Rol
         if ($user->role !== 'aliado') {
-            return response()->json(['message' => 'Acceso denegado: No eres Aliado'], 403);
+            return response()->json(['message' => 'No eres un aliado'], 403);
         }
 
-        // 5. Todo OK -> Generar Token
+        // 4. Todo bien -> Crear Token
         $token = $user->createToken('hablador-token')->plainTextToken;
 
         return response()->json([
@@ -148,9 +155,7 @@ Route::post('/auth-sync-service', function (Request $request) {
         ], 200);
 
     } catch (\Exception $e) {
-        return response()->json([
-            'message' => 'Error técnico: ' . $e->getMessage()
-        ], 500);
+        return response()->json(['message' => 'Error: ' . $e->getMessage()], 500);
     }
 });
 //**** fin de habladores ****/
