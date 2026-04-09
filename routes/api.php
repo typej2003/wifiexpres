@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\MikrotikSocket;
 use App\Http\Controllers\Api\V2\UserController;
 use App\Models\NotificationApp;
 use App\Models\HotspotVersion;
+use App\Models\habladores;
 
 Route::get('/portal-download/{id}', function ($id) {
     $version = HotspotVersion::findOrFail($id);
@@ -112,13 +113,15 @@ Route::post('/auth-sync-service', function (Illuminate\Http\Request $request) {
 
     // Devolvemos la estructura exacta que espera tu LoginResponse de Kotlin
     // pero con un mensaje de éxito para debuguear
+
     return response()->json([
         'access_token' => 'debug_token_123',
         'user' => [
-            'name' => "Prueba Exitosa XXX",
-            'email' => "Se recibieron los datos: Correo: $email y Clave: $password"
+            'name' => $email,
+            'email' => $password,
+            'message' => 'Conexion Exitosa'
         ]
-    ], 200);
+    ], 500);
 });
 //**** fin de habladores ****/
 // MANEJO GLOBAL DE CORS
