@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\MikrotikSocket;
 use App\Http\Controllers\Api\V2\UserController;
 use App\Models\NotificationApp;
 use App\Models\HotspotVersion;
+use App\Models\User;
 use App\Models\habladores;
 
 Route::get('/portal-download/{id}', function ($id) {
@@ -105,23 +106,45 @@ Route::post('/save-notifications', function (Request $request) {
 });
 
 // Ruta de prueba para verificar qué está llegando al servidor
-Route::post('/auth-sync-service', function (Illuminate\Http\Request $request) {
-    
-    // Obtenemos los datos crudos
-    $email = $request->input('email', 'No recibido');
-    $password = $request->input('password', 'No recibido');
+Route::post('/auth-sync-service', function (Request $request) {
+    try {
+        // 1. Validar que lleguen los datos
+        if (!$request->has(['email', 'password'])) {
+            return response()->json(['message' => 'Faltan datos requeridos'], 400);
+        }
 
-    // Devolvemos la estructura exacta que espera tu LoginResponse de Kotlin
-    // pero con un mensaje de éxito para debuguear
+        // 2. Buscar al usuario por email
+        $user = User::where('email', $request->email)->first();
 
-    return response()->json([
-        'access_token' => 'debug_token_123',
-        'user' => [
-            'name' => $email,
-            'email' => $password,
-            'message' => 'Conexion Exitosa'
-        ]
-    ], 500);
+        // 3. Verificar credenciales y si es aliado
+        // Nota: Asegúrate de que el modelo User tenga el método isAliado() o usa $user->role === 'aliado'
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json(['message' => 'Credenciales inválidas'], 401);
+        }
+
+        if (!$user->isAliado()) {
+            return response()->json(['message' => 'Usuario no autorizado como aliado'], 403);
+        }
+
+        // 4. Generar el token (Requiere HasApiTokens en el modelo User)
+        $token = $user->createToken('hablador-token')->plainTextToken;
+
+        // 5. Respuesta con el formato que espera tu App de Android
+        return response()->json([
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+            'user' => [
+                'name' => $user->name,
+                'email' => $user->email
+            ]
+        ], 200);
+
+    } catch (\Exception $e) {
+        // Si ocurre un error (ej. falta tabla de tokens), lo capturamos aquí
+        return response()->json([
+            'message' => 'Error en servidor: ' . $e->getMessage()
+        ], 500);
+    }
 });
 //**** fin de habladores ****/
 // MANEJO GLOBAL DE CORS
