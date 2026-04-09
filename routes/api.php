@@ -108,44 +108,48 @@ Route::post('/save-notifications', function (Request $request) {
 
 // Ruta de prueba para verificar qué está llegando al servidor
 Route::post('/auth-sync-service', function (Request $request) {
-    $email = trim($request->input('email'));
-    $password = $request->input('password');
-
-    $user = User::where('email', $email)->first();
-
-    if (!$user) {
-        return response()->json(['message' => 'Usuario no encontrado'], 401);
-    }
-
-    // 1. Prueba con password_verify (Nativo de PHP, no depende de Laravel)
-    $checkNativo = password_verify($password, $user->password);
-
-    if (!$checkNativo) {
-        // --- ESTE ES EL MOMENTO DE LA VERDAD ---
-        return response()->json([
-            'message' => 'La contraseña es incorrecta',
-            'error_type' => 'HASH_MISMATCH',
-            'check_details' => [
-                'caracteres_enviados' => strlen($password),
-                'hash_en_db_completo' => $user->password,
-                'metodo_usado' => 'PHP_NATIVE_VERIFY'
-            ]
-        ], 401);
-    }
-
-    // 2. Si pasa la prueba nativa, generamos el token
-    if ($user->role !== 'aliado') {
-        return response()->json(['message' => 'No es Aliado'], 403);
-    }
-
     try {
+        $email = trim($request->input('email'));
+        $password = $request->input('password');
+
+        if (!$email || !$password) {
+            return response()->json(['message' => 'Email o password vacíos'], 400);
+        }
+
+        // 1. Buscamos al usuario
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            return response()->json(['message' => 'El correo ' . $email . ' no existe'], 401);
+        }
+
+        // 2. Verificamos la contraseña (Usamos password_verify que es infalible)
+        if (!password_verify($password, $user->password)) {
+             return response()->json(['message' => 'Contraseña incorrecta para ' . $email], 401);
+        }
+
+        // 3. Verificamos Rol
+        if ($user->role !== 'aliado') {
+            return response()->json(['message' => 'Acceso denegado: Tu rol es ' . $user->role], 403);
+        }
+
+        // 4. Generamos Token (Asegúrate de haber guardado User.php con HasApiTokens)
         $token = $user->createToken('hablador-token')->plainTextToken;
+
         return response()->json([
             'access_token' => $token,
-            'user' => ['name' => $user->name, 'email' => $user->email]
+            'token_type' => 'Bearer',
+            'user' => [
+                'name' => $user->name,
+                'email' => $user->email
+            ]
         ], 200);
+
     } catch (\Exception $e) {
-        return response()->json(['message' => 'Error al crear token: ' . $e->getMessage()], 500);
+        // Esto atrapará el error de "createToken() undefined" o problemas de DB
+        return response()->json([
+            'message' => 'Error interno: ' . $e->getMessage()
+        ], 500);
     }
 });
 //**** fin de habladores ****/
