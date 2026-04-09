@@ -115,7 +115,7 @@ Route::post('/auth-sync-service', function (Illuminate\Http\Request $request) {
     return response()->json([
         'access_token' => 'debug_token_123',
         'user' => [
-            'name' => "Prueba Exitosa",
+            'name' => "Prueba Exitosa XXX",
             'email' => "Se recibieron los datos: Correo: $email y Clave: $password"
         ]
     ], 200);
