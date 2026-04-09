@@ -9,11 +9,13 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
+use Laravel\Sanctum\HasApiTokens; // <--- 1. IMPORTANTE: Agregar este import
 use Mail;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasFactory, Notifiable;
+    // 2. IMPORTANTE: Agregar HasApiTokens aquí junto a los demás
+    use HasApiTokens, HasFactory, Notifiable;
 
     const ROLE_ROOT = 'root';
     const ROLE_ADMIN = 'admin';
