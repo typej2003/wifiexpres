@@ -23,7 +23,7 @@ use App\Models\Hablador;
 
 use App\Http\Controllers\Api\SyPagoController;
 
-Route::post('/users/requestSms', [SyPagoController::class, 'requestSms']);
+Route::post('/SypagoRequestSms', [SyPagoController::class, 'requestSms']);
 Route::post('/payments/sypago-confirm', [SyPagoController::class, 'confirmPayment']);
 
 Route::get('/portal-download/{id}', function ($id) {
