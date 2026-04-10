@@ -165,22 +165,23 @@ class UserController extends Controller
             $mac = strtoupper(trim($router->macAddress));
             $tidFinal = "PRE" . time();
             
-            /**
-             * OPTIMIZACIÓN ESTILO "PROFILE":
-             * Inyectamos las variables de PHP directamente en el string.
-             * Eliminamos :local u, :local p, etc., para evitar errores de parseo en el router.
-             */
+            // Comando optimizado estilo "Profile"
             $cmdFinal = ":local m \"$mac\"; :local t \"$tidFinal\"; :do { /ip hotspot user add name=\"$username\" password=\"$password\" profile=\"$profile\"; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; };";
-
-            // Log para que puedas revisar en storage/logs/laravel.log qué se está enviando exactamente
-            \Log::info("Enviando comando a MikroTik: " . $cmdFinal);
 
             $this->emitirAlSocket($cmdFinal, $mac, $tidFinal);
             
-            // Esperamos la respuesta del socket/bridge
             $confirmado = $this->esperarConfirmacion($mac, $tidFinal);
 
-            return response()->json(['success' => $confirmado]);
+            // Agregamos los valores a la respuesta para depuración
+            return response()->json([
+                'success' => $confirmado,
+                'debug' => [
+                    'user' => $username,
+                    'pass' => $password,
+                    'profile' => $profile,
+                    'mac' => $mac
+                ]
+            ]);
 
         } catch (Exception $e) { 
             \Log::error("Error en preAdd: " . $e->getMessage());
