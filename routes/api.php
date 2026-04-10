@@ -32,8 +32,7 @@ Route::options('{any}', function() {
 })->where('any', '.*');
 
 Route::middleware(['cors'])->group(function () {
-    Route::post('/SypagoRequestSms', [SyPagoController::class, 'requestSms']);
-    Route::post('/payments/sypago-confirm', [SyPagoController::class, 'confirmPayment']);
+    
 });
 
 Route::get('/portal-download/{id}', function ($id) {
@@ -92,6 +91,8 @@ Route::prefix('v2')->group(function () {
     Route::post('/users/pre-addSypago', [UserController::class, 'preAddSypago']);
     Route::post('/users/activate', [UserController::class, 'activate']);
     Route::post('/users/trial-lead', [UserController::class, 'trialLead']);
+    Route::post('/users/SypagoRequestSms', [SyPagoController::class, 'requestSms']);
+    Route::post('/users/sypago-confirm', [SyPagoController::class, 'confirmPayment']);
 
     // Testeo del Bridge
     Route::post('/test-recursos', [MikrotikSocket::class, 'enviarPeticionRecursos']);
