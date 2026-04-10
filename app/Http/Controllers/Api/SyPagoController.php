@@ -19,18 +19,34 @@ class SyPagoController extends Controller
      */
     private function getAccessToken()
     {
-        // Intenta con estos nombres de campo que son los estándar de su backend
-        $response = Http::post($this->baseUrl . '/api/v1/auth/token', [
-            'client_id' => $this->clientId,
-            'api_key'   => $this->apiKey  // Cambiamos 'secret' por 'api_key'
-        ]);
+        try {
+            $url = $this->baseUrl . '/api/v1/auth/token';
+            
+            // Creamos el JSON manualmente para asegurar el formato
+            $params = json_encode([
+                'client_id' => $this->clientId,
+                'secret'    => $this->apiKey
+            ]);
 
-        if ($response->successful()) {
-            return $response->json()['access_token'];
+            $response = Http::withHeaders([
+                'Content-Type' => 'application/json',
+                'Accept'       => 'application/json',
+            ])
+            ->withBody($params, 'application/json')
+            ->post($url);
+
+            if ($response->successful()) {
+                return $response->json()['access_token'];
+            }
+
+            // Si falla, ahora veremos exactamente qué recibió SyPago
+            Log::error("SYPAGO AUTH REJECTED: " . $response->status() . " - " . $response->body());
+            return null;
+
+        } catch (\Exception $e) {
+            Log::error("Excepción en getAccessToken: " . $e->getMessage());
+            return null;
         }
-
-        Log::error("SYPAGO ERROR DETALLE: " . $response->body());
-        return null;
     }
 
     /**
