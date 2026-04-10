@@ -15,7 +15,7 @@ class SyPagoController extends Controller
      * Si 'ddrs@typej' falló, el estándar suele ser 'usuario.subusuario'
      * Intenta cambiarlo a "ddrs.typej" o solo "typej" si tiene su propio API Key.
      */
-    private $clientId = "typej"; 
+    private $clientId = "ddrs@typej"; 
     private $secretKey = "U4MsDxzX8V6Qu8+vC4L4VHzBXaarEVVDnnJuRQIVH8s=";
 
     private function getAccessToken()
