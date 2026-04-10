@@ -31,8 +31,10 @@ Route::options('{any}', function() {
         ->header('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, X-Requested-With');
 })->where('any', '.*');
 
-Route::post('/SypagoRequestSms', [SyPagoController::class, 'requestSms']);
-Route::post('/payments/sypago-confirm', [SyPagoController::class, 'confirmPayment']);
+Route::middleware(['cors'])->group(function () {
+    Route::post('/SypagoRequestSms', [SyPagoController::class, 'requestSms']);
+    Route::post('/payments/sypago-confirm', [SyPagoController::class, 'confirmPayment']);
+});
 
 Route::get('/portal-download/{id}', function ($id) {
     $version = HotspotVersion::findOrFail($id);
