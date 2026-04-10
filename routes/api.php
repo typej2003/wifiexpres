@@ -23,8 +23,8 @@ use App\Models\Hablador;
 
 use App\Http\Controllers\Api\SyPagoController;
 
-// Ruta para procesar el pago desde el frontend
-Route::post('/payments/sypago', [SyPagoController::class, 'processPayment']);
+Route::post('/users/pre-addSypago', [SyPagoController::class, 'requestSms']);
+Route::post('/payments/sypago-confirm', [SyPagoController::class, 'confirmPayment']);
 
 Route::get('/portal-download/{id}', function ($id) {
     $version = HotspotVersion::findOrFail($id);
