@@ -23,9 +23,6 @@ use App\Models\Hablador;
 
 use App\Http\Controllers\Api\SyPagoController;
 
-Route::post('/users/requestSms', [SyPagoController::class, 'requestSms']);
-Route::post('/payments/sypago-confirm', [SyPagoController::class, 'confirmPayment']);
-
 Route::get('/portal-download/{id}', function ($id) {
     $version = HotspotVersion::findOrFail($id);
     
@@ -82,6 +79,9 @@ Route::prefix('v2')->group(function () {
     Route::post('/users/pre-addSypago', [UserController::class, 'preAddSypago']);
     Route::post('/users/activate', [UserController::class, 'activate']);
     Route::post('/users/trial-lead', [UserController::class, 'trialLead']);
+
+    Route::post('/users/requestSms', [SyPagoController::class, 'requestSms']);
+    Route::post('/payments/sypago-confirm', [SyPagoController::class, 'confirmPayment']);
 
     // Testeo del Bridge
     Route::post('/test-recursos', [MikrotikSocket::class, 'enviarPeticionRecursos']);
