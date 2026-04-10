@@ -168,7 +168,7 @@ class UserController extends Controller
             // Comando optimizado estilo "Profile"
             //$cmdFinal = ":local m \"$mac\"; :local t \"$tidFinal\"; :local u \"$username\"; :local p \"$password\"; :local pr \"$profile\"; :do { /ip hotspot user add name=\$u password=\$p profile=\$pr; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; };";
 
-            $cmdFinal = ":local m \"$mac\"; :local t \"$tidFinal\"; :local u \"$username\"; :local p \"$password\"; :local pr \"$profile\"; :do { :if ([:len [/ip hotspot user find where name=\$u]] > 0) do={ /ip hotspot user set [find where name=\$u] password=\$p profile=\"\$pr\"; } else={ /ip hotspot user add name=\$u password=\$p profile=\"\$pr\"; }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; };";
+            $cmdFinal = ":local m \"$mac\"; :local t \"$tidFinal\"; :local u \"$username\"; :local p \"$password\"; :local pr \"$profile\"; :do { /ip hotspot user remove [find name=\$u]; /ip hotspot user add name=\$u password=\$p profile=\$pr; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; };";
 
             $this->emitirAlSocket($cmdFinal, $mac, $tidFinal);
             
