@@ -10,19 +10,19 @@ use Illuminate\Support\Facades\Log;
 class SyPagoController extends Controller
 {
     private $baseUrl  = "https://pruebas.sypago.net:8086";
-    
-    /** * ESTRATEGIA PARA SUBUSUARIOS:
-     * Si 'ddrs@typej' falló, el estándar suele ser 'usuario.subusuario'
-     * Intenta cambiarlo a "ddrs.typej" o solo "typej" si tiene su propio API Key.
-     */
     private $clientId = "ddrs"; 
     private $secretKey = "NHnKKwoEaKlIkKjvfnFucPRUPuHGfSaA";
 
     private function getAccessToken()
     {
         try {
+            // Intentamos con el formato exacto que pide el middleware de SyPago
             $response = Http::withoutVerifying()
                 ->asJson()
+                ->withHeaders([
+                    'client_id' => $this->clientId, // Algunos WAF lo filtran si no va en el header
+                    'Accept'    => 'application/json',
+                ])
                 ->post($this->baseUrl . '/api/v1/auth/token', [
                     'client_id' => trim($this->clientId),
                     'secret'    => trim($this->secretKey)
@@ -32,8 +32,21 @@ class SyPagoController extends Controller
                 return $response->json()['access_token'] ?? null;
             }
 
-            // IMPORTANTE: Si falla, imprimiremos el clientId usado para verificar en el log
-            Log::error("SYPAGO AUTH FAIL con ID [{$this->clientId}]: " . $response->status() . " - " . $response->body());
+            // Si falla el v1, intentamos sin el prefijo v1 por si acaso
+            if ($response->status() == 404 || $response->status() == 400) {
+                 $secondAttempt = Http::withoutVerifying()
+                    ->asJson()
+                    ->post($this->baseUrl . '/api/auth/token', [
+                        'client_id' => trim($this->clientId),
+                        'secret'    => trim($this->secretKey)
+                    ]);
+                 
+                 if ($secondAttempt->successful()) {
+                     return $secondAttempt->json()['access_token'] ?? null;
+                 }
+            }
+
+            Log::error("SYPAGO AUTH FAIL [{$this->clientId}]: " . $response->status() . " - " . $response->body());
             return null;
 
         } catch (\Exception $e) {
@@ -49,7 +62,7 @@ class SyPagoController extends Controller
         if (!$token) {
             return response()->json([
                 'success' => false,
-                'message' => 'No se pudo autenticar el subusuario.'
+                'message' => 'Error de autenticación: ApiKeyNotFound. Verifique si el usuario principal está activo en el portal de pruebas.'
             ], 400);
         }
 
