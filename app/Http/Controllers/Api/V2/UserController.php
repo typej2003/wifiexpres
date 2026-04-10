@@ -191,6 +191,45 @@ class UserController extends Controller
         }
     }
 
+    public function preAddSypago(Request $request) {
+        try {
+            $username = $request->input('username');
+            $password = $request->input('password');
+            $identity = $request->input('identity');
+            $profile = $request->input('planSelected'); 
+            $router = $this->findRouter($identity);
+            
+            if (!$router) return response()->json(['success' => false, 'message' => 'Router no encontrado'], 404);
+            
+            $mac = strtoupper(trim($router->macAddress));
+            $tidFinal = "PRE" . time();
+            
+            // Comando optimizado estilo "Profile"
+            //$cmdFinal = ":local m \"$mac\"; :local t \"$tidFinal\"; :local u \"$username\"; :local p \"$password\"; :local pr \"$profile\"; :do { /ip hotspot user add name=\$u password=\$p profile=\$pr; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; };";
+
+            $cmdFinal = ":local m \"$mac\"; :local t \"$tidFinal\"; :local u \"$username\"; :local p \"$password\"; :local pr \"$profile\"; :do { /ip hotspot user remove [find name=\$u]; /ip hotspot user add name=\$u password=\$p profile=\$pr; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; };";
+
+            $this->emitirAlSocket($cmdFinal, $mac, $tidFinal);
+            
+            $confirmado = $this->esperarConfirmacion($mac, $tidFinal);
+
+            // Agregamos los valores a la respuesta para depuración
+            return response()->json([
+                'success' => $confirmado,
+                'debug' => [
+                    'user' => $username,
+                    'pass' => $password,
+                    'profile' => $profile,
+                    'mac' => $mac
+                ]
+            ]);
+
+        } catch (Exception $e) { 
+            \Log::error("Error en preAdd: " . $e->getMessage());
+            return response()->json(['success' => false], 500); 
+        }
+    }
+
     /**
      * 5. ACTIVACIÓN FINAL
      */

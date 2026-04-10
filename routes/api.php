@@ -79,6 +79,7 @@ Route::prefix('v2')->group(function () {
     
     // Acciones de Usuario (Socket)
     Route::post('/users/pre-add', [UserController::class, 'preAdd']);
+    Route::post('/users/pre-addSypago', [UserController::class, 'preAddSypago']);
     Route::post('/users/activate', [UserController::class, 'activate']);
     Route::post('/users/trial-lead', [UserController::class, 'trialLead']);
 
