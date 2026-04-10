@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str; // ESTA IMPORTACIÓN ES VITAL
 
 class SyPagoController extends Controller
 {
@@ -34,7 +35,7 @@ class SyPagoController extends Controller
     }
 
     /**
-     * Paso 2: Solicitar OTP (Ya lo tienes funcionando)
+     * PASO 2: Solicitar OTP (FUNCIONAL - NO TOCAR)
      */
     public function requestSms(Request $request)
     {
@@ -73,8 +74,7 @@ class SyPagoController extends Controller
     }
 
     /**
-     * PASO 3: Confirmar Pago con OTP
-     * Endpoint: POST /api/v1/confirm/otp
+     * PASO 3: Confirmar Pago con OTP (REVISADO)
      */
     public function confirmPayment(Request $request)
     {
@@ -82,9 +82,9 @@ class SyPagoController extends Controller
         if (!$token) return response()->json(['success' => false], 401);
 
         try {
-            // Generamos IDs únicos para la transacción según pide la documentación
-            $internalId = strtoupper(Str::random(12)); 
-            $groupId    = strtoupper(Str::random(12));
+            // Generamos IDs únicos (Máximo 12 caracteres alfanuméricos)
+            $internalId = substr(strtoupper(Str::random(12)), 0, 12); 
+            $groupId    = substr(strtoupper(Str::random(12)), 0, 12);
 
             $payload = [
                 "internal_id" => $internalId,
@@ -98,15 +98,16 @@ class SyPagoController extends Controller
                     "amt"      => floatval($request->input('amount', 0)),
                     "currency" => "VES"
                 ],
-                "concept" => "Pago WiFiExpres", // Puedes hacerlo dinámico con $request
+                "concept" => "Pago WiFiExpres", 
                 "notification_urls" => [
-                    "web_hook_endpoint" => "https://tu-dominio.com/api/sypago-webhook" 
+                    // IMPORTANTE: Cambia esto por tu URL real de producción
+                    "web_hook_endpoint" => "https://panexpres.com/api/sypago-webhook" 
                 ],
                 "receiving_user" => [
-                    "name" => $request->input('customer_name', 'Cliente WiFi'),
-                    "otp"  => (string) $request->input('otp'),
+                    "name" => $request->input('customer_name', 'Cliente PanExpres'),
+                    "otp"  => (string) $request->input('otp'), // El código del SMS
                     "document_info" => [
-                        "type"   => "V",
+                        "type"   => (string) $request->input('document_type', 'V'),
                         "number" => (string) $request->input('id_number')
                     ],
                     "account" => [
@@ -123,7 +124,7 @@ class SyPagoController extends Controller
                 ->post($this->baseUrl . '/api/v1/transaction/otp', $payload);
 
             if ($response->successful()) {
-                Log::info("PAGO PROCESADO SYPAGO: " . json_encode($response->json()));
+                Log::info("PAGO PROCESADO SYPAGO EXITOSAMENTE", $response->json());
                 return response()->json([
                     'success' => true,
                     'transaction_id' => $response->json()['transaction_id'] ?? null,
@@ -131,11 +132,13 @@ class SyPagoController extends Controller
                 ]);
             }
 
-            Log::error("SYPAGO TRANSACTION ERROR: " . $response->status() . " - " . $response->body());
+            // Si falla, registramos exactamente qué dijo el API para corregir
+            Log::error("SYPAGO VALIDATION FAIL: " . $response->status() . " - " . $response->body());
+            
             return response()->json($response->json(), $response->status());
 
         } catch (\Exception $e) {
-            Log::error("SYPAGO EXCEPTION: " . $e->getMessage());
+            Log::error("SYPAGO CRITICAL EXCEPTION: " . $e->getMessage());
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
