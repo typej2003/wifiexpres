@@ -17,7 +17,7 @@ class VerifyCsrfToken extends Middleware
         'api/mikrotikPasarela',
         'api/v2/*', // Esto permitirá que las rutas de la API no requieran token CSRF
         'api/SypagoRequestSms',
-        'api/payments/sypago-confirm'
+        'api/sypago-confirm',
     ];
     
 }

@@ -66,7 +66,11 @@ Route::post('registerUser', [ListUsers::class, 'registerUser']);
 Route::post('hotspot-login', [CreateUser::class, 'login1']);
 Route::apiResource('apiuser', ApiController::class);
 Route::post('apiprocesspayment', [ApiProcessPaymentController::class, 'apiprocesspayment']);
+
 Route::post('mikrotikPasarela', [MikrotikPasarelaController::class, 'mikrotikPasarela']);
+Route::post('sypagoRequestSms', [SyPagoController::class, 'requestSms']);
+Route::post('sypago-confirm', [SyPagoController::class, 'confirmPayment']);
+
 Route::apiResource('processpayment', ApiProcessPaymentController::class);
 Route::post('/capturarPagomovil', [ListPagomovil::class, 'capturarPagomovil']);
 Route::get('/accesoMikrotik', [LoginMikrotik::class, 'accesoMikrotik']);
@@ -91,8 +95,6 @@ Route::prefix('v2')->group(function () {
     Route::post('/users/pre-addSypago', [UserController::class, 'preAddSypago']);
     Route::post('/users/activate', [UserController::class, 'activate']);
     Route::post('/users/trial-lead', [UserController::class, 'trialLead']);
-    Route::post('/users/SypagoRequestSms', [SyPagoController::class, 'requestSms']);
-    Route::post('/users/sypago-confirm', [SyPagoController::class, 'confirmPayment']);
 
     // Testeo del Bridge
     Route::post('/test-recursos', [MikrotikSocket::class, 'enviarPeticionRecursos']);
