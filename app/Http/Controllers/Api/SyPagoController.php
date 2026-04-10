@@ -15,6 +15,8 @@ class SyPagoController extends Controller
         // 1. Guardas al usuario temporalmente en tu DB (como ya lo haces)
         // ... tu lógica de registro pre-pago ...
 
+        return response()->json(['success' => true, 'message' => 'Llego a requestSms']);
+
         // 2. Llamas a SyPago para solicitar el C2P
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . $this->apiKey
