@@ -21,7 +21,7 @@ class SyPagoController extends Controller
             // NOTA: Probamos enviar 'api_key' porque el log dice que no la encuentra como 'secret'
             $response = Http::withoutVerifying()->post($this->baseUrl . '/api/v1/auth/token', [
                 'client_id' => $this->clientId,
-                'api_key'   => trim($this->apiKey) 
+                'secret'   => trim($this->apiKey) 
             ]);
 
             if ($response->successful()) {
