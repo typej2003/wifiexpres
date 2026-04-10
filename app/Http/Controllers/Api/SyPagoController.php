@@ -11,14 +11,15 @@ class SyPagoController extends Controller
 {
     private $baseUrl  = "https://pruebas.sypago.net:8086";
     private $clientId = "ddrs";
-    // Tu API Key Fija
     private $apiKey   = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJmZXpQcl9HSWhIZ05jOVc1cU5Td2FIQXBRMVRqeUlqbWtpY0d5V1hHUjFzIn0.eyJleHAiOjE4NzA0NjU2MTUsImlhdCI6MTc3NTg1NzYxNSwianRpIjoiMGVkNWU2NmYtMTAzNS00NDIzLThkZDItMTUzN2E5ODIxYWVhIiwiaXNzIjoiaHR0cHM6Ly9zeXBhZ28ubmV0OjgwODEvcmVhbG1zL3N5cGFnbyIsImF1ZCI6ImFjY291bnQiLCJzdWIiOiIzMzQ0YTI0Ni0wMTIzLTQ3MWItODYwZi05MTNmNmFkYTJkMTciLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJzeXBhZ29fYXBpa2V5X2FkbWluIiwiYWNyIjoiMSIsImFsbG93ZWQtb3JpZ2lucyI6WyIvKiJdLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZGVmYXVsdC1yb2xlcy1zeXBhZ28iLCJvZmZsaW5lX2FjY2VzcyIsInVtYV9hdXRob3JpemF0aW9uIl19LCJyZXNvdXJjZV9hY2Nlc3MiOnsiYWNjb3VudCI6eyJyb2xlcyI6WyJtYW5hZ2UtYWNjb3VudCIsIm1hbmFnZS1hY2NvdW50LWxpbmtzIiwidmlldy1wcm9maWxlIl19fSwic2NvcGUiOiJvZmZsaW5lX2FjY2VzcyBzeXBhZ29fYXBpX2tleV9zY29wZTphYTQ4YWY1OS00Yzc0LTQzMDEtYWRiNy1jYTIzM2ZkZmVjZTguVXNlciBzeWFwcF9zY29wZSBwcm9maWxlIGVtYWlsIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJjbGllbnRIb3N0IjoiMTcyLjIwLjAuMSIsInByZWZlcnJlZF91c2VybmFtZSI6InNlcnZpY2UtYWNjb3VudC1zeXBhZ29fYXBpa2V5X2FkbWluIiwiY2xpZW50QWRkcmVzcyI6IjE3Mi4yMC4wLjEiLCJjbGllbnRfaWQiOiJzeXBhZ29fYXBpa2V5X2FkbWluIn0.tnA9Vqi7DXelkbJpVQ5nXkxw_F0BoplEXNFAdsCqiGLJRurimaDG81UmH2qRuNZxFTdhPM69abPZVHZBgjvQ5PwjphAoJ_KoFKwadAnoP_F3MAUs_pSKhcJ1Frn7dPzaLCCYnChZFr3vDwj5t7wMBsiWjjsgCJtYwil7omo5YqwFtPOvQ0CRB9QTvop4JoZRw2kXsSgXu6kwLtS5e84VMQSelU9DOa4n8NgsH_tZJ5slaVGWWqSWIYuLZWQ1SqYGvG449joa5hGQ11e64YmP8H-uL3ReBBYNQ0WqJGaJ7gh0gK_5AmAcbKVCnyE4-qSHzxqmmu5KYNqkv7Q-DxGaPA";
 
     public function requestSms(Request $request)
     {
+        // FORZAR ZONA HORARIA EN TIEMPO DE EJECUCIÓN
+        date_default_timezone_set('America/Caracas');
+
         try {
-            // Limpieza extrema de la llave
-            $token = trim(str_replace(["\n", "\r", " "], '', $this->apiKey));
+            $token = trim($this->apiKey);
 
             $payload = [
                 "creditor_account" => [
@@ -41,7 +42,7 @@ class SyPagoController extends Controller
                 ]
             ];
 
-            // Intentamos la petición desactivando cualquier validación de tiempo local
+            // Petición con el Token
             $response = Http::withoutVerifying()
                 ->withHeaders([
                     'Authorization' => 'Bearer ' . $token,
@@ -61,8 +62,8 @@ class SyPagoController extends Controller
             
             return response()->json([
                 'success' => false,
-                'message' => 'Error 401 persistente. Posible causa: Desfase de hora del servidor.',
-                'debug'   => $response->status()
+                'message' => 'Error 401: El servidor sigue detectando desfase horario.',
+                'server_time_detected' => date('Y-m-d H:i:s')
             ], 401);
 
         } catch (\Exception $e) {
