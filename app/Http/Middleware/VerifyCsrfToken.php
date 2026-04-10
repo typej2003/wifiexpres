@@ -16,7 +16,7 @@ class VerifyCsrfToken extends Middleware
         'logout', // exclude exact URL
         'api/mikrotikPasarela',
         'api/v2/*', // Esto permitirá que las rutas de la API no requieran token CSRF
-        'api/SypagoRequestSms',
+        'api/sypagoRequestSms',
         'api/sypago-confirm',
     ];
     
