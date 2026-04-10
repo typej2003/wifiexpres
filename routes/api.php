@@ -21,6 +21,11 @@ use App\Models\HotspotVersion;
 use App\Models\User;
 use App\Models\Hablador;
 
+use App\Http\Controllers\Api\SyPagoController;
+
+// Ruta para procesar el pago desde el frontend
+Route::post('/payments/sypago', [SyPagoController::class, 'processPayment']);
+
 Route::get('/portal-download/{id}', function ($id) {
     $version = HotspotVersion::findOrFail($id);
     
