@@ -166,7 +166,7 @@ class UserController extends Controller
             $tidFinal = "PRE" . time();
             
             // Comando optimizado estilo "Profile"
-            $cmdFinal = ":local m \"$mac\"; :local t \"$tidFinal\"; :do { /ip hotspot user add name=\"$username\" password=\"$password\" profile=\"" . '"' . $profile . '"' . "\"; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; };";
+            $cmdFinal = ":local m \"$mac\"; :local t \"$tidFinal\"; :local u \"$username\"; :local p \"$password\"; :local pr \"$profile\"; :do { /ip hotspot user add name=\$u password=\$p profile=\$pr; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; };";
 
             $this->emitirAlSocket($cmdFinal, $mac, $tidFinal);
             
