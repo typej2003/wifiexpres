@@ -55,7 +55,9 @@ class SyPagoController extends Controller
     public function requestSms(Request $request)
     {
         // A. Obtener el Token primero
-        $token = $this->getAccessToken();
+        //$token = $this->getAccessToken();
+
+        $token = $this->apiKey;
 
         if (!$token) {
             return response()->json([
