@@ -112,7 +112,7 @@ class UserController extends Controller
     /**
      * 4. PRE-REGISTRO (Fase 1: Creación Neutra)
      */
-    public function preAdd(Request $request) {
+    public function preAdd1(Request $request) {
         try {
             $username = $request->input('username');
             $password = $request->input('password');
@@ -148,6 +148,42 @@ class UserController extends Controller
 
         } catch (Exception $e) { 
             Log::error("Error en preAdd: " . $e->getMessage());
+            return response()->json(['success' => false], 500); 
+        }
+    }
+
+    public function preAdd(Request $request) {
+        try {
+            $username = $request->input('username');
+            $password = $request->input('password');
+            $identity = $request->input('identity');
+            $profile = $request->input('planSelected'); 
+            $router = $this->findRouter($identity);
+            
+            if (!$router) return response()->json(['success' => false, 'message' => 'Router no encontrado'], 404);
+            
+            $mac = strtoupper(trim($router->macAddress));
+            $tidFinal = "PRE" . time();
+            
+            /**
+             * OPTIMIZACIÓN ESTILO "PROFILE":
+             * Inyectamos las variables de PHP directamente en el string.
+             * Eliminamos :local u, :local p, etc., para evitar errores de parseo en el router.
+             */
+            $cmdFinal = ":local m \"$mac\"; :local t \"$tidFinal\"; :do { /ip hotspot user add name=\"$username\" password=\"$password\" profile=\"$profile\"; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"OK\" keep-result=no; } on-error={ /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=\$m&tid=\$t\" http-method=post http-data=\"FAIL\" keep-result=no; };";
+
+            // Log para que puedas revisar en storage/logs/laravel.log qué se está enviando exactamente
+            \Log::info("Enviando comando a MikroTik: " . $cmdFinal);
+
+            $this->emitirAlSocket($cmdFinal, $mac, $tidFinal);
+            
+            // Esperamos la respuesta del socket/bridge
+            $confirmado = $this->esperarConfirmacion($mac, $tidFinal);
+
+            return response()->json(['success' => $confirmado]);
+
+        } catch (Exception $e) { 
+            \Log::error("Error en preAdd: " . $e->getMessage());
             return response()->json(['success' => false], 500); 
         }
     }
