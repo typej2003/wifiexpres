@@ -80,6 +80,7 @@ Route::get('/log-connection', [MikrotikController::class, 'logConnection']);
  */
 Route::prefix('v1')->group(function () {
     Route::get('/get-plans', [HotspotController::class, 'getPlans']);
+    Route::get('/get-infoRouter', [HotspotController::class, 'getInfoRouter']);
     Route::post('/users/add', [HotspotController::class, 'addUser']);
 });
 

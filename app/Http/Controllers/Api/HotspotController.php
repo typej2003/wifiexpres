@@ -311,6 +311,83 @@ class HotspotController extends Controller
         }
     }
 
+
+    public function getInfoRouter(Request $request)
+    {
+        $mac = $request->query('mac'); 
+        $identity = $request->query('identity'); // Soportamos buscar por nombre de router
+
+        if (!$mac && !$identity) {
+            return response()->json(['success' => false, 'message' => 'Identificador no recibido'], 400);
+        }
+
+        $router = $this->findRouter($mac, $identity);
+
+        if (!$router) {
+            return response()->json(['success' => false, 'message' => 'Router no registrado: ' . ($identity ?? $mac)], 404);
+        }
+
+        $routerData = $router->toArray();
+        $routerData['comercio_banner'] = $router->comercio_banner ? 'https://wifiexpres.com/storage/bannerrouter/' . $router->comercio_banner : asset('storage/bannerrouter/WIFIEXPRES_banner_01.jpg'); 
+        
+        $imgsUrls = [];
+        if (is_array($router->path_imgs)) {
+            foreach ($router->path_imgs as $img) {
+                $imgsUrls[] = asset('storage/carruselhotspot/' . $img);
+            }
+        }
+        $routerData['path_imgs'] = $imgsUrls;
+
+        try {
+            $userAdmin = User::where('role', 'admin')->first();
+            $setting = Setting::where('user_id', $userAdmin->id)->first();
+            $mode = $setting ? (int)$setting->mikrotik_connection_mode : 0; 
+            $host = ($mode === 1 && !empty($router->dns)) ? $router->dns : $router->ip;
+
+            $client = new Client([
+                'host' => $host, 'user' => $router->admin, 'pass' => $router->password, 
+                'port' => (int) ($router->api_port ?? 49152), 'timeout' => 3
+            ]);
+            
+            $profilesMk = $client->query(new Query('/ip/hotspot/user/profile/print'))->read();
+            $plansDb = Plan::where('router_id', $router->id)->get()->keyBy('mikrotik_profile');
+
+            $finalPlans = [];
+            foreach ($profilesMk as $profile) {
+                $name = $profile['name'];
+                if (isset($plansDb[$name])) {
+                    $finalPlans[] = [
+                        'name' => $plansDb[$name]->name,
+                        'price' => $plansDb[$name]->price,
+                        'mikrotik_profile' => $name,
+                        'uptime' => $profile['session-timeout'] ?? 'Ilimitado'
+                    ];
+                }
+            }
+            return response()->json(['success' => true, 'router' => $routerData, 'plans' => $finalPlans], 200);
+            
+        } catch (Exception $e) {
+            // Fallback a Base de Datos si MikroTik está offline
+            $plansBackup = Plan::where('router_id', $router->id)
+                ->get(['name', 'price', 'mikrotik_profile'])
+                ->map(function($plan) {
+                    return [
+                        'name' => $plan->name,
+                        'price' => $plan->price,
+                        'mikrotik_profile' => $plan->mikrotik_profile,
+                        'uptime' => 'Consultar al conectar'
+                    ];
+                });
+
+            return response()->json([
+                'success' => true, 
+                'router' => $routerData, 
+                'plans' => $plansBackup, 
+                'status' => 'offline_db'
+            ], 200);
+        }
+    }
+
     public function v3RegisterLead(Request $request)
     {
         $name = $request->input('name');
