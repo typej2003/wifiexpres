@@ -28,12 +28,12 @@ class HotspotController extends Controller
     {
         $query = Router::query();
 
-        if ($mac) {
-            $query->where('macAddress', $mac);
+        if ($identity) {
+            $query->where('identity', $identity);
         }
 
-        if ($identity) {
-            $query->orWhere('identity', $identity);
+        if ($mac) {
+            $query->orWhere('macAddress', $mac);
         }
 
         return $query->first();
