@@ -1,0 +1,35 @@
+# Nombre: fetchBridge
+:local serverIp "188.95.113.44:3000";
+
+# CAMBIO CRÍTICO: Buscamos la MAC por el nombre de la interfaz 'ether1'
+:local mac [/interface ethernet get [find name="ether1"] mac-address];
+:local identity [/system identity get name];
+
+:do {
+    # Hacemos el fetch al Bridge
+    :local res [/tool fetch url="http://$serverIp/check-task?mac=$mac&identity=$identity" mode=http keep-result=yes dst-path="task.tmp" as-value];
+    
+    # Verificamos que la descarga terminó bien
+    :if ($res->"status" = "finished") do={
+        :local contenido [/file get "task.tmp" contents];
+        
+        # Si hay un comando real y no es un "WAIT"
+        :if ($contenido != "WAIT" && [:len $contenido] > 0) do={
+            # --- LOG DE RECEPCIÓN ---
+            /log info "Bridge: Recibido -> $contenido";
+            
+            :do {
+                # Ejecutamos el comando recibido desde el portal/Laravel
+                :local func [:parse $contenido];
+                $func;
+                /log info "Bridge: OK - Ejecutado";
+            } on-error={ 
+                /log error "Bridge: Error ejecutando comando recibido"; 
+            }
+        }
+        # Limpieza de archivo temporal
+        /file remove "task.tmp";
+    }
+} on-error={
+    /log error "Bridge: Error de conexion con $serverIp";
+}

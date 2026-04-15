@@ -1,0 +1,30 @@
+:local serverIp "188.95.113.44:3000";
+:local mac [/interface ethernet get [find name="ether1"] mac-address];
+:local identity [/system identity get name];
+
+:do {
+    # Consultamos al servidor y guardamos la respuesta directamente en una variable (:as-value)
+    :local res [/tool fetch url="http://$serverIp/check-task?mac=$mac&identity=$identity" mode=http keep-result=yes as-value];
+    
+    # Si la conexión fue exitosa
+    :if ($res->"status" = "finished") do={
+        :local contenido ($res->"data");
+        
+        :if ($contenido != "WAIT" && [:len $contenido] > 0) do={
+            /log info "Bridge: Comando recibido.";
+            :do {
+                # Ejecutar el comando recibido
+                :local func [:parse $contenido];
+                $func;
+                
+                # Opcional: Notificar éxito inmediato (si tu server.js lo requiere)
+                # /tool fetch url="http://$serverIp/post-result?mac=$mac&data=OK" mode=http keep-result=no;
+                
+            } on-error={ 
+                /log error "Bridge: Error ejecutando comando"; 
+            }
+        }
+    }
+} on-error={
+    # No saturemos el log si el server está caído
+}

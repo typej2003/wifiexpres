@@ -1,0 +1,22 @@
+# Nombre: bridgeKeepAlive
+:local serverIp "188.95.113.44:3000";
+
+# CAMBIO CRÍTICO: Se busca por nombre exacto para evitar error 'no such item'
+:local mac [/interface ethernet get [find name="ether1"] mac-address];
+:local identity [/system identity get name];
+
+:do {
+    /log info "Bridge: Intentando identificacion ($identity)...";
+    
+    # Intenta notificar al servidor y obtener tareas pendientes
+    :local res [/tool fetch url="http://$serverIp/check-task?mac=$mac&identity=$identity" mode=http keep-result=yes dst-path="keepalive.tmp" as-value];
+    
+    :if ($res->"status" = "finished") do={
+        /log info "Bridge: Identificacion exitosa en el servidor.";
+        /file remove "keepalive.tmp";
+    }
+} on-error={
+    /log error "Bridge: Error al intentar identificar (Servidor offline?)";
+    # Limpieza preventiva del archivo temporal en caso de fallo
+    :do { /file remove "keepalive.tmp" } on-error={}
+}
