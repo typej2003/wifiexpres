@@ -6,12 +6,12 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str; // ESTA IMPORTACIÓN ES VITAL
+use Illuminate\Support\Str;
 
 class SyPagoController extends Controller
 {
-    private $baseUrl  = "https://sypago.net:8086"; 
-    private $clientId = "ddrs"; 
+    private $baseUrl   = "https://sypago.net:8086"; 
+    private $clientId  = "ddrs"; 
     private $secretKey = "NHnKKwoEaKlIkKjvfnFucPRUPuHGfSaA";
 
     /**
@@ -35,12 +35,12 @@ class SyPagoController extends Controller
     }
 
     /**
-     * PASO 2: Solicitar OTP (FUNCIONAL - NO TOCAR)
+     * PASO 2: Solicitar OTP
      */
     public function requestSms(Request $request)
     {
         $token = $this->getAccessToken();
-        if (!$token) return response()->json(['success' => false, 'message' => 'Error Auth'], 401);
+        if (!$token) return response()->json(['success' => false, 'message' => 'Error de Autenticación'], 401);
 
         try {
             $payload = [
@@ -67,22 +67,25 @@ class SyPagoController extends Controller
             $response = Http::withoutVerifying()->withToken($token)->asJson()
                 ->post($this->baseUrl . '/api/v1/request/otp', $payload);
 
-            return response()->json(['success' => $response->successful(), 'data' => $response->json()], $response->status());
+            return response()->json([
+                'success' => $response->successful(), 
+                'data' => $response->json()
+            ], $response->status());
+
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
 
     /**
-     * PASO 3: Confirmar Pago con OTP (REVISADO)
+     * PASO 3: Confirmar Pago con OTP (Validación de todos los códigos de rechazo)
      */
     public function confirmPayment(Request $request)
     {
         $token = $this->getAccessToken();
-        if (!$token) return response()->json(['success' => false], 401);
+        if (!$token) return response()->json(['success' => false, 'message' => 'Token expirado'], 401);
 
         try {
-            // Generamos IDs únicos (Máximo 12 caracteres alfanuméricos)
             $internalId = substr(strtoupper(Str::random(12)), 0, 12); 
             $groupId    = substr(strtoupper(Str::random(12)), 0, 12);
 
@@ -100,14 +103,13 @@ class SyPagoController extends Controller
                 ],
                 "concept" => "Pago WiFiExpres", 
                 "notification_urls" => [
-                    // IMPORTANTE: Cambia esto por tu URL real de producción
-                    "web_hook_endpoint" => "https://panexpres.com/api/sypago-webhook" 
+                    "web_hook_endpoint" => "https://wifiexpres.com/api/sypago-webhook" 
                 ],
                 "receiving_user" => [
-                    "name" => $request->input('customer_name', 'Cliente PanExpres'),
-                    "otp"  => (string) $request->input('otp'), // El código del SMS
+                    "name" => $request->input('customer_name', 'Cliente WiFi'),
+                    "otp"  => (string) $request->input('otp'),
                     "document_info" => [
-                        "type"   => (string) $request->input('document_type', 'V'),
+                        "type"   => "V",
                         "number" => (string) $request->input('id_number')
                     ],
                     "account" => [
@@ -123,23 +125,89 @@ class SyPagoController extends Controller
                 ->asJson()
                 ->post($this->baseUrl . '/api/v1/transaction/otp', $payload);
 
+            $data = $response->json();
+
+            // Análisis de la respuesta
             if ($response->successful()) {
-                Log::info("PAGO PROCESADO SYPAGO EXITOSAMENTE", $response->json());
-                return response()->json([
-                    'success' => true,
-                    'transaction_id' => $response->json()['transaction_id'] ?? null,
-                    'data' => $response->json()
-                ]);
+                
+                // VERIFICACIÓN DE RECHAZO INTERNO (Aunque sea 200 OK)
+                if (isset($data['RejectedCode']) && !empty($data['RejectedCode'])) {
+                    $motivo = $this->getRejectedMessage($data['RejectedCode']);
+                    
+                    Log::warning("SYPAGO RECHAZADO: {$data['RejectedCode']}", $data);
+                    
+                    return response()->json([
+                        'success' => false,
+                        'message' => $motivo,
+                        'rejected_code' => $data['RejectedCode']
+                    ], 200); 
+                }
+
+                // ÉXITO REAL
+                if (isset($data['transaction_id'])) {
+                    Log::info("SYPAGO PAGO EXITOSO", $data);
+                    return response()->json([
+                        'success' => true,
+                        'transaction_id' => $data['transaction_id'],
+                        'data' => $data
+                    ]);
+                }
             }
 
-            // Si falla, registramos exactamente qué dijo el API para corregir
-            Log::error("SYPAGO VALIDATION FAIL: " . $response->status() . " - " . $response->body());
-            
-            return response()->json($response->json(), $response->status());
+            // Errores de Formato o Token (400, 401, 409)
+            $errorMessage = $data['message'] ?? 'Datos incorrectos o error en la pasarela.';
+            return response()->json(['success' => false, 'message' => $errorMessage], $response->status());
 
         } catch (\Exception $e) {
             Log::error("SYPAGO CRITICAL EXCEPTION: " . $e->getMessage());
-            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'Error de conexión con SyPago'], 500);
         }
+    }
+
+    /**
+     * Diccionario completo de códigos de rechazo SyPago
+     */
+    private function getRejectedMessage($code)
+    {
+        $codes = [
+            'WAIT'  => 'Operación en espera de validación de código.',
+            'AG09'  => 'Pago no recibido.',
+            'AC00'  => 'Operación en espera de respuesta del receptor.',
+            'AB01'  => 'Tiempo de espera agotado.',
+            'AB07'  => 'Agente fuera de línea.',
+            'AC01'  => 'Número de cuenta incorrecto.',
+            'AC04'  => 'Cuenta cancelada.',
+            'AC06'  => 'Cuenta bloqueada.',
+            'AC09'  => 'Moneda no válida.',
+            'AG10'  => 'Agente suspendido o excluido.',
+            'AM02'  => 'Monto de la transacción no permitido.',
+            'AM03'  => 'Moneda no permitida.',
+            'AM04'  => 'Usted no posee saldo suficiente.',
+            'AM05'  => 'Operación duplicada.',
+            'BE01'  => 'Los datos del cliente no corresponden a la cuenta.',
+            'BE20'  => 'Longitud del nombre inválida.',
+            'CH20'  => 'Número de decimales incorrecto.',
+            'DU01'  => 'Identificación de mensaje duplicado.',
+            'ED05'  => 'Liquidación fallida.',
+            'FF05'  => 'Código del producto incorrecto.',
+            'FF07'  => 'Código del subproducto incorrecto.',
+            'RC08'  => 'El banco no existe en el sistema.',
+            'TKCM'  => 'El código OTP es incorrecto.',
+            'TM01'  => 'Operación fuera del horario permitido.',
+            'VE01'  => 'Rechazo técnico de la plataforma.',
+            'DT03'  => 'Fecha de procesamiento no válida.',
+            'TECH'  => 'Error técnico al procesar liquidación.',
+            'AG01'  => 'Transacción restringida.',
+            'MD09'  => 'Afiliación inactiva.',
+            'MD15'  => 'Monto incorrecto.',
+            'MD21'  => 'Cobro no permitido.',
+            'CUST'  => 'Cancelación solicitada por el deudor.',
+            'DS02'  => 'Operación cancelada.',
+            'MD01'  => 'No posee afiliación a este servicio.',
+            'MD22'  => 'Afiliación suspendida.',
+            'MBE01' => 'El cliente pagador no está afiliado a C2P.',
+        ];
+
+        return $codes[$code] ?? "Transacción rechazada por el banco (Código: $code).";
     }
 }
