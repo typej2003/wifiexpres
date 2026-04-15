@@ -59,21 +59,33 @@ app.get('/check-task', (req, res) => {
     const mac = req.query.mac?.toUpperCase();
     if (!mac) return res.send("WAIT");
 
+    // 1. Registro de vida (KeepAlive implícito)
     routersEnLinea[mac] = { 
         lastSeen: Date.now(), 
         identity: req.query.identity || "Sin nombre",
         ip: req.ip.replace('::ffff:', '') 
     };
 
-    const cola = colasPorRouter[mac];
-    if (cola && cola.length > 0) {
-        const item = cola.shift();
-        comandosEnTransito[item.tid] = { mac, cmd: item.cmd, ts: Date.now(), tid: item.tid };
-        log(`🚀 ENVIANDO COMANDO: ${mac} - ${item.tid}`); // Solo log de acción
-        res.send(item.cmd);
-    } else {
-        res.send("WAIT"); // Sin log para no saturar
-    }
+    // 2. ATOMICIDAD: Extraemos el comando de la cola inmediatamente
+    if (colasPorRouter[mac] && colasPorRouter[mac].length > 0) {
+        const item = colasPorRouter[mac].shift();
+        
+        // Registramos en tránsito antes de enviar para evitar fugas
+        comandosEnTransito[item.tid] = { 
+            mac, 
+            cmd: item.cmd, 
+            ts: Date.now(), 
+            tid: item.tid 
+        };
+
+        log(`🚀 [ENTREGADO] -> ${req.query.identity} (${mac}) TID: ${item.tid}`);
+        
+        // Enviamos el comando y cerramos la conexión de inmediato
+        return res.send(item.cmd);
+    } 
+
+    // Si no hay nada, enviamos WAIT sin procesar nada más
+    res.send("WAIT");
 });
 
 app.all('/post-result', (req, res) => {
