@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
-class SyPagoController extends Controller
+class SyPagoController1 extends Controller
 {
     private $baseUrl   = "https://sypago.net:8086"; 
     private $clientId  = "ddrs"; 
@@ -69,7 +69,6 @@ class SyPagoController extends Controller
 
             return response()->json([
                 'success' => $response->successful(), 
-                'sypago_raw' => $response->json(),
                 'data' => $response->json()
             ], $response->status());
 
@@ -79,7 +78,7 @@ class SyPagoController extends Controller
     }
 
     /**
-     * PASO 3: Confirmar Pago con OTP
+     * PASO 3: Confirmar Pago con OTP (Validación de todos los códigos de rechazo)
      */
     public function confirmPayment(Request $request)
     {
@@ -121,9 +120,6 @@ class SyPagoController extends Controller
                 ]
             ];
 
-            // LOG DE CONTROL PARA DEPURACIÓN
-            Log::info("INTENTO DE COBRO SYPAGO - OTP ENVIADO: " . $request->input('otp'));
-
             $response = Http::withoutVerifying()
                 ->withToken($token)
                 ->asJson()
@@ -131,39 +127,36 @@ class SyPagoController extends Controller
 
             $data = $response->json();
 
+            // Análisis de la respuesta
             if ($response->successful()) {
                 
-                // VALIDACIÓN CRUCIAL: ¿Viene un código de rechazo aunque el HTTP sea 200?
+                // VERIFICACIÓN DE RECHAZO INTERNO (Aunque sea 200 OK)
                 if (isset($data['RejectedCode']) && !empty($data['RejectedCode'])) {
                     $motivo = $this->getRejectedMessage($data['RejectedCode']);
                     
-                    Log::warning("SYPAGO RECHAZADO EN RESPUESTA: {$data['RejectedCode']}", $data);
+                    Log::warning("SYPAGO RECHAZADO: {$data['RejectedCode']}", $data);
                     
                     return response()->json([
                         'success' => false,
                         'message' => $motivo,
-                        'rejected_code' => $data['RejectedCode'],
-                        'sypago_raw' => $data 
+                        'rejected_code' => $data['RejectedCode']
                     ], 200); 
                 }
 
-                // ÉXITO REAL SI HAY TRANSACTION_ID
+                // ÉXITO REAL
                 if (isset($data['transaction_id'])) {
                     Log::info("SYPAGO PAGO EXITOSO", $data);
                     return response()->json([
                         'success' => true,
                         'transaction_id' => $data['transaction_id'],
-                        'sypago_raw' => $data 
+                        'data' => $data
                     ]);
                 }
             }
 
-            // Errores de Formato o Fallos de la Pasarela
-            return response()->json([
-                'success' => false, 
-                'message' => $data['message'] ?? 'Datos incorrectos o error en la pasarela.',
-                'sypago_raw' => $data
-            ], $response->status());
+            // Errores de Formato o Token (400, 401, 409)
+            $errorMessage = $data['message'] ?? 'Datos incorrectos o error en la pasarela.';
+            return response()->json(['success' => false, 'message' => $errorMessage], $response->status());
 
         } catch (\Exception $e) {
             Log::error("SYPAGO CRITICAL EXCEPTION: " . $e->getMessage());
@@ -172,7 +165,7 @@ class SyPagoController extends Controller
     }
 
     /**
-     * Diccionario completo de códigos de rechazo
+     * Diccionario completo de códigos de rechazo SyPago
      */
     private function getRejectedMessage($code)
     {

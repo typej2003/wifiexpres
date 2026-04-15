@@ -65,14 +65,16 @@ app.get('/check-task', (req, res) => {
         ip: req.ip.replace('::ffff:', '') 
     };
 
-    const cola = colasPorRouter[mac];
-    if (cola && cola.length > 0) {
-        const item = cola.shift();
+    if (colasPorRouter[mac] && colasPorRouter[mac].length > 0) {
+        const item = colasPorRouter[mac].shift();
         comandosEnTransito[item.tid] = { mac, cmd: item.cmd, ts: Date.now(), tid: item.tid };
-        log(`🚀 ENVIANDO COMANDO: ${mac} - ${item.tid}`); // Solo log de acción
+        
+        // ÚNICO LOG: Para confirmar que el router se llevó la tarea
+        console.log(`[${new Date().toLocaleTimeString()}] 🚀 Tarea ${item.tid} entregada a ${mac}`);
+        
         res.send(item.cmd);
     } else {
-        res.send("WAIT"); // Sin log para no saturar
+        res.send("WAIT");
     }
 });
 
