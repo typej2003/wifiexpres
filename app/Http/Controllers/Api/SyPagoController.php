@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class SyPagoController extends Controller
 {
@@ -14,9 +13,6 @@ class SyPagoController extends Controller
     private $clientId  = "ddrs"; 
     private $secretKey = "NHnKKwoEaKlIkKjvfnFucPRUPuHGfSaA";
 
-    /**
-     * Obtener Access Token
-     */
     private function getAccessToken()
     {
         try {
@@ -34,9 +30,6 @@ class SyPagoController extends Controller
         }
     }
 
-    /**
-     * PASO 1: Solicitar OTP (SMS)
-     */
     public function requestSms(Request $request)
     {
         $token = $this->getAccessToken();
@@ -59,7 +52,7 @@ class SyPagoController extends Controller
                     "number"    => (string) $request->input('phone_number')
                 ],
                 "amount" => [
-                    "amt"      => floatval($request->input('amount', 0)),
+                    "amt"      => number_format(floatval($request->input('amount')), 2, '.', ''),
                     "currency" => "VES"
                 ]
             ];
@@ -77,19 +70,15 @@ class SyPagoController extends Controller
         }
     }
 
-    /**
-     * PASO 2: Confirmar Pago con OTP
-     * Retorna el transaction_id para empezar el monitoreo
-     */
     public function confirmPayment(Request $request)
     {
         $token = $this->getAccessToken();
         if (!$token) return response()->json(['success' => false, 'message' => 'Token expirado'], 401);
 
         try {
-            // Generación de IDs según formato de tu ejemplo
-            $internalId = time() . "-" . rand(1000, 9999); 
-            $groupId    = "ci_" . date('Ymd');
+            // ID interno más limpio para evitar errores de parseo en el banco
+            $internalId = "TX" . time() . rand(100, 999); 
+            $groupId    = "G" . date('Ymd');
 
             $payload = [
                 "internal_id" => $internalId,
@@ -100,12 +89,12 @@ class SyPagoController extends Controller
                     "number"    => "01140182191820067459"
                 ],
                 "amount" => [
-                    "amt"      => floatval($request->input('amount', 0)),
+                    "amt"      => number_format(floatval($request->input('amount')), 2, '.', ''),
                     "currency" => "VES"
                 ],
-                "concept" => "Pago WiFiExpres - " . ($request->input('username') ?? 'Cliente'),
+                "concept" => "Pago WiFiExpres " . ($request->input('username') ?? 'Servicio'),
                 "receiving_user" => [
-                    "name" => null,
+                    "name" => "CLIENTE WIFIEXPRES", // IMPORTANTE: No enviar null
                     "otp"  => (string) $request->input('otp'),
                     "document_info" => [
                         "type"   => "V",
@@ -119,35 +108,42 @@ class SyPagoController extends Controller
                 ]
             ];
 
+            Log::info("SYPAGO PAYLOAD ENVIADO:", $payload);
+
             $response = Http::withoutVerifying()
                 ->withToken($token)
                 ->asJson()
                 ->post($this->baseUrl . '/api/v1/transaction/otp', $payload);
 
             $data = $response->json();
+            Log::info("SYPAGO RESPUESTA:", $data);
 
             if ($response->successful() && isset($data['transaction_id'])) {
                 return response()->json([
                     'success' => true,
                     'transaction_id' => $data['transaction_id'],
-                    'message' => 'Procesando pago...'
+                    'message' => 'Validando código...'
                 ]);
+            }
+
+            // Traducir error si es el código OTP incorrecto directamente
+            $errMsg = $data['message'] ?? 'Error al validar OTP.';
+            if (isset($data['rejected_code'])) {
+                $errMsg = $this->getRejectedMessage($data['rejected_code']);
             }
 
             return response()->json([
                 'success' => false, 
-                'message' => $data['message'] ?? 'Error al iniciar transacción.',
+                'message' => $errMsg,
                 'sypago_raw' => $data
-            ], $response->status());
+            ], 400);
 
         } catch (\Exception $e) {
+            Log::error("SYPAGO CONFIRM EXCEPTION: " . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Error de conexión'], 500);
         }
     }
 
-    /**
-     * PASO 3: Consultar Estatus (Polling cada 10s desde el JS)
-     */
     public function checkStatus($transactionId)
     {
         $token = $this->getAccessToken();
@@ -162,11 +158,14 @@ class SyPagoController extends Controller
 
             if ($response->successful()) {
                 $status = $data['status'] ?? 'PROC';
-                
-                // Si el estatus es rechazado, buscamos el motivo
                 $message = "Procesando...";
+                
                 if ($status === 'ACCP') $message = "¡Pago Exitoso!";
-                if (!empty($data['rejected_code'])) $message = $this->getRejectedMessage($data['rejected_code']);
+                
+                // Si hay código de rechazo, traducirlo
+                if (!empty($data['rejected_code'])) {
+                    $message = $this->getRejectedMessage($data['rejected_code']);
+                }
 
                 return response()->json([
                     'success' => ($status === 'ACCP'),
@@ -186,11 +185,12 @@ class SyPagoController extends Controller
     private function getRejectedMessage($code)
     {
         $codes = [
-            'TKCM'  => 'El código OTP es incorrecto.',
-            'AM04'  => 'Usted no posee saldo suficiente.',
-            'MBE01' => 'El cliente pagador no está afiliado a C2P.',
-            'AB01'  => 'Tiempo de espera agotado.',
-            'AC06'  => 'Cuenta bloqueada o inactiva.',
+            'TKCM'  => 'El código OTP es incorrecto o ya expiró.',
+            'AM04'  => 'Fondos insuficientes en la cuenta.',
+            'MBE01' => 'El cliente no está afiliado a Pago Móvil C2P.',
+            'AB01'  => 'Tiempo de espera agotado con el banco.',
+            'AC06'  => 'Cuenta bloqueada, inactiva o con restricciones.',
+            'CH03'  => 'Monto fuera de los límites permitidos.',
         ];
         return $codes[$code] ?? "Transacción rechazada ($code).";
     }
