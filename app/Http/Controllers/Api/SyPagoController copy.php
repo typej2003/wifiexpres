@@ -10,7 +10,7 @@ use Illuminate\Support\Str;
 
 class SyPagoController1 extends Controller
 {
-    private $baseUrl   = "https://sypago.net:8086"; 
+    private $baseUrl   = "https://app.sypago.net:8086"; 
     private $clientId  = "ddrs"; 
     private $secretKey = "NHnKKwoEaKlIkKjvfnFucPRUPuHGfSaA";
 
