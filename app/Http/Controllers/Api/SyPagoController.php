@@ -36,10 +36,7 @@ class SyPagoController extends Controller
         if (!$token) return response()->json(['success' => false, 'message' => 'Error de Autenticación'], 401);
 
         try {
-            // Limpiar teléfono de espacios o guiones
             $phone = preg_replace('/[^0-9]/', '', $request->input('phone_number'));
-            
-            // Usamos float directo para evitar que el API rechace el formato string de number_format
             $amount = (float) $request->input('amount');
 
             $payload = [
@@ -68,15 +65,10 @@ class SyPagoController extends Controller
 
             $data = $response->json();
 
-            // Si falla, registramos qué dice SyPago exactamente
-            if (!$response->successful()) {
-                Log::error("SYPAGO SMS ERROR:", ['payload' => $payload, 'response' => $data]);
-            }
-
             return response()->json([
                 'success' => $response->successful(), 
                 'message' => $data['message'] ?? ($response->successful() ? 'SMS enviado' : 'Error al solicitar SMS'),
-                'data' => $data
+                'debug_sypago' => $data // <--- DEBUG PARA EL NAVEGADOR
             ], $response->status());
 
         } catch (\Exception $e) {
@@ -90,13 +82,8 @@ class SyPagoController extends Controller
         if (!$token) return response()->json(['success' => false, 'message' => 'Token expirado'], 401);
 
         try {
-            // ID interno único
             $internalId = "TX" . time() . rand(100, 999); 
-            
-            // CORRECCIÓN: El Group ID debe tener al menos 10 caracteres. 
-            // Usamos "WIFI" + fecha (4 + 8 = 12 caracteres) para cumplir con el mínimo.
             $groupId = "WIFI" . date('Ymd'); 
-
             $amount = (float) $request->input('amount');
             $phone  = preg_replace('/[^0-9]/', '', $request->input('phone_number'));
 
@@ -128,37 +115,29 @@ class SyPagoController extends Controller
                 ]
             ];
 
-            Log::info("SYPAGO PAYLOAD CONFIRM (12 chars group_id):", $payload);
-
             $response = Http::withoutVerifying()
                 ->withToken($token)
                 ->asJson()
                 ->post($this->baseUrl . '/api/v1/transaction/otp', $payload);
 
             $data = $response->json();
-            Log::info("SYPAGO RESPUESTA CONFIRM:", $data);
 
             if ($response->successful() && isset($data['transaction_id'])) {
                 return response()->json([
                     'success' => true,
                     'transaction_id' => $data['transaction_id'],
-                    'message' => 'Validando código...'
+                    'message' => 'Validando código...',
+                    'debug_sypago' => $data // <--- DEBUG
                 ]);
-            }
-
-            $errMsg = $data['message'] ?? 'Error al validar OTP.';
-            if (isset($data['rejected_code'])) {
-                $errMsg = $this->getRejectedMessage($data['rejected_code']);
             }
 
             return response()->json([
                 'success' => false, 
-                'message' => $errMsg,
-                'sypago_raw' => $data
+                'message' => $data['message'] ?? 'Error al validar OTP.',
+                'debug_sypago' => $data // <--- DEBUG
             ], 400);
 
         } catch (\Exception $e) {
-            Log::error("SYPAGO CONFIRM EXCEPTION: " . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Error de conexión'], 500);
         }
     }
@@ -175,42 +154,15 @@ class SyPagoController extends Controller
 
             $data = $response->json();
 
-            if ($response->successful()) {
-                $status = $data['status'] ?? 'PROC';
-                
-                // Mensajes dinámicos para el usuario
-                $message = "Esperando respuesta del banco...";
-                if ($status === 'ACCP') $message = "¡Pago Exitoso!";
-                
-                if (!empty($data['rejected_code'])) {
-                    $message = $this->getRejectedMessage($data['rejected_code']);
-                }
-
-                return response()->json([
-                    'success' => ($status === 'ACCP'),
-                    'status'  => $status,
-                    'message' => $message,
-                    'data'    => $data
-                ]);
-            }
-
-            return response()->json(['success' => false, 'status' => 'ERROR'], 400);
+            return response()->json([
+                'success' => (($data['status'] ?? '') === 'ACCP'),
+                'status'  => $data['status'] ?? 'PROC',
+                'message' => $data['message'] ?? 'Procesando...',
+                'debug_sypago' => $data // <--- DEBUG
+            ]);
 
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
-    }
-
-    private function getRejectedMessage($code)
-    {
-        $codes = [
-            'TKCM'  => 'El código OTP es incorrecto o ya expiró.',
-            'AM04'  => 'Fondos insuficientes en la cuenta.',
-            'MBE01' => 'El cliente no está afiliado a Pago Móvil C2P.',
-            'AB01'  => 'Tiempo de espera agotado con el banco.',
-            'AC06'  => 'Cuenta bloqueada o inactiva.',
-            'CH03'  => 'Monto fuera de los límites permitidos.',
-        ];
-        return $codes[$code] ?? "Transacción rechazada ($code).";
     }
 }
