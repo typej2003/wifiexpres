@@ -70,6 +70,7 @@ Route::post('apiprocesspayment', [ApiProcessPaymentController::class, 'apiproces
 Route::post('mikrotikPasarela', [MikrotikPasarelaController::class, 'mikrotikPasarela']);
 Route::post('sypagoRequestSms', [SyPagoController::class, 'requestSms']);
 Route::post('sypago-confirm', [SyPagoController::class, 'confirmPayment']);
+Route::get('sypago-status/{transactionId}', [SyPagoController::class, 'checkStatus']);
 
 Route::apiResource('processpayment', ApiProcessPaymentController::class);
 Route::post('/capturarPagomovil', [ListPagomovil::class, 'capturarPagomovil']);
