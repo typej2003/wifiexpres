@@ -9,18 +9,20 @@ class ApkController extends Controller
 {
     public function download(): BinaryFileResponse
     {
-        // Nombre del archivo dentro de storage/app/public/
-        $path = 'apks/mi-aplicacion.apk';
+        $path = 'apks/wifiexpres_v1.apk'; // Ruta en storage/app/public/
 
         if (!Storage::disk('public')->exists($path)) {
-            abort(404, 'El archivo APK no existe en el servidor.');
+            abort(404, 'Archivo no encontrado');
         }
 
-        // Definimos un nombre amigable para el usuario que descarga
-        $nombreDescarga = 'WifiExpres-v1.apk';
+        $fullPath = storage_path('app/public/' . $path);
+        $fileName = 'WifiExpres_v1.apk';
 
-        return response()->download(storage_path('app/public/' . $path), $nombreDescarga, [
+        $headers = [
             'Content-Type' => 'application/vnd.android.package-archive',
-        ]);
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+        ];
+
+        return response()->download($fullPath, $fileName, $headers);
     }
 }
