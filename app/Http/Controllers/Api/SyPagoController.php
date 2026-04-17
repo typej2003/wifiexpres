@@ -177,7 +177,10 @@ class SyPagoController extends Controller
 
             if ($response->successful()) {
                 $status = $data['status'] ?? 'PROC';
-                $message = ($status === 'ACCP') ? "¡Pago Exitoso!" : "Procesando...";
+                
+                // Mensajes dinámicos para el usuario
+                $message = "Esperando respuesta del banco...";
+                if ($status === 'ACCP') $message = "¡Pago Exitoso!";
                 
                 if (!empty($data['rejected_code'])) {
                     $message = $this->getRejectedMessage($data['rejected_code']);
