@@ -90,10 +90,15 @@ class SyPagoController extends Controller
         if (!$token) return response()->json(['success' => false, 'message' => 'Token expirado'], 401);
 
         try {
+            // ID interno único
             $internalId = "TX" . time() . rand(100, 999); 
-            $groupId    = "G" . date('Ymd');
-            $amount     = (float) $request->input('amount');
-            $phone      = preg_replace('/[^0-9]/', '', $request->input('phone_number'));
+            
+            // CORRECCIÓN: El Group ID debe tener al menos 10 caracteres. 
+            // Usamos "WIFI" + fecha (4 + 8 = 12 caracteres) para cumplir con el mínimo.
+            $groupId = "WIFI" . date('Ymd'); 
+
+            $amount = (float) $request->input('amount');
+            $phone  = preg_replace('/[^0-9]/', '', $request->input('phone_number'));
 
             $payload = [
                 "internal_id" => $internalId,
@@ -123,7 +128,7 @@ class SyPagoController extends Controller
                 ]
             ];
 
-            Log::info("SYPAGO PAYLOAD CONFIRM:", $payload);
+            Log::info("SYPAGO PAYLOAD CONFIRM (12 chars group_id):", $payload);
 
             $response = Http::withoutVerifying()
                 ->withToken($token)
