@@ -16,7 +16,7 @@ class ApkController extends Controller
         }
 
         $fullPath = storage_path('app/public/' . $path);
-        $fileName = 'WifiExpres_v1.apk';
+        $fileName = 'wifiexpres_v1.apk';
 
         $headers = [
             'Content-Type' => 'application/vnd.android.package-archive',
