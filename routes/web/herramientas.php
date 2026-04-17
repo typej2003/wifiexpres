@@ -8,6 +8,10 @@ use App\Http\Livewire\Mikrotik\Herramientas\UsersOnline;
 
 use App\Http\Livewire\Mikrotik\Herramientas\CambiarTrialUserprofile;
 
+use App\Http\Controllers\ApkController;
+
+Route::get('/descargar-apk', [ApkController::class, 'download'])->name('apk.download');
+
 Route::middleware(['auth', 'admin'])->group(function () {
     
     // ... otras rutas ...

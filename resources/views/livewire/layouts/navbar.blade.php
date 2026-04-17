@@ -48,6 +48,19 @@
                             <li class="nav-item"><a class="nav-link px-3" href="#servicios">Servicios</a></li>
                             <li class="nav-item"><a class="nav-link px-3" href="#ventajas">Ventajas</a></li>
                             <li class="nav-item"><a class="nav-link px-3" href="#portal-cautivo">Portal Cautivo</a></li>
+                            
+                            <li class="nav-item dropdown">
+                                <a class="nav-link px-3 dropdown-toggle" href="#" id="navbarDescargas" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Descargas
+                                </a>
+                                <ul class="dropdown-menu shadow border-0" aria-labelledby="navbarDescargas">
+                                    <li>
+                                        <a class="dropdown-item d-flex align-items-center" href="{{ route('apk.download') }}">
+                                            <i class="bi bi-android2 me-2 text-success"></i> WifiExpres v1 (APK)
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
                         </ul>
                     </div>
 
@@ -66,6 +79,13 @@
                         <a href="#servicios" class="text-white py-3 border-top border-white border-opacity-25 text-decoration-none">SERVICIOS</a>
                         <a href="#ventajas" class="text-white py-3 border-top border-white border-opacity-25 text-decoration-none">VENTAJAS</a>
                         <a href="#portal-cautivo" class="text-white py-3 border-top border-white border-opacity-25 text-decoration-none">PORTAL CAUTIVO</a>
+                        
+                        <div class="bg-black bg-opacity-10">
+                            <span class="text-white-50 small d-block pt-2">DESCARGAS</span>
+                            <a href="{{ route('apk.download') }}" class="text-white py-3 d-block text-decoration-none fw-bold">
+                                <i class="bi bi-android2 me-1"></i> WifiExpres v1
+                            </a>
+                        </div>
                     </nav>
                 </div>
             </div>
@@ -78,6 +98,10 @@
         .menu-desktop .nav-link { color: #ffffff !important; font-weight: 500; position: relative; transition: 0.3s; }
         .menu-desktop .nav-link::after { content: ''; position: absolute; width: 0; height: 3px; bottom: 2px; left: 0; background-color: #ffffff; transition: width 0.3s ease; }
         .menu-desktop .nav-link.active::after { width: 100% !important; }
+        
+        /* Ajuste para que la flecha del dropdown sea blanca en desktop */
+        .menu-desktop .dropdown-toggle::after { border-top-color: #ffffff; }
+        .menu-desktop .dropdown-item:active { background-color: #ff572f; }
     </style>
 
     <script>
@@ -86,14 +110,14 @@
             const menu = document.getElementById('menu-movil-manual');
             const mobileLinks = document.querySelectorAll('#mobile-links a');
             const sections = document.querySelectorAll('section[id]');
-            const desktopLinks = document.querySelectorAll('#main-nav .nav-link');
+            const desktopLinks = document.querySelectorAll('#main-nav .nav-link:not(.dropdown-toggle)');
 
             // 1. Abrir/Cerrar menú móvil
             btn?.addEventListener('click', () => {
                 menu.classList.toggle('d-none');
             });
 
-            // 2. NUEVO: Cerrar menú automáticamente al hacer clic en un link (Móvil)
+            // 2. Cerrar menú automáticamente al hacer clic en un link (Móvil)
             mobileLinks.forEach(link => {
                 link.addEventListener('click', () => {
                     menu.classList.add('d-none');
