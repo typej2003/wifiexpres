@@ -12,29 +12,56 @@
             width: 100%; padding: 15px; border: 3px solid #e0e0e0; border-radius: 15px; 
             margin-bottom: 15px; box-sizing: border-box; font-size: 20px; 
             font-weight: 900; color: #000; background-color: #fafafa; outline: none; 
+            transition: 0.3s;
         }
         input:focus { border-color: #6200ea; background-color: #fff; }
+        
+        input:disabled, select:disabled {
+            background-color: #eee !important;
+            color: #888 !important;
+            cursor: not-allowed;
+        }
+
+        .row { display: flex; gap: 8px; }
 
         .btn-pay { 
-            background: #ff6d00; color: white; border: none; width: 100%; padding: 16px; 
+            background: #ff6d00; color: white; border: none; width: 100%; padding: 18px; 
             border-radius: 50px; font-weight: bold; cursor: pointer; text-transform: uppercase; 
             font-size: 18px; box-shadow: 0 4px 10px rgba(255,109,0,0.3);
+            transition: 0.3s;
         }
-        .btn-pay:disabled { background-color: #ccc; cursor: not-allowed; }
+        .btn-pay:disabled { background-color: #ccc; cursor: not-allowed; box-shadow: none; }
+        
+        .btn-back {
+            background: #f4f4f4; color: #6200ea; border: 2px solid #6200ea; width: 100%; padding: 15px;
+            border-radius: 50px; font-weight: bold; cursor: pointer; text-transform: uppercase;
+            font-size: 14px; margin-top: 10px; display: block; text-align: center; text-decoration: none;
+        }
+
         h3 { color: #333; font-size: 18px; margin: 0 0 15px 0; text-align: center; font-weight: 800; text-transform: uppercase; }
         .header-logo { text-align: center; margin-bottom: 15px; }
-        .error-msg { color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 8px; font-size: 12px; text-align: center; display: none; margin-bottom: 15px; border: 1px solid #ffcdd2; }
+        
+        .error-msg { 
+            color: #d32f2f; background: #ffebee; padding: 12px; border-radius: 12px; 
+            font-size: 14px; text-align: center; display: none; margin-bottom: 15px; 
+            border: 1px solid #ffcdd2; font-weight: bold;
+        }
+
         #step-otp { display: none; background: #fff9e6; padding: 20px; border-radius: 15px; border: 2px dashed #ffb300; margin-top: 15px; }
         
         .status-container { margin-top: 15px; text-align: center; }
-        .loader { display: none; font-weight: 800; color: #6200ea; font-size: 14px; }
+        .loader { display: none; font-weight: 800; color: #6200ea; font-size: 16px; }
+        
         #timer-display { display: none; background: #e8f5e9; border: 2px solid #2e7d32; border-radius: 15px; padding: 15px; color: #1b5e20; }
         #timer-display span { font-size: 22px; font-weight: 900; display: block; }
+        
+        input[readonly] { background: #f5f5f5; color: #555; border-color: #eee; }
     </style>
 </head>
 <body>
     <div class="header-logo"><img src="https://wifiexpres.com/img/logoSypagoSP.svg" alt="SyPago" style="height: 35px;"></div>
     <h3>PAGO MÓVIL C2P</h3>
+    
     <div id="error-div" class="error-msg"></div>
 
     <div id="step-data">
@@ -43,7 +70,7 @@
 
         <label class="label">Banco del Pagador</label>
         <select id="bank_code">
-            <option value="">Seleccione...</option>
+            <option value="">Seleccione banco...</option>
             <option value="0102">Banco de Venezuela</option>
             <option value="0105">Mercantil</option>
             <option value="0108">Provincial</option>
@@ -53,22 +80,33 @@
         </select>
 
         <label class="label">Cédula de Identidad</label>
-        <input type="number" id="id_number" placeholder="Solo números">
+        <div class="row">
+            <select id="identificationNac" style="flex: 1;">
+                <option value="V" selected>V</option>
+                <option value="E">E</option>
+                <option value="J">J</option>
+            </select>
+            <input type="number" id="id_number" placeholder="Solo números" style="flex: 3;" required>
+        </div>
 
-        <label class="label">Teléfono del Banco</label>
-        <input type="tel" id="phone_number" placeholder="Ej: 04121234567">
+        <label class="label">Teléfono (Registrado en Banco)</label>
+        <input type="tel" id="phone_number" placeholder="Ej: 04121234567" required>
 
-        <button class="btn-pay" id="btn-request-sms" onclick="requestSMS()">Solicitar Código SMS</button>
+        <label class="label">Correo Electrónico</label>
+        <input type="email" id="email" placeholder="tu@correo.com" required>
+
+        <button class="btn-pay" id="btn-request-sms" onclick="ejecutarFlujoPago()">Solicitar Código SMS</button>
     </div>
 
     <div id="step-otp">
         <label class="label" style="color: #ff6d00;">Código de Seguridad (OTP)</label>
         <input type="number" id="otp_code" placeholder="Ej: 123456">
         <button class="btn-pay" id="btn-confirm-pay" onclick="confirmPayment()" style="background: #2e7d32;">Validar y Finalizar</button>
+        <button class="btn-back" onclick="goBack()">Volver / Cambiar Datos</button>
     </div>
 
     <div class="status-container">
-        <div id="msg-loading" class="loader">PROCESANDO PETICIÓN...</div>
+        <div id="msg-loading" class="loader">PROCESANDO...</div>
         <div id="timer-display">
             <small id="status-text">Verificando pago...</small>
             <span id="seconds-left">ESPERE...</span>
@@ -77,76 +115,120 @@
 
 <script>
     const urlParams = new URLSearchParams(window.location.search);
-    const amount = urlParams.get('amount') || "0.00";
-    const user = urlParams.get('user');
-    const plan = urlParams.get('plan');
-    const phone = urlParams.get('phone'); 
+    const planName = urlParams.get('plan') || 'plan_generico';
+    const planCost = urlParams.get('amount') || '0';
+    const routerIdentity = urlParams.get('identity') || 'MikroTik';
+    const routerMac = urlParams.get('mac') || '';
+    const passTemp1 = urlParams.get('tempPass'); 
+    const userParam = urlParams.get('user') || urlParams.get('phone') || "";
 
-    // ASIGNACIÓN INICIAL
-    document.getElementById('display-amount').value = amount;
-    document.getElementById('id_number').value = "13053081"; // Tu valor por defecto
-    
-    if(phone) {
-        document.getElementById('phone_number').value = phone;
+    const API_PRE_ADD = "https://wifiexpres.com/api/v2/users/pre-addSypago";
+    const API_REQUEST_SMS = "https://wifiexpres.com/api/sypagoRequestSms";
+    const API_CONFIRM = "https://wifiexpres.com/api/sypago-confirm";
+
+    // Inicialización
+    document.getElementById('display-amount').value = planCost;
+    if(userParam) document.getElementById('phone_number').value = userParam;
+
+    function setInputsDisabled(status) {
+        const ids = ['bank_code', 'identificationNac', 'id_number', 'phone_number', 'email'];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.disabled = status;
+        });
     }
 
-    async function requestSMS() {
+    async function ejecutarFlujoPago() {
+        const btn = document.getElementById('btn-request-sms');
         const bank = document.getElementById('bank_code').value;
-        const id_num = document.getElementById('id_number').value;
-        const phone_val = document.getElementById('phone_number').value;
-        
-        if(!bank || !id_num || !phone_val) { 
-            showError("Completa los datos."); 
+        const id_num = document.getElementById('id_number').value.trim();
+        const phone_val = document.getElementById('phone_number').value.trim();
+        const correo = document.getElementById('email').value.trim();
+        const nac = document.getElementById('identificationNac').value;
+
+        if(!bank || !id_num || !phone_val || !correo) { 
+            showError("Por favor, complete todos los campos."); 
             return; 
         }
 
+        btn.disabled = true;
+        btn.innerText = "SOLICITANDO...";
+        setInputsDisabled(true);
         toggleUI(true);
+        document.getElementById('error-div').style.display = "none";
+
         try {
-            const response = await fetch('https://wifiexpres.com/api/sypagoRequestSms', {
+            // PASO 1: Registro previo en Laravel
+            await fetch(API_PRE_ADD, {
+                method: "POST", 
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    username: phone_val, 
+                    password: passTemp1, 
+                    email: correo,
+                    planSelected: planName, 
+                    router_mac: routerMac,
+                    identity: routerIdentity,
+                    cedula: nac + id_num
+                })
+            });
+            
+            // PASO 2: Solicitar SMS a la pasarela
+            const smsRes = await fetch(API_REQUEST_SMS, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    bank_code: bank, 
-                    id_number: id_num, 
-                    phone_number: phone_val, 
-                    amount: amount, 
-                    username: user, 
-                    plan: plan 
+                body: JSON.stringify({
+                    bank_code: bank,
+                    id_number: id_num,
+                    phone_number: phone_val,
+                    amount: planCost,
+                    username: phone_val,
+                    plan: planName
                 })
             });
 
-            const result = await response.json();
-            toggleUI(false);
+            const smsResult = await smsRes.json();
 
-            if (result.success) {
+            if (smsResult.success) {
                 document.getElementById('step-data').style.display = "none";
                 document.getElementById('step-otp').style.display = "block";
-                document.getElementById('error-div').style.display = "none";
-            } else { 
-                showError(result.message || "Error al solicitar SMS"); 
+                window.scrollTo(0,0);
+            } else {
+                throw new Error(smsResult.message || "Error al solicitar SMS");
             }
         } catch (e) { 
-            toggleUI(false); 
-            showError("Fallo de red al solicitar SMS"); 
+            showError(e.message);
+            btn.disabled = false;
+            btn.innerText = "SOLICITAR CÓDIGO SMS";
+            setInputsDisabled(false); 
         }
+        toggleUI(false);
     }
 
     async function confirmPayment() {
+        const btnConfirm = document.getElementById('btn-confirm-pay');
         const otp = document.getElementById('otp_code').value;
-        if(!otp) { showError("Ingresa el código OTP."); return; }
-        
+        const phone_val = document.getElementById('phone_number').value.trim();
+        const id_num = document.getElementById('id_number').value.trim();
+        const bank = document.getElementById('bank_code').value;
+
+        if(!otp) return showError("Ingrese el código OTP");
+
+        btnConfirm.disabled = true;
+        btnConfirm.innerText = "VALIDANDO...";
         toggleUI(true);
+
         try {
-            const response = await fetch('https://wifiexpres.com/api/sypago-confirm', {
+            const response = await fetch(API_CONFIRM, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    otp: otp, 
-                    username: user, 
-                    amount: amount,
-                    id_number: document.getElementById('id_number').value,
-                    phone_number: document.getElementById('phone_number').value,
-                    bank_code: document.getElementById('bank_code').value
+                    otp, 
+                    amount: planCost, 
+                    id_number: id_num, 
+                    phone_number: phone_val,
+                    bank_code: bank,
+                    username: phone_val
                 })
             });
 
@@ -154,21 +236,18 @@
 
             if (result.success && result.transaction_id) {
                 document.getElementById('step-otp').style.display = "none";
-                startPolling(result.transaction_id);
+                startPolling(result.transaction_id, phone_val);
             } else {
-                toggleUI(false);
-                showError(result.message || "OTP Inválido");
+                resetToInitial(result.message || "OTP Inválido");
             }
         } catch (e) { 
-            toggleUI(false); 
-            showError("Error al confirmar el pago"); 
+            resetToInitial("Error de red en confirmación"); 
         }
     }
 
-    function startPolling(txId) {
-        toggleUI(false); // Oculta "Procesando petición"
+    function startPolling(txId, userToActivate) {
+        toggleUI(false);
         document.getElementById('timer-display').style.display = "block"; 
-
         const poll = setInterval(async () => {
             try {
                 const res = await fetch(`https://wifiexpres.com/api/sypago-status/${txId}`);
@@ -179,32 +258,52 @@
                     document.getElementById('status-text').innerText = "¡PAGO CONFIRMADO!";
                     document.getElementById('seconds-left').innerText = "ACTIVANDO INTERNET...";
                     
-                    // Notificamos al login.html
-                    window.parent.postMessage({ status: 'pago_exitoso' }, '*');
+                    window.parent.postMessage({ 
+                        status: "pago_exitoso", 
+                        user: userToActivate 
+                    }, "*");
+
                 } else if (result.status !== 'PROC' && result.status !== 'PEND') {
                     clearInterval(poll);
-                    resetToInitial("Pago rechazado: " + (result.message || result.status));
+                    resetToInitial("Pago fallido: " + (result.message || result.status));
                 }
-            } catch (e) { console.error("Error en polling", e); }
+            } catch (e) { console.error("Error polling", e); }
         }, 4000);
     }
 
-    function toggleUI(loading) {
-        document.getElementById('msg-loading').style.display = loading ? "block" : "none";
-        document.getElementById('btn-request-sms').disabled = loading;
-        document.getElementById('btn-confirm-pay').disabled = loading;
+    function toggleUI(l) { document.getElementById('msg-loading').style.display = l ? "block" : "none"; }
+    
+    function showError(m) { 
+        const d = document.getElementById('error-div'); 
+        d.innerText = m; 
+        d.style.display = 'block'; 
     }
 
-    function showError(msg) {
-        const div = document.getElementById('error-div');
-        div.innerText = msg; 
-        div.style.display = 'block';
-    }
-
-    function resetToInitial(msg) {
+    function resetToInitial(m) { 
+        toggleUI(false); 
         document.getElementById('timer-display').style.display = "none";
         document.getElementById('step-data').style.display = "block";
-        showError(msg);
+        document.getElementById('step-otp').style.display = "none";
+        
+        const requestBtn = document.getElementById('btn-request-sms');
+        requestBtn.disabled = false;
+        requestBtn.innerText = "SOLICITAR CÓDIGO SMS";
+
+        const confirmBtn = document.getElementById('btn-confirm-pay');
+        confirmBtn.disabled = false;
+        confirmBtn.innerText = "VALIDAR Y FINALIZAR";
+        
+        setInputsDisabled(false); 
+        showError(m); 
+    }
+
+    function goBack() {
+        document.getElementById('step-otp').style.display = "none";
+        document.getElementById('step-data').style.display = "block";
+        setInputsDisabled(false);
+        const requestBtn = document.getElementById('btn-request-sms');
+        requestBtn.disabled = false;
+        requestBtn.innerText = "SOLICITAR CÓDIGO SMS";
     }
 </script>
 </body>

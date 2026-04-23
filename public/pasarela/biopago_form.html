@@ -2,10 +2,11 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pasarela Biopago BDV</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; padding: 15px; background: white; margin: 0; }
         
-        /* Estilo de las etiquetas (Labels) */
         .label { 
             display: block; 
             color: #6200ea; 
@@ -15,7 +16,6 @@
             text-transform: uppercase;
         }
 
-        /* Estilo de los Inputs para que coincidan con el Login */
         input, select { 
             width: 100%; 
             padding: 15px; 
@@ -23,8 +23,8 @@
             border-radius: 15px; 
             margin-bottom: 15px; 
             box-sizing: border-box;
-            font-size: 22px; /* Mismo tamaño que el login */
-            font-weight: 800; /* Negrita intensa */
+            font-size: 20px; 
+            font-weight: 800; 
             color: #1a1a1a; 
             background-color: #fafafa;
             outline: none;
@@ -36,29 +36,29 @@
             background-color: #fff;
         }
 
-        /* Ajuste específico para el correo (el texto suele ser más largo) */
-        input[type="email"] {
-            font-size: 18px; /* Un poco más pequeño para que no se corte si es largo */
-        }
+        input[type="email"] { font-size: 18px; }
 
         .row { display: flex; gap: 8px; }
         
         .btn-pay { 
             background: #ff6d00; color: white; border: none; width: 100%; 
-            padding: 16px; border-radius: 50px; font-weight: bold; 
+            padding: 18px; border-radius: 50px; font-weight: bold; 
             cursor: pointer; text-transform: uppercase; margin-top: 5px;
-            font-size: 16px;
+            font-size: 18px;
+            box-shadow: 0 4px 15px rgba(255, 109, 0, 0.3);
         }
+
+        .btn-pay:disabled { background: #ccc; box-shadow: none; }
 
         h3 { color: #333; font-size: 18px; margin: 0 0 15px 0; text-align: center; font-weight: 800; }
 
         .error-msg { 
-            color: #d32f2f; background: #ffebee; padding: 10px; 
-            border-radius: 8px; font-size: 12px; text-align: center; 
+            color: #d32f2f; background: #ffebee; padding: 12px; 
+            border-radius: 12px; font-size: 14px; text-align: center; 
             display: none; margin-bottom: 15px; border: 1px solid #ffcdd2;
+            font-weight: bold;
         }
 
-        /* Estilo para el campo de solo lectura (Monto) */
         input[readonly] {
             background: #f5f5f5;
             color: #555;
@@ -67,19 +67,19 @@
     </style>
 </head>
 <body>
-    <h3>DATOS BIOPAGO</h3>
+    <h3>DATOS BIOPAGO BDV</h3>
     <div id="error" class="error-msg"></div>
     
     <form id="pago-form">
         <input type="hidden" id="identity">
         
-        <label class="label">Monto del Plan (Bs.)</label>
-        <input type="number" step="0.01" id="amount" value="1" readonly>
+        <label class="label">Monto a Pagar (Bs.)</label>
+        <input type="number" step="0.01" id="amount" value="0.00" readonly>
 
-        <label class="label">Teléfono Origen</label>
-        <input type="tel" id="cellphone" value="04165800403" required>
+        <label class="label">Teléfono Móvil (Usuario)</label>
+        <input type="tel" id="cellphone" placeholder="Ej: 04121234567" required>
 
-        <label class="label">Documento de Identidad</label>
+        <label class="label">Cédula / RIF</label>
         <div class="row">
             <select id="identificationNac" style="flex: 1;">
                 <option value="V" selected>V</option>
@@ -87,98 +87,131 @@
                 <option value="P">P</option>
                 <option value="J">J</option>
             </select>
-            <input type="number" id="identificationNumber" value="" style="flex: 3;" required>
+            <input type="number" id="identificationNumber" placeholder="Número" style="flex: 3;" required>
         </div>
 
         <label class="label">Correo Electrónico</label>
-        <input type="email" id="email" value="typej2003@gmail.com" required>
+        <input type="email" id="email" placeholder="tu@correo.com" required>
 
-        <button type="button" class="btn-pay" id="main-btn" onclick="enviarPeticion()">Pagar Ahora</button>
+        <button type="button" class="btn-pay" id="main-btn" onclick="ejecutarFlujoPago()">Pagar Ahora</button>
     </form>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
-        const planName = urlParams.get('plan') || 'plan_prueba';
-        const planCost = urlParams.get('amount') || '1';
+        const planName = urlParams.get('plan') || 'plan_generico';
+        const planCost = urlParams.get('amount') || '0';
         const routerIdentity = urlParams.get('identity') || 'MikroTik';
-        const userPhone = urlParams.get('user');
-        const userEmail = urlParams.get('email');
+        const routerMac = urlParams.get('mac') || '';
+        const passTemp1 = urlParams.get('tempPass'); // Contraseña generada por la App
 
+        const API_PRE_ADD = "https://wifiexpres.com/api/v2/users/pre-add";
+        const API_PASARELA = "https://wifiexpres.com/api/mikrotikPasarela";
+
+        // Inicializar campos con datos de la URL
         document.getElementById('identity').value = routerIdentity;
-        
-        if(urlParams.has('amount')) {
-            document.getElementById('amount').value = planCost;
-        }
+        document.getElementById('amount').value = planCost;
 
-        if(userPhone) {
-            document.getElementById('cellphone').value = userPhone;
-        }
-
-        if(userEmail) {
-            document.getElementById('email').value = userEmail;
-        }
-
-        async function enviarPeticion() {
+        async function ejecutarFlujoPago() {
             const btn = document.getElementById('main-btn');
             const errorDiv = document.getElementById('error');
             
-            const tel = document.getElementById('cellphone').value;
+            const tel = document.getElementById('cellphone').value.trim();
+            const correo = document.getElementById('email').value.trim();
+            const cedula = document.getElementById('identificationNumber').value.trim();
+            const nac = document.getElementById('identificationNac').value;
+            
+            if(!tel || !correo || !cedula) {
+                mostrarError("Por favor complete todos los campos.");
+                return;
+            }
+
+            btn.innerText = "PROCESANDO...";
+            btn.disabled = true;
+            errorDiv.style.display = 'none';
+
+            try {
+                // PASO 1: Registrar el usuario en la base de datos antes del pago
+                // Se usa el teléfono como 'username' y el passTemp1 enviado desde la App
+                const preAddRes = await fetch(API_PRE_ADD, {
+                    method: "POST", 
+                    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                    body: JSON.stringify({ 
+                        username: tel, 
+                        password: passTemp1, 
+                        email: correo,
+                        planSelected: planName, 
+                        router_mac: routerMac, 
+                        identity: routerIdentity,
+                        cedula: nac + cedula
+                    })
+                });
+                
+                const preAddResult = await preAddRes.json();
+
+                if(!preAddResult.success) {
+                    throw new Error(preAddResult.message || "Error al preparar el registro del usuario.");
+                }
+
+                // PASO 2: Si el registro fue exitoso, procedemos a la pasarela de Biopago
+                await enviarPeticionPasarela(tel, correo, nac, cedula);
+
+            } catch (e) {
+                btn.innerText = "PAGAR AHORA";
+                btn.disabled = false;
+                mostrarError(e.message);
+            }
+        }
+
+        async function enviarPeticionPasarela(tel, correo, nac, cedula) {
             const amt = document.getElementById('amount').value;
-            const correo = document.getElementById('email').value;
 
             const objetoPlan = {
                 plan: planName,
                 costo: amt,
                 email_cliente: correo,
-                hotspot_user: tel
+                hotspot_user: tel // El teléfono será el usuario en el Hotspot
             };
-
-            const identityValue = document.getElementById('identity').value;
 
             const data = {
                 planPasarela: JSON.stringify(objetoPlan),
                 amount: amt,
                 cellphone: tel,
-                identificationNac: document.getElementById('identificationNac').value,
-                identificationNumber: document.getElementById('identificationNumber').value,
+                identificationNac: nac,
+                identificationNumber: cedula,
                 email: correo,
-                currency: 1,
-                title: 'Pago de Servicio Wifi',
+                currency: 1, // Bs.
+                title: 'Pago de Servicio Wifi - Biopago',
                 description: `Plan ${planName}`,
                 reference: 'WIFI',
-                identity: identityValue,
+                identity: routerIdentity,
                 rifLetter: '',
                 rifNumber: ''
             };
 
-            btn.innerText = "CONECTANDO...";
-            btn.disabled = true;
-            errorDiv.style.display = 'none';
+            const response = await fetch(API_PASARELA, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
 
-            try {
-                const response = await fetch('https://wifiexpres.com/api/mikrotikPasarela', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                const result = await response.json();
-                
-                if (result.response && result.response.success) {
-                    window.location.href = result.response.urlPayment;
-                } else {
-                    const msg = result.response ? result.response.responseMessage : "Error en pasarela";
-                    throw new Error(msg);
-                }
-            } catch (e) {
-                btn.innerText = "PAGAR AHORA";
-                btn.disabled = false;
-                errorDiv.style.display = 'block';
-                errorDiv.innerText = "Error: " + e.message;
+            const result = await response.json();
+            
+            if (result.response && result.response.success) {
+                // Redirigir al cliente a la URL del banco
+                window.location.href = result.response.urlPayment;
+            } else {
+                const msg = result.response ? result.response.responseMessage : "Error en comunicación con Biopago";
+                throw new Error(msg);
             }
+        }
+
+        function mostrarError(msg) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.style.display = 'block';
+            errorDiv.innerText = msg;
         }
     </script>
 </body>
