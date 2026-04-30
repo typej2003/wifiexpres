@@ -15,7 +15,7 @@ class Hablador extends Model
         'recursos',
         'audio_url',
         'caracteristicas', // Cambiado de productos a caracteristicas
-        'activo'
+        'activo',
     ];
 
     protected $casts = [
