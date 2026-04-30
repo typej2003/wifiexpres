@@ -20,6 +20,7 @@ class CreatePantallasTable extends Migration
             $table->string('nombre'); // Ej: "Pantalla Barra", "Pantalla Terraza"
             $table->string('slug_pantalla')->unique(); // Identificador único para la URL
             $table->bigInteger('hablador_id')->nullable();
+            $table->string('orientation')->nullable(); //portrait - landscape 
             $table->timestamps();
         });
     }

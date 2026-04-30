@@ -197,11 +197,13 @@ Route::middleware('auth:sanctum')->post('/update-hablador-info', function (Reque
     $pantalla = Pantalla::updateOrCreate(
         [
             'user_id' => $request->user_id,
-            'slug_pantalla' => $request->slug_pantalla
+            'slug_pantalla' => $request->slug_pantalla,
+            'orientation' => $request->orientation,
         ],
         [
             'nombre' => $request->slug_pantalla, // Usamos el identificador como nombre inicial
-            'hablador_id' => $request->hablador_id
+            'hablador_id' => $request->hablador_id,
+            'orientation' => $request->orientation,
         ]
     );
 
@@ -210,7 +212,6 @@ Route::middleware('auth:sanctum')->post('/update-hablador-info', function (Reque
         'status' => 'success'
     ]);
 });
-
 
 Route::middleware('auth:sanctum')->get('/get-assigned-hablador', function (Request $request) {
     $user = $request->user();
