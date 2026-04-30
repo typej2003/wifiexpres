@@ -19,6 +19,7 @@ class CreatePantallasTable extends Migration
             $table->foreignId('user_id')->constrained(); // El Aliado
             $table->string('nombre'); // Ej: "Pantalla Barra", "Pantalla Terraza"
             $table->string('slug_pantalla')->unique(); // Identificador único para la URL
+            $table->bigInteger('hablador_id')->nullable();
             $table->timestamps();
         });
     }

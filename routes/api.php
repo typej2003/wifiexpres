@@ -20,6 +20,7 @@ use App\Models\NotificationApp;
 use App\Models\HotspotVersion;
 use App\Models\User;
 use App\Models\Hablador;
+use App\Models\Pantalla;
 
 use App\Http\Controllers\Api\SyPagoController;
 
@@ -179,6 +180,33 @@ Route::middleware('auth:sanctum')->get('/get-habladores', function (Request $req
         ->get();
 
     return response()->json($habladores);
+});
+
+Route::middleware('auth:sanctum')->post('/update-hablador-info', function (Request $request) {
+    $request->validate([
+        'user_id' => 'required|integer',
+        'slug_pantalla' => 'required|string',
+        'hablador_id' => 'required|integer'
+    ]);
+
+    // updateOrCreate busca por los criterios del primer array. 
+    // Si no lo encuentra, crea uno nuevo con la unión de ambos arrays.
+    // Si lo encuentra, actualiza los campos del segundo array.
+    $pantalla = Pantalla::updateOrCreate(
+        [
+            'user_id' => $request->user_id,
+            'slug_pantalla' => $request->slug_pantalla
+        ],
+        [
+            'nombre' => $request->slug_pantalla, // Usamos el identificador como nombre inicial
+            'hablador_id' => $request->hablador_id
+        ]
+    );
+
+    return response()->json([
+        'message' => 'Pantalla sincronizada: ' . $pantalla->slug_pantalla,
+        'status' => 'success'
+    ]);
 });
 
 //**** fin de habladores ****/

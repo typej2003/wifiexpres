@@ -10,7 +10,8 @@ class Pantalla extends Model
     protected $fillable = [
         'user_id', 
         'nombre', 
-        'slug_pantalla'
+        'slug_pantalla',
+        'hablador_id',
     ];
 
     /**
