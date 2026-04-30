@@ -211,5 +211,29 @@ Route::middleware('auth:sanctum')->post('/update-hablador-info', function (Reque
     ]);
 });
 
+
+Route::middleware('auth:sanctum')->get('/get-assigned-hablador', function (Request $request) {
+    $user = $request->user();
+    $slug = $request->query('slug_pantalla');
+
+    if (!$slug) {
+        return response()->json(['message' => 'Slug no proporcionado'], 400);
+    }
+
+    // Buscamos la pantalla configurada para este Aliado
+    $pantalla = Pantalla::where('user_id', $user->id)
+        ->where('slug_pantalla', $slug)
+        ->first();
+
+    if ($pantalla && $pantalla->hablador_id) {
+        $hablador = Hablador::find($pantalla->hablador_id);
+        if ($hablador && $hablador->activo) {
+            return response()->json($hablador);
+        }
+    }
+
+    return response()->json(['message' => 'Sin hablador asignado'], 404);
+});
+
 //**** fin de habladores ****/
 
