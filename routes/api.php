@@ -155,6 +155,7 @@ Route::post('/auth-sync-service', function (Request $request) {
                 'access_token' => $token,
                 'token_type' => 'Bearer',
                 'user' => [
+                    'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email
                 ]
