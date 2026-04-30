@@ -151,11 +151,12 @@ Route::post('/auth-sync-service', function (Request $request) {
             // Si el modelo User ya tiene el trait HasApiTokens, esto funcionará.
             $token = $user->createToken('hablador-token')->plainTextToken;
 
+            // En tu ruta de Login en Laravel
             return response()->json([
                 'access_token' => $token,
                 'token_type' => 'Bearer',
                 'user' => [
-                    'id' => $user->id,
+                    'id' => $user->id,    // <--- ¡IMPORTANTE!
                     'name' => $user->name,
                     'email' => $user->email
                 ]
