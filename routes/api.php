@@ -185,31 +185,34 @@ Route::middleware('auth:sanctum')->get('/get-habladores', function (Request $req
 });
 
 Route::middleware('auth:sanctum')->post('/update-hablador-info', function (Request $request) {
+    // 1. Validamos todos los campos, incluyendo 'orientation' que ahora envía la app
     $request->validate([
         'user_id' => 'required|integer',
         'slug_pantalla' => 'required|string',
-        'hablador_id' => 'required|integer'
+        'hablador_id' => 'required|integer',
+        'orientation' => 'required|string|in:portrait,landscape'
     ]);
 
-    // updateOrCreate busca por los criterios del primer array. 
-    // Si no lo encuentra, crea uno nuevo con la unión de ambos arrays.
-    // Si lo encuentra, actualiza los campos del segundo array.
+    // 2. Usamos updateOrCreate buscando SOLO por slug_pantalla (o user + slug si es por usuario)
+    // Esto evita el error de "Duplicate entry" al cambiar la orientación o el hablador_id.
     $pantalla = Pantalla::updateOrCreate(
         [
-            'user_id' => $request->user_id,
+            // Criterios de búsqueda: Si este slug existe, lo actualiza. Si no, lo crea.
             'slug_pantalla' => $request->slug_pantalla,
-            'orientation' => $request->orientation,
         ],
         [
-            'nombre' => $request->slug_pantalla, // Usamos el identificador como nombre inicial
+            // Valores a actualizar o insertar
+            'user_id' => $request->user_id,
+            'nombre' => $request->slug_pantalla, 
             'hablador_id' => $request->hablador_id,
             'orientation' => $request->orientation,
         ]
     );
 
     return response()->json([
-        'message' => 'Pantalla sincronizada: ' . $pantalla->slug_pantalla,
-        'status' => 'success'
+        'message' => 'Pantalla sincronizada correctamente: ' . $pantalla->slug_pantalla,
+        'status' => 'success',
+        'data' => $pantalla
     ]);
 });
 
