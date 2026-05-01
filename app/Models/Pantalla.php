@@ -12,7 +12,7 @@ class Pantalla extends Model
         'nombre', 
         'slug_pantalla',
         'hablador_id',
-        'orientacion',
+        'orientation',
     ];
 
     /**
