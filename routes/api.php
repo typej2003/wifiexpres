@@ -185,34 +185,43 @@ Route::middleware('auth:sanctum')->get('/get-habladores', function (Request $req
 });
 
 Route::middleware('auth:sanctum')->post('/update-hablador-info', function (Request $request) {
-    // 1. Validamos todos los campos, incluyendo 'orientation' que ahora envía la app
     $request->validate([
+        'id' => 'nullable|integer', // Recibimos el ID opcional desde la App
         'user_id' => 'required|integer',
         'slug_pantalla' => 'required|string',
         'hablador_id' => 'required|integer',
         'orientation' => 'required|string|in:portrait,landscape'
     ]);
 
-    // 2. Usamos updateOrCreate buscando SOLO por slug_pantalla (o user + slug si es por usuario)
-    // Esto evita el error de "Duplicate entry" al cambiar la orientación o el hablador_id.
-    $pantalla = Pantalla::updateOrCreate(
-        [
-            // Criterios de búsqueda: Si este slug existe, lo actualiza. Si no, lo crea.
-            'slug_pantalla' => $request->slug_pantalla,
-        ],
-        [
-            // Valores a actualizar o insertar
+    // LÓGICA CLAVE: Buscamos el registro por ID (prioritario) o por Slug
+    $pantalla = Pantalla::where('id', $request->id)
+        ->orWhere('slug_pantalla', $request->slug_pantalla)
+        ->first();
+
+    if ($pantalla) {
+        // Si existe, actualizamos (esto permite cambiar el slug sin duplicar)
+        $pantalla->update([
             'user_id' => $request->user_id,
+            'slug_pantalla' => $request->slug_pantalla,
             'nombre' => $request->slug_pantalla, 
             'hablador_id' => $request->hablador_id,
             'orientation' => $request->orientation,
-        ]
-    );
+        ]);
+    } else {
+        // Si no existe ninguno de los dos, creamos uno nuevo
+        $pantalla = Pantalla::create([
+            'user_id' => $request->user_id,
+            'slug_pantalla' => $request->slug_pantalla,
+            'nombre' => $request->slug_pantalla, 
+            'hablador_id' => $request->hablador_id,
+            'orientation' => $request->orientation,
+        ]);
+    }
 
     return response()->json([
-        'message' => 'Pantalla sincronizada correctamente: ' . $pantalla->slug_pantalla,
+        'message' => 'Pantalla sincronizada correctamente',
         'status' => 'success',
-        'data' => $pantalla
+        'data' => $pantalla // Devolvemos el objeto completo para que la App guarde el ID
     ]);
 });
 
