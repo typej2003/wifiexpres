@@ -135,16 +135,38 @@
                         
                         <h6 class="fw-bold mt-4 mb-3 small text-muted text-uppercase">Productos / Características</h6>
                         @foreach($productos as $index => $prod)
-                        <div class="card bg-light border-0 rounded-4 mb-2 p-3">
+                        <div class="card bg-light border-0 rounded-4 mb-2 p-3" wire:key="prod-item-{{ $index }}">
                             <div class="row g-2">
                                 <div class="col-md-4">
                                     <input type="text" wire:model="productos.{{$index}}.nombre" class="form-control form-control-sm rounded-pill" placeholder="Nombre">
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <input type="text" wire:model="productos.{{$index}}.precio" class="form-control form-control-sm rounded-pill" placeholder="Precio">
                                 </div>
-                                <div class="col-md-3">
-                                    <input type="file" wire:model="productos.{{$index}}.imagen" class="form-control form-control-sm rounded-pill">
+                                <div class="col-md-4">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="flex-shrink-0" style="width: 45px; height: 45px;">
+                                            @if (isset($productos[$index]['imagen']) && $productos[$index]['imagen'])
+                                                @if (is_object($productos[$index]['imagen']) && method_exists($productos[$index]['imagen'], 'temporaryUrl'))
+                                                    {{-- Previsualización de nueva imagen cargada --}}
+                                                    <img src="{{ $productos[$index]['imagen']->temporaryUrl() }}" class="img-thumbnail rounded-3 w-100 h-100 shadow-sm" style="object-fit: cover;">
+                                                @elseif (is_string($productos[$index]['imagen']))
+                                                    {{-- Previsualización de imagen existente en el servidor --}}
+                                                    <img src="{{ asset('storage/' . $productos[$index]['imagen']) }}" class="img-thumbnail rounded-3 w-100 h-100 shadow-sm" style="object-fit: cover;">
+                                                @endif
+                                            @else
+                                                <div class="bg-white rounded-3 d-flex align-items-center justify-content-center w-100 h-100 border border-dashed text-muted">
+                                                    <i class="bi bi-image small"></i>
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <input type="file" wire:model="productos.{{$index}}.imagen" class="form-control form-control-sm rounded-pill">
+                                            <div wire:loading wire:target="productos.{{$index}}.imagen" class="text-primary mt-1 fw-bold" style="font-size: 0.6rem;">
+                                                <i class="bi bi-arrow-repeat spin"></i> Subiendo...
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="col-md-2 text-end">
                                     @if(count($productos) > 1)

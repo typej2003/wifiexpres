@@ -113,7 +113,8 @@ class HabladorManager extends Component
     public function storeHablador() {
         $this->validate([
             'nombre' => 'required',
-            'productos.*.nombre' => 'required'
+            'productos.*.nombre' => 'required',
+            'productos.*.imagen' => 'nullable|max:2048', // Solo validamos tamaño para permitir strings y archivos
         ]);
 
         $productosFinales = [];
