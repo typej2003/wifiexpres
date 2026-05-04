@@ -16,7 +16,7 @@ class HabladorManager extends Component
     public $isModalOpen = false;
     public $modalMode = 'hablador'; 
     
-    public $hablador_id, $nombre, $tipo = 'imagen', $activo = true;
+    public $hablador_id, $nombre, $tipo = 'imagen', $activo = true, $assigned_user_id;
     public $productos = []; 
     
     public $pantalla_id, $pantalla_nombre, $slug_pantalla, $orientation = 'landscape';
@@ -66,6 +66,7 @@ class HabladorManager extends Component
         $this->nombre = '';
         $this->tipo = 'imagen';
         $this->activo = true;
+        $this->assigned_user_id = auth()->user()->role == 'admin' ? '' : Auth::id();
         $this->modalMode = 'hablador';
         $this->isModalOpen = true;
     }
@@ -76,6 +77,7 @@ class HabladorManager extends Component
         $this->nombre = $hablador->nombre;
         $this->tipo = $hablador->tipo;
         $this->activo = $hablador->activo;
+        $this->assigned_user_id = $hablador->user_id;
         $this->productos = $hablador->caracteristicas ?? [['nombre' => '', 'precio' => '', 'oferta' => '', 'imagen' => null]];
         $this->modalMode = 'hablador';
         $this->isModalOpen = true;
@@ -86,6 +88,7 @@ class HabladorManager extends Component
         $this->pantalla_nombre = '';
         $this->slug_pantalla = '';
         $this->orientation = 'landscape';
+        $this->assigned_user_id = auth()->user()->role == 'admin' ? '' : Auth::id();
         $this->modalMode = 'pantalla';
         $this->isModalOpen = true;
     }
@@ -117,6 +120,7 @@ class HabladorManager extends Component
             'nombre' => 'required',
             'tipo' => 'required|string',
             'productos.*.nombre' => 'required',
+            'assigned_user_id' => auth()->user()->role == 'admin' ? 'required' : 'nullable',
         ]);
 
         // Validación manual para imágenes solo si se está subiendo un archivo nuevo
@@ -145,8 +149,7 @@ class HabladorManager extends Component
         }
 
         Hablador::updateOrCreate(['id' => $this->hablador_id], [
-            // Importante: Si editamos como admin, mantenemos el user_id original
-            'user_id' => $this->hablador_id ? Hablador::find($this->hablador_id)->user_id : Auth::id(),
+            'user_id' => $this->assigned_user_id,
             'nombre' => $this->nombre,
             'tipo' => $this->tipo,
             'caracteristicas' => $productosFinales,
@@ -160,11 +163,12 @@ class HabladorManager extends Component
     public function storePantalla() {
         $this->validate([
             'pantalla_nombre' => 'required',
-            'slug_pantalla' => 'required'
+            'slug_pantalla' => 'required',
+            'assigned_user_id' => auth()->user()->role == 'admin' ? 'required' : 'nullable',
         ]);
 
         Pantalla::updateOrCreate(['id' => $this->pantalla_id], [
-            'user_id' => Auth::id(),
+            'user_id' => $this->assigned_user_id,
             'nombre' => $this->pantalla_nombre,
             'slug_pantalla' => $this->slug_pantalla,
             'orientation' => $this->orientation,

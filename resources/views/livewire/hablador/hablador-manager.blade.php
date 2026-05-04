@@ -146,6 +146,19 @@
                             </div>
                         </div>
                         
+                        @if(auth()->user()->role == 'admin')
+                        <div class="mb-3 mt-3">
+                            <label class="small fw-bold">Asignar a Aliado</label>
+                            <select wire:model="assigned_user_id" class="form-select rounded-pill">
+                                <option value="">Seleccione un aliado...</option>
+                                @foreach($aliados as $aliado)
+                                    <option value="{{ $aliado->id }}">{{ $aliado->names }} ({{ $aliado->email }})</option>
+                                @endforeach
+                            </select>
+                            @error('assigned_user_id') <span class="text-danger small ms-2">{{ $message }}</span> @enderror
+                        </div>
+                        @endif
+
                         <div class="mb-3 mt-3">
                             <label class="small fw-bold">Tipo de Contenido</label>
                             <select wire:model="tipo" class="form-select rounded-pill">
@@ -213,6 +226,18 @@
                         </button>
                     @else
                         <div class="mb-3">
+                            @if(auth()->user()->role == 'admin')
+                            <div class="mb-3">
+                                <label class="small fw-bold">Asignar a Aliado</label>
+                                <select wire:model="assigned_user_id" class="form-select rounded-pill">
+                                    <option value="">Seleccione un aliado...</option>
+                                    @foreach($aliados as $aliado)
+                                        <option value="{{ $aliado->id }}">{{ $aliado->names }} ({{ $aliado->email }})</option>
+                                    @endforeach
+                                </select>
+                                @error('assigned_user_id') <span class="text-danger small ms-2">{{ $message }}</span> @enderror
+                            </div>
+                            @endif
                             <label class="small fw-bold">Nombre de la Pantalla (Referencia)</label>
                             <input type="text" wire:model="pantalla_nombre" class="form-control rounded-pill">
                         </div>
