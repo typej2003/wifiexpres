@@ -18,6 +18,13 @@
         </div>
     </div>
 
+    @if (session()->has('message'))
+        <div class="alert alert-success alert-dismissible fade show rounded-4 border-0 shadow-sm mb-4" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> {{ session('message') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
     @if(auth()->user()->role == 'admin')
     <div class="card border-0 shadow-sm rounded-4 mb-4 bg-white">
         <div class="card-body p-3 d-flex align-items-center gap-3">
@@ -54,9 +61,14 @@
                                     <div class="badge {{ $h->activo ? 'bg-success' : 'bg-danger' }} text-white px-2 rounded-pill ms-1" style="font-size: 0.6rem;">
                                         {{ $h->activo ? 'ACTIVO' : 'INACTIVO' }}
                                     </div>
-                                    <button type="button" wire:click="editHablador({{ $h->id }})" class="btn btn-link text-muted p-0">
-                                        <i class="bi bi-pencil-square h5"></i>
-                                    </button>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" wire:click="editHablador({{ $h->id }})" class="btn btn-link text-muted p-0" title="Editar">
+                                            <i class="bi bi-pencil-square h5"></i>
+                                        </button>
+                                        <button type="button" onclick="confirm('¿Estás seguro de eliminar este Hablador? Esta acción no se puede deshacer.') || event.stopImmediatePropagation()" wire:click="deleteHablador({{ $h->id }})" class="btn btn-link text-danger p-0" title="Eliminar">
+                                            <i class="bi bi-trash h5"></i>
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <h5 class="fw-bold text-dark text-uppercase mb-1 text-truncate">{{ $h->nombre }}</h5>
@@ -113,7 +125,12 @@
                             <p class="mb-0 fw-bold small uppercase text-warning">{{ $p->nombre }}</p>
                             <small class="opacity-50" style="font-size: 0.7rem;">/tv/{{ $p->slug_pantalla }}</small>
                         </div>
-                        <i class="bi bi-circle-fill text-success" style="font-size: 0.5rem;"></i>
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" onclick="confirm('¿Eliminar esta pantalla permanentemente?') || event.stopImmediatePropagation()" wire:click="deletePantalla({{ $p->id }})" class="btn btn-link text-danger p-0">
+                                <i class="bi bi-x-circle fs-5"></i>
+                            </button>
+                            <i class="bi bi-circle-fill text-success" style="font-size: 0.5rem;"></i>
+                        </div>
                     </div>
                 @endforeach
             </div>

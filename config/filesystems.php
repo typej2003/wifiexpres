@@ -93,6 +93,13 @@ return [
             'url' => env('APP_URL').'/storage/campaign',
             'visibility' => 'public',
         ],
+
+        'habladores' => [
+            'driver' => 'local',
+            'root' => storage_path('app/public/habladores'),
+            'url' => env('APP_URL').'/storage/habladores',
+            'visibility' => 'public',
+        ],
         
     ],
 
@@ -115,6 +122,7 @@ return [
         public_path('storage/carruselhotspot') => storage_path('app/public/carruselhotspot'),
         public_path('storage/bannerrouter') => storage_path('app/public/bannerrouter'),
         public_path('storage/bannerrouter') => storage_path('app/public/campaign'),
+        public_path('storage/habladores') => storage_path('app/public/habladores'),
     ],
 
 ];

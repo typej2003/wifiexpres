@@ -8,6 +8,7 @@ use App\Models\Hablador;
 use App\Models\Pantalla;
 use App\Models\User; // Importamos User
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class HabladorManager extends Component
 {
@@ -51,10 +52,20 @@ class HabladorManager extends Component
             // Si es aliado, solo los suyos
             $queryHabladores->where('user_id', Auth::id());
         }
+        
+        // Mejoramos la obtención de pantallas para que el admin vea las del aliado seleccionado
+        $queryPantallas = Pantalla::query();
+        if ($user->role == 'admin') {
+            if ($this->selectedAliado) {
+                $queryPantallas->where('user_id', $this->selectedAliado);
+            }
+        } else {
+            $queryPantallas->where('user_id', Auth::id());
+        }
 
         return view('livewire.hablador.hablador-manager', [
             'habladores' => $queryHabladores->latest()->get(),
-            'pantallas' => Pantalla::where('user_id', Auth::id())->get(),
+            'pantallas' => $queryPantallas->get(),
             // Enviamos la lista de aliados para el select del Admin
             'aliados' => $user->role == 'admin' ? User::where('role', 'aliado')->get() : []
         ]);
@@ -113,6 +124,30 @@ class HabladorManager extends Component
             session()->flash('message', 'Transmitiendo contenido...');
             $this->render();
         }
+    }
+
+    public function deleteHablador($id) {
+        $hablador = Hablador::findOrFail($id);
+        
+        // 1. Eliminar archivos físicos de los productos para no llenar el servidor
+        if ($hablador->caracteristicas) {
+            foreach ($hablador->caracteristicas as $prod) {
+                if (!empty($prod['imagen']) && is_string($prod['imagen'])) {
+                    Storage::disk('public')->delete($prod['imagen']);
+                }
+            }
+        }
+
+        // 2. Desvincular de pantallas activas
+        Pantalla::where('hablador_id', $id)->update(['hablador_id' => null]);
+
+        $hablador->delete();
+        session()->flash('message', 'Hablador eliminado con éxito.');
+    }
+
+    public function deletePantalla($id) {
+        Pantalla::findOrFail($id)->delete();
+        session()->flash('message', 'Pantalla eliminada del sistema.');
     }
 
     public function storeHablador() {
