@@ -16,7 +16,7 @@ class HabladorManager extends Component
     public $isModalOpen = false;
     public $modalMode = 'hablador'; 
     
-    public $hablador_id, $nombre, $tipo = 'imagen';
+    public $hablador_id, $nombre, $tipo = 'imagen', $activo = true;
     public $productos = []; 
     
     public $pantalla_id, $pantalla_nombre, $slug_pantalla, $orientation = 'landscape';
@@ -65,6 +65,7 @@ class HabladorManager extends Component
         $this->hablador_id = null;
         $this->nombre = '';
         $this->tipo = 'imagen';
+        $this->activo = true;
         $this->modalMode = 'hablador';
         $this->isModalOpen = true;
     }
@@ -74,6 +75,7 @@ class HabladorManager extends Component
         $this->hablador_id = $id;
         $this->nombre = $hablador->nombre;
         $this->tipo = $hablador->tipo;
+        $this->activo = $hablador->activo;
         $this->productos = $hablador->caracteristicas ?? [['nombre' => '', 'precio' => '', 'oferta' => '', 'imagen' => null]];
         $this->modalMode = 'hablador';
         $this->isModalOpen = true;
@@ -113,9 +115,18 @@ class HabladorManager extends Component
     public function storeHablador() {
         $this->validate([
             'nombre' => 'required',
+            'tipo' => 'required|string',
             'productos.*.nombre' => 'required',
-            'productos.*.imagen' => 'nullable|max:2048', // Solo validamos tamaño para permitir strings y archivos
         ]);
+
+        // Validación manual para imágenes solo si se está subiendo un archivo nuevo
+        foreach ($this->productos as $index => $prod) {
+            if (isset($prod['imagen']) && !is_string($prod['imagen'])) {
+                $this->validate([
+                    "productos.$index.imagen" => 'image|mimes:jpg,jpeg,png|max:2048'
+                ]);
+            }
+        }
 
         $productosFinales = [];
         foreach ($this->productos as $prod) {
@@ -138,8 +149,9 @@ class HabladorManager extends Component
             'user_id' => $this->hablador_id ? Hablador::find($this->hablador_id)->user_id : Auth::id(),
             'nombre' => $this->nombre,
             'tipo' => $this->tipo,
-            'caracteristicas' => $productosFinales, 
-            'recursos' => array_column($productosFinales, 'imagen')
+            'caracteristicas' => $productosFinales,
+            'recursos' => array_column($productosFinales, 'imagen'),
+            'activo' => (bool)$this->activo,
         ]);
 
         $this->isModalOpen = false;

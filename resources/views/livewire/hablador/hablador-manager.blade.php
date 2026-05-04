@@ -51,6 +51,9 @@
                                     <div class="badge bg-light text-dark border px-3 rounded-pill uppercase" style="font-size: 0.65rem;">
                                         {{ $h->tipo }}
                                     </div>
+                                    <div class="badge {{ $h->activo ? 'bg-success' : 'bg-danger' }} text-white px-2 rounded-pill ms-1" style="font-size: 0.6rem;">
+                                        {{ $h->activo ? 'ACTIVO' : 'INACTIVO' }}
+                                    </div>
                                     <button type="button" wire:click="editHablador({{ $h->id }})" class="btn btn-link text-muted p-0">
                                         <i class="bi bi-pencil-square h5"></i>
                                     </button>
@@ -120,7 +123,7 @@
     <!-- MODAL DINÁMICO -->
     @if($isModalOpen)
     <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
-        <div class="modal-dialog {{ $modalMode == 'hablador' ? 'modal-lg' : '' }} modal-dialog-centered">
+        <div class="modal-dialog {{ $modalMode == 'hablador' ? 'modal-lg' : '' }}" style="margin-top: 8rem;">
             <div class="modal-content border-0 shadow-lg rounded-4">
                 <div class="modal-header border-0 pb-0">
                     <h5 class="fw-bold">{{ $modalMode == 'hablador' ? 'Configurar Hablador' : 'Nueva Pantalla' }}</h5>
@@ -128,11 +131,35 @@
                 </div>
                 <div class="modal-body">
                     @if($modalMode == 'hablador')
-                        <div class="mb-3">
-                            <label class="small fw-bold">Nombre del Hablador</label>
-                            <input type="text" wire:model="nombre" class="form-control rounded-pill">
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="small fw-bold">Nombre del Hablador</label>
+                                <input type="text" wire:model="nombre" class="form-control rounded-pill">
+                                @error('nombre') <span class="text-danger small ms-2">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small fw-bold">Estado</label>
+                                <select wire:model="activo" class="form-select rounded-pill">
+                                    <option value="1">Activo</option>
+                                    <option value="0">Inactivo</option>
+                                </select>
+                            </div>
                         </div>
                         
+                        <div class="mb-3 mt-3">
+                            <label class="small fw-bold">Tipo de Contenido</label>
+                            <select wire:model="tipo" class="form-select rounded-pill">
+                                <option value="imagen">Imagen Estática</option>
+                                <option value="carrusel">Carrusel de Imágenes</option>
+                                <option value="video">Video</option>
+                            </select>
+                            @error('tipo') <span class="text-danger small ms-2">{{ $message }}</span> @enderror
+                            <div class="alert alert-info py-1 px-2 mt-2 border-0 rounded-4" style="font-size: 0.7rem;">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Define cómo se visualizarán los productos en la pantalla receptora.
+                            </div>
+                        </div>
+
                         <h6 class="fw-bold mt-4 mb-3 small text-muted text-uppercase">Productos / Características</h6>
                         @foreach($productos as $index => $prod)
                         <div class="card bg-light border-0 rounded-4 mb-2 p-3" wire:key="prod-item-{{ $index }}">
@@ -161,10 +188,12 @@
                                             @endif
                                         </div>
                                         <div class="flex-grow-1">
+                                            <label class="small text-muted mb-0" style="font-size: 0.65rem;">Sube JPG o PNG (Máx 2MB)</label>
                                             <input type="file" wire:model="productos.{{$index}}.imagen" class="form-control form-control-sm rounded-pill">
                                             <div wire:loading wire:target="productos.{{$index}}.imagen" class="text-primary mt-1 fw-bold" style="font-size: 0.6rem;">
                                                 <i class="bi bi-arrow-repeat spin"></i> Subiendo...
                                             </div>
+                                            @error("productos.$index.imagen") <span class="text-danger d-block mt-1" style="font-size: 0.6rem;">{{ $message }}</span> @enderror
                                         </div>
                                     </div>
                                 </div>
