@@ -65,7 +65,7 @@ class HabladorManager extends Component
 
         return view('livewire.hablador.hablador-manager', [
             'habladores' => $queryHabladores->latest()->get(),
-            'pantallas' => $queryPantallas->get(),
+            'pantallas' => $queryPantallas->with('hablador')->get(),
             // Enviamos la lista de aliados para el select del Admin
             'aliados' => $user->role == 'admin' ? User::where('role', 'aliado')->get() : []
         ]);
@@ -91,6 +91,17 @@ class HabladorManager extends Component
         $this->assigned_user_id = $hablador->user_id;
         $this->productos = $hablador->caracteristicas ?? [['nombre' => '', 'precio' => '', 'oferta' => '', 'imagen' => null]];
         $this->modalMode = 'hablador';
+        $this->isModalOpen = true;
+    }
+
+    public function editPantalla($id) {
+        $pantalla = Pantalla::findOrFail($id);
+        $this->pantalla_id = $id;
+        $this->pantalla_nombre = $pantalla->nombre;
+        $this->slug_pantalla = $pantalla->slug_pantalla;
+        $this->orientation = $pantalla->orientation;
+        $this->assigned_user_id = $pantalla->user_id;
+        $this->modalMode = 'pantalla';
         $this->isModalOpen = true;
     }
 

@@ -22,4 +22,12 @@ class Pantalla extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
+    /**
+     * Obtiene el hablador asignado a esta pantalla.
+     */
+    public function hablador(): BelongsTo
+    {
+        return $this->belongsTo(Hablador::class, 'hablador_id');
+    }
 }

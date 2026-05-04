@@ -124,8 +124,16 @@
                         <div>
                             <p class="mb-0 fw-bold small uppercase text-warning">{{ $p->nombre }}</p>
                             <small class="opacity-50" style="font-size: 0.7rem;">/tv/{{ $p->slug_pantalla }}</small>
+                            <div class="mt-1">
+                                <span class="badge bg-secondary bg-opacity-25 text-warning border border-warning border-opacity-10" style="font-size: 0.6rem; letter-spacing: 0.5px;">
+                                    <i class="bi bi-broadcast me-1"></i> {{ $p->hablador->nombre ?? 'SIN CONTENIDO' }}
+                                </span>
+                            </div>
                         </div>
                         <div class="d-flex align-items-center gap-2">
+                            <button type="button" wire:click="editPantalla({{ $p->id }})" class="btn btn-link text-light p-0" title="Editar Pantalla">
+                                <i class="bi bi-pencil-square fs-5"></i>
+                            </button>
                             <button type="button" onclick="confirm('¿Eliminar esta pantalla permanentemente?') || event.stopImmediatePropagation()" wire:click="deletePantalla({{ $p->id }})" class="btn btn-link text-danger p-0">
                                 <i class="bi bi-x-circle fs-5"></i>
                             </button>
