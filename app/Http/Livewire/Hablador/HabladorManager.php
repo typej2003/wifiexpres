@@ -19,7 +19,7 @@ class HabladorManager extends Component
     public $hablador_id, $nombre, $tipo = 'imagen';
     public $productos = []; 
     
-    public $pantalla_id, $pantalla_nombre, $slug_pantalla;
+    public $pantalla_id, $pantalla_nombre, $slug_pantalla, $orientation = 'landscape';
 
     // NUEVAS PROPIEDADES PARA FILTRADO
     public $selectedAliado = ''; 
@@ -60,7 +60,55 @@ class HabladorManager extends Component
         ]);
     }
 
-    // ... (Mantener métodos createHablador, editHablador, createPantalla, closeModal, agregarProducto, removerProducto)
+    public function createHablador() {
+        $this->resetProds();
+        $this->hablador_id = null;
+        $this->nombre = '';
+        $this->tipo = 'imagen';
+        $this->modalMode = 'hablador';
+        $this->isModalOpen = true;
+    }
+
+    public function editHablador($id) {
+        $hablador = Hablador::findOrFail($id);
+        $this->hablador_id = $id;
+        $this->nombre = $hablador->nombre;
+        $this->tipo = $hablador->tipo;
+        $this->productos = $hablador->caracteristicas ?? [['nombre' => '', 'precio' => '', 'oferta' => '', 'imagen' => null]];
+        $this->modalMode = 'hablador';
+        $this->isModalOpen = true;
+    }
+
+    public function createPantalla() {
+        $this->pantalla_id = null;
+        $this->pantalla_nombre = '';
+        $this->slug_pantalla = '';
+        $this->orientation = 'landscape';
+        $this->modalMode = 'pantalla';
+        $this->isModalOpen = true;
+    }
+
+    public function closeModal() {
+        $this->isModalOpen = false;
+    }
+
+    public function agregarProducto() {
+        $this->productos[] = ['nombre' => '', 'precio' => '', 'oferta' => '', 'imagen' => null];
+    }
+
+    public function removerProducto($index) {
+        unset($this->productos[$index]);
+        $this->productos = array_values($this->productos);
+    }
+
+    public function lanzarAPantalla($habladorId, $pantallaId) {
+        $pantalla = Pantalla::find($pantallaId);
+        if ($pantalla) {
+            $pantalla->update(['hablador_id' => $habladorId]);
+            session()->flash('message', 'Transmitiendo contenido...');
+            $this->render();
+        }
+    }
 
     public function storeHablador() {
         $this->validate([
@@ -96,5 +144,19 @@ class HabladorManager extends Component
         $this->isModalOpen = false;
     }
 
-    // ... (Mantener storePantalla y lanzarAPantalla)
+    public function storePantalla() {
+        $this->validate([
+            'pantalla_nombre' => 'required',
+            'slug_pantalla' => 'required'
+        ]);
+
+        Pantalla::updateOrCreate(['id' => $this->pantalla_id], [
+            'user_id' => Auth::id(),
+            'nombre' => $this->pantalla_nombre,
+            'slug_pantalla' => $this->slug_pantalla,
+            'orientation' => $this->orientation,
+        ]);
+
+        $this->isModalOpen = false;
+    }
 }

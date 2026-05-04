@@ -60,7 +60,7 @@
                                 
                                 @if(auth()->user()->role == 'admin')
                                 <p class="text-primary small mb-2" style="font-size: 0.7rem;">
-                                    <i class="bi bi-person-circle"></i> {{ $h->user->names ?? 'Desconocido' }}
+                                    <i class="bi bi-person-circle"></i> {{ $h->aliado->names ?? 'Desconocido' }}
                                 </p>
                                 @endif
 
@@ -93,6 +93,10 @@
                         </div>
                     </div>
                 @empty
+                    <div class="col-12 text-center py-5">
+                        <i class="bi bi-layers text-muted h1"></i>
+                        <p class="text-muted">No se encontraron habladores creados.</p>
+                    </div>
                     @endforelse
             </div>
         </div>
@@ -113,4 +117,77 @@
         </div>
     </div>
 
+    <!-- MODAL DINÁMICO -->
+    @if($isModalOpen)
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog {{ $modalMode == 'hablador' ? 'modal-lg' : '' }} modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="fw-bold">{{ $modalMode == 'hablador' ? 'Configurar Hablador' : 'Nueva Pantalla' }}</h5>
+                    <button type="button" wire:click="closeModal" class="btn-close"></button>
+                </div>
+                <div class="modal-body">
+                    @if($modalMode == 'hablador')
+                        <div class="mb-3">
+                            <label class="small fw-bold">Nombre del Hablador</label>
+                            <input type="text" wire:model="nombre" class="form-control rounded-pill">
+                        </div>
+                        
+                        <h6 class="fw-bold mt-4 mb-3 small text-muted text-uppercase">Productos / Características</h6>
+                        @foreach($productos as $index => $prod)
+                        <div class="card bg-light border-0 rounded-4 mb-2 p-3">
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <input type="text" wire:model="productos.{{$index}}.nombre" class="form-control form-control-sm rounded-pill" placeholder="Nombre">
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="text" wire:model="productos.{{$index}}.precio" class="form-control form-control-sm rounded-pill" placeholder="Precio">
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="file" wire:model="productos.{{$index}}.imagen" class="form-control form-control-sm rounded-pill">
+                                </div>
+                                <div class="col-md-2 text-end">
+                                    @if(count($productos) > 1)
+                                    <button wire:click="removerProducto({{$index}})" class="btn btn-sm btn-outline-danger rounded-circle">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                        @endforeach
+                        
+                        <button wire:click="agregarProducto" class="btn btn-sm btn-link text-primary fw-bold p-0 mt-2">
+                            <i class="bi bi-plus-circle"></i> Agregar otro producto
+                        </button>
+                    @else
+                        <div class="mb-3">
+                            <label class="small fw-bold">Nombre de la Pantalla (Referencia)</label>
+                            <input type="text" wire:model="pantalla_nombre" class="form-control rounded-pill">
+                        </div>
+                        <div class="mb-3">
+                            <label class="small fw-bold">Slug / Identificador (Debe ser único)</label>
+                            <input type="text" wire:model="slug_pantalla" class="form-control rounded-pill" placeholder="ej: pantalla-recepcion">
+                        </div>
+                        <div class="mb-3">
+                            <label class="small fw-bold">Orientación</label>
+                            <select wire:model="orientation" class="form-select rounded-pill">
+                                <option value="landscape">Horizontal (Landscape)</option>
+                                <option value="portrait">Vertical (Portrait)</option>
+                            </select>
+                        </div>
+                    @endif
+                </div>
+                <div class="modal-footer border-0">
+                    <button wire:click="closeModal" class="btn btn-light rounded-pill px-4">Cancelar</button>
+                    @if($modalMode == 'hablador')
+                        <button wire:click="storeHablador" class="btn btn-primary rounded-pill px-4">Guardar Hablador</button>
+                    @else
+                        <button wire:click="storePantalla" class="btn btn-dark rounded-pill px-4">Guardar Pantalla</button>
+                    @endif
+                </div>
+            </div>
+        </div>
     </div>
+    @endif
+</div>
