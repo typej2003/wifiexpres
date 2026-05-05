@@ -119,9 +119,9 @@
         <div class="col-lg-3">
             <div class="card border-0 shadow-sm rounded-4 p-3 bg-white sticky-top" style="top: 20px;">
                 <h6 class="fw-bold text-muted mb-3 small uppercase tracking-wider">Mis Monitores</h6>
-                <div class="d-flex flex-nowrap overflow-auto gap-2 pb-2 custom-scrollbar" style="scrollbar-width: thin;">
+                <div class="d-flex flex-column overflow-auto gap-2 custom-scrollbar" style="max-height: 600px; scrollbar-width: thin;">
                     @foreach($pantallas as $p)
-                        <div class="p-3 rounded-4 bg-dark text-white shadow-sm d-flex align-items-center justify-content-between flex-shrink-0" style="width: 260px;">
+                        <div class="p-3 rounded-4 bg-dark text-white shadow-sm d-flex align-items-center justify-content-between w-100">
                             <div class="text-truncate">
                                 <p class="mb-0 fw-bold small uppercase text-warning text-truncate">{{ $p->nombre }}</p>
                                 <small class="opacity-50 text-truncate d-block" style="font-size: 0.7rem;">/tv/{{ $p->slug_pantalla }}</small>
