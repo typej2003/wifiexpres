@@ -124,11 +124,11 @@
                 <div class="d-flex flex-column overflow-auto gap-2 custom-scrollbar" style="max-height: 600px; scrollbar-width: thin;">
                     @foreach($pantallas as $p)
                         <div class="p-3 rounded-4 bg-dark text-white shadow-sm d-flex align-items-center justify-content-between w-100">
-                            <div class="text-truncate">
+                            <div class="flex-grow-1 text-truncate">
                                 <p class="mb-0 fw-bold small uppercase text-warning text-truncate">{{ $p->nombre }}</p>
                                 <small class="opacity-50 text-truncate d-block" style="font-size: 0.7rem;">/tv/{{ $p->slug_pantalla }}</small>
                                 <div class="mt-1">
-                                    <div class="badge bg-secondary bg-opacity-25 text-warning border border-warning border-opacity-10 d-flex align-items-center px-2 py-1 rounded-pill w-100" style="max-width: 180px;">
+                                    <div class="badge bg-secondary bg-opacity-25 text-warning border border-warning border-opacity-10 d-flex align-items-center px-2 py-1 rounded-pill w-100" style="max-width: 220px;">
                                         <i class="bi bi-broadcast me-1 flex-shrink-0" style="font-size: 0.7rem;"></i>
                                         <textarea class="form-control border-0 bg-transparent p-0 fw-bold text-warning text-uppercase shadow-none custom-scrollbar" readonly style="resize: none; height: 16px; font-size: 0.6rem; line-height: 1.2; overflow-y: auto; scrollbar-width: thin;">{{ $p->hablador->nombre ?? 'SIN CONTENIDO' }}</textarea>
                                     </div>
