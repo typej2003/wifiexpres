@@ -119,28 +119,30 @@
         <div class="col-lg-3">
             <div class="card border-0 shadow-sm rounded-4 p-3 bg-white sticky-top" style="top: 20px;">
                 <h6 class="fw-bold text-muted mb-3 small uppercase tracking-wider">Mis Monitores</h6>
-                @foreach($pantallas as $p)
-                    <div class="p-3 rounded-4 bg-dark text-white mb-2 shadow-sm d-flex align-items-center justify-content-between">
-                        <div>
-                            <p class="mb-0 fw-bold small uppercase text-warning">{{ $p->nombre }}</p>
-                            <small class="opacity-50" style="font-size: 0.7rem;">/tv/{{ $p->slug_pantalla }}</small>
-                            <div class="mt-1">
-                                <span class="badge bg-secondary bg-opacity-25 text-warning border border-warning border-opacity-10" style="font-size: 0.6rem; letter-spacing: 0.5px;">
-                                    <i class="bi bi-broadcast me-1"></i> {{ $p->hablador->nombre ?? 'SIN CONTENIDO' }}
-                                </span>
+                <div class="d-flex flex-nowrap overflow-auto gap-2 pb-2 custom-scrollbar" style="scrollbar-width: thin;">
+                    @foreach($pantallas as $p)
+                        <div class="p-3 rounded-4 bg-dark text-white shadow-sm d-flex align-items-center justify-content-between flex-shrink-0" style="width: 260px;">
+                            <div class="text-truncate">
+                                <p class="mb-0 fw-bold small uppercase text-warning text-truncate">{{ $p->nombre }}</p>
+                                <small class="opacity-50 text-truncate d-block" style="font-size: 0.7rem;">/tv/{{ $p->slug_pantalla }}</small>
+                                <div class="mt-1">
+                                    <span class="badge bg-secondary bg-opacity-25 text-warning border border-warning border-opacity-10 text-truncate d-inline-block" style="font-size: 0.6rem; letter-spacing: 0.5px; max-width: 100%;">
+                                        <i class="bi bi-broadcast me-1"></i> {{ $p->hablador->nombre ?? 'SIN CONTENIDO' }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 ms-2">
+                                <button type="button" wire:click="editPantalla({{ $p->id }})" class="btn btn-link text-light p-0" title="Editar Pantalla">
+                                    <i class="bi bi-pencil-square fs-5"></i>
+                                </button>
+                                <button type="button" onclick="confirm('¿Eliminar esta pantalla permanentemente?') || event.stopImmediatePropagation()" wire:click="deletePantalla({{ $p->id }})" class="btn btn-link text-danger p-0">
+                                    <i class="bi bi-x-circle fs-5"></i>
+                                </button>
+                                <i class="bi bi-circle-fill text-success" style="font-size: 0.5rem;"></i>
                             </div>
                         </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <button type="button" wire:click="editPantalla({{ $p->id }})" class="btn btn-link text-light p-0" title="Editar Pantalla">
-                                <i class="bi bi-pencil-square fs-5"></i>
-                            </button>
-                            <button type="button" onclick="confirm('¿Eliminar esta pantalla permanentemente?') || event.stopImmediatePropagation()" wire:click="deletePantalla({{ $p->id }})" class="btn btn-link text-danger p-0">
-                                <i class="bi bi-x-circle fs-5"></i>
-                            </button>
-                            <i class="bi bi-circle-fill text-success" style="font-size: 0.5rem;"></i>
-                        </div>
-                    </div>
-                @endforeach
+                    @endforeach
+                </div>
             </div>
         </div>
     </div>

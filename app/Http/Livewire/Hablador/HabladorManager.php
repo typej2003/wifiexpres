@@ -187,7 +187,8 @@ class HabladorManager extends Component
             $imgPath = $prod['imagen'] ?? null;
             
             if (isset($prod['imagen']) && !is_string($prod['imagen'])) {
-                // Conservar nombre original con un prefijo único
+                // Validamos que sea un objeto de archivo antes de intentar obtener el nombre
+                // Conservamos el nombre original anteponiendo el timestamp para evitar duplicados
                 $originalName = time() . '_' . $prod['imagen']->getClientOriginalName();
                 $imgPath = $prod['imagen']->storeAs('/', $originalName, 'habladores');
             }
