@@ -83,7 +83,7 @@
 
                                 <div class="mb-3">
                                     @if(!empty($h->recursos) && isset($h->recursos[0]))
-                                        <a href="{{ asset('storage/'.$h->recursos[0]) }}" target="_blank" class="btn btn-sm btn-outline-secondary w-100 rounded-pill">
+                                        <a href="{{ asset('storage/habladores/'.$h->recursos[0]) }}" target="_blank" class="btn btn-sm btn-outline-secondary w-100 rounded-pill">
                                             <i class="bi bi-eye"></i> Ver Multimedia
                                         </a>
                                     @endif
@@ -217,7 +217,7 @@
                                                     <img src="{{ $productos[$index]['imagen']->temporaryUrl() }}" class="img-thumbnail rounded-3 w-100 h-100 shadow-sm" style="object-fit: cover;">
                                                 @elseif (is_string($productos[$index]['imagen']))
                                                     {{-- Previsualización de imagen existente en el servidor --}}
-                                                    <img src="{{ asset('storage/' . $productos[$index]['imagen']) }}" class="img-thumbnail rounded-3 w-100 h-100 shadow-sm" style="object-fit: cover;">
+                                                    <img src="{{ asset('storage/habladores/' . $productos[$index]['imagen']) }}" class="img-thumbnail rounded-3 w-100 h-100 shadow-sm" style="object-fit: cover;">
                                                 @endif
                                             @else
                                                 <div class="bg-white rounded-3 d-flex align-items-center justify-content-center w-100 h-100 border border-dashed text-muted">
@@ -226,7 +226,7 @@
                                             @endif
                                         </div>
                                         <div class="flex-grow-1">
-                                            <label class="small text-muted mb-0" style="font-size: 0.65rem;">Sube JPG o PNG (Máx 2MB)</label>
+                                            <label class="small text-muted mb-0" style="font-size: 0.65rem;">Imagen o Video (Máx 20MB)</label>
                                             <input type="file" wire:model="productos.{{$index}}.imagen" class="form-control form-control-sm rounded-pill">
                                             <div wire:loading wire:target="productos.{{$index}}.imagen" class="text-primary mt-1 fw-bold" style="font-size: 0.6rem;">
                                                 <i class="bi bi-arrow-repeat spin"></i> Subiendo...

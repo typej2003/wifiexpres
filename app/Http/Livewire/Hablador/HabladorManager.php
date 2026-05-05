@@ -141,10 +141,10 @@ class HabladorManager extends Component
         $hablador = Hablador::findOrFail($id);
         
         // 1. Eliminar archivos físicos de los productos para no llenar el servidor
-        if ($hablador->caracteristicas) {
-            foreach ($hablador->caracteristicas as $prod) {
-                if (!empty($prod['imagen']) && is_string($prod['imagen'])) {
-                    Storage::disk('public')->delete($prod['imagen']);
+        if ($hablador->recursos) {
+            foreach ($hablador->recursos as $img) {
+                if (!empty($img) && is_string($img)) {
+                    Storage::disk('habladores')->delete($img);
                 }
             }
         }
@@ -169,21 +169,27 @@ class HabladorManager extends Component
             'assigned_user_id' => auth()->user()->role == 'admin' ? 'required' : 'nullable',
         ]);
 
-        // Validación manual para imágenes solo si se está subiendo un archivo nuevo
+        // Validación manual para imágenes y videos
         foreach ($this->productos as $index => $prod) {
             if (isset($prod['imagen']) && !is_string($prod['imagen'])) {
                 $this->validate([
-                    "productos.$index.imagen" => 'image|mimes:jpg,jpeg,png|max:2048'
+                    "productos.$index.imagen" => 'file|mimes:jpg,jpeg,png,mp4,mov,avi,webm|max:20480'
                 ]);
             }
         }
+
+        // Obtener el registro anterior para la limpieza de archivos
+        $oldHablador = $this->hablador_id ? Hablador::find($this->hablador_id) : null;
+        $oldImages = $oldHablador ? ($oldHablador->recursos ?? []) : [];
 
         $productosFinales = [];
         foreach ($this->productos as $prod) {
             $imgPath = $prod['imagen'] ?? null;
             
             if (isset($prod['imagen']) && !is_string($prod['imagen'])) {
-                $imgPath = $prod['imagen']->store('productos', 'public');
+                // Conservar nombre original con un prefijo único
+                $originalName = time() . '_' . $prod['imagen']->getClientOriginalName();
+                $imgPath = $prod['imagen']->storeAs('/', $originalName, 'habladores');
             }
 
             $productosFinales[] = [
@@ -192,6 +198,15 @@ class HabladorManager extends Component
                 'oferta' => $prod['oferta'],
                 'imagen' => $imgPath
             ];
+        }
+
+        $nuevasImagenes = array_filter(array_column($productosFinales, 'imagen'));
+
+        // Limpieza: Eliminar archivos físicos que ya no están en la lista (reemplazados o quitados)
+        foreach ($oldImages as $oldImg) {
+            if ($oldImg && !in_array($oldImg, $nuevasImagenes)) {
+                Storage::disk('habladores')->delete($oldImg);
+            }
         }
 
         Hablador::updateOrCreate(['id' => $this->hablador_id], [
