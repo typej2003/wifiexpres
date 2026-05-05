@@ -173,15 +173,19 @@ Route::post('/auth-sync-service', function (Request $request) {
 });
 
 Route::middleware('auth:sanctum')->get('/get-habladores', function (Request $request) {
-    // Laravel identifica al Aliado por el Token enviado desde la App
     $user = $request->user();
 
-    // Traemos los habladores que pertenecen a este user_id
     $habladores = Hablador::where('user_id', $user->id)
         ->where('activo', true)
         ->get();
 
-    return response()->json($habladores);
+    // Traemos las pantallas vinculadas al aliado
+    $pantallas = Pantalla::where('user_id', $user->id)->get();
+
+    return response()->json([
+        'habladores' => $habladores,
+        'pantallas' => $pantallas
+    ]);
 });
 
 Route::middleware('auth:sanctum')->post('/update-hablador-info', function (Request $request) {
