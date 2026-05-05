@@ -128,9 +128,10 @@
                                 <p class="mb-0 fw-bold small uppercase text-warning text-truncate">{{ $p->nombre }}</p>
                                 <small class="opacity-50 text-truncate d-block" style="font-size: 0.7rem;">/tv/{{ $p->slug_pantalla }}</small>
                                 <div class="mt-1">
-                                    <span class="badge bg-secondary bg-opacity-25 text-warning border border-warning border-opacity-10 text-truncate d-inline-block" style="font-size: 0.6rem; letter-spacing: 0.5px; max-width: 100%;">
-                                        <i class="bi bi-broadcast me-1"></i> {{ $p->hablador->nombre ?? 'SIN CONTENIDO' }}
-                                    </span>
+                                    <div class="badge bg-secondary bg-opacity-25 text-warning border border-warning border-opacity-10 d-flex align-items-center px-2 py-1 rounded-pill w-100" style="max-width: 180px;">
+                                        <i class="bi bi-broadcast me-1 flex-shrink-0" style="font-size: 0.7rem;"></i>
+                                        <textarea class="form-control border-0 bg-transparent p-0 fw-bold text-warning text-uppercase shadow-none custom-scrollbar" readonly style="resize: none; height: 16px; font-size: 0.6rem; line-height: 1.2; overflow-y: auto; scrollbar-width: thin;">{{ $p->hablador->nombre ?? 'SIN CONTENIDO' }}</textarea>
+                                    </div>
                                 </div>
                             </div>
                             <div class="d-flex align-items-center gap-2 ms-2">
