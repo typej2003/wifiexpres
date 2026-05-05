@@ -71,7 +71,9 @@
                                     </div>
                                 </div>
 
-                                <h5 class="fw-bold text-dark text-uppercase mb-1 text-truncate">{{ $h->nombre }}</h5>
+                                <div class="mb-1">
+                                    <textarea class="form-control border-0 bg-transparent p-0 fw-bold text-dark text-uppercase shadow-none custom-scrollbar" readonly style="resize: none; height: 45px; font-size: 1rem; line-height: 1.2; overflow-y: auto; scrollbar-width: thin;">{{ $h->nombre }}</textarea>
+                                </div>
                                 
                                 @if(auth()->user()->role == 'admin')
                                 <p class="text-primary small mb-2" style="font-size: 0.7rem;">
