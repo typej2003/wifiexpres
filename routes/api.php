@@ -129,46 +129,56 @@ Route::post('/save-notifications', function (Request $request) {
 });
 
 // Ruta de prueba para verificar qué está llegando al servidor
+
 Route::post('/auth-sync-service', function (Request $request) {
-    // 1. Capturar datos
+    // 1. Capturar y limpiar datos
     $email = trim($request->input('email'));
     $password = $request->input('password');
 
     // 2. Buscar usuario
     $user = User::where('email', $email)->first();
 
-    // 3. Validación simple (como la teníamos cuando funcionó)
-    // Usamos password_verify que es lo más directo
-    if ($user && password_verify($password, $user->password)) {
+    // 3. Validación de credenciales
+    if ($user && Hash::check($password, $user->password)) {
         
-        // Verificamos el rol para estar seguros
+        // Verificamos el rol para restringir el acceso a la App
         if ($user->role !== 'aliado') {
             return response()->json(['message' => 'No autorizado: Rol ' . $user->role], 403);
         }
 
         try {
-            // Aquí es donde daba el error antes. 
-            // Si el modelo User ya tiene el trait HasApiTokens, esto funcionará.
+            // Generar Token Sanctum
             $token = $user->createToken('hablador-token')->plainTextToken;
 
-            // En tu ruta de Login en Laravel
+            // --- NUEVO: Recuperar datos del Aliado ---
+            
+            // Traemos los habladores activos
+            $habladores = Hablador::where('user_id', $user->id)
+                ->where('activo', true)
+                ->get();
+
+            // Traemos todas las pantallas configuradas
+            $pantallas = Pantalla::where('user_id', $user->id)->get();
+
+            // Retornamos la respuesta completa para que Android la procese
             return response()->json([
                 'access_token' => $token,
                 'token_type' => 'Bearer',
                 'user' => [
-                    'id' => $user->id,    // <--- ¡IMPORTANTE!
+                    'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email
-                ]
+                ],
+                'habladores' => $habladores,
+                'pantallas' => $pantallas
             ], 200);
 
         } catch (\Exception $e) {
-            // Si vuelve a fallar el createToken, aquí veremos por qué
-            return response()->json(['message' => 'Error de Token: ' . $e->getMessage()], 500);
+            return response()->json(['message' => 'Error en el servidor: ' . $e->getMessage()], 500);
         }
     }
 
-    // Si llega aquí es porque falló el usuario o la clave
+    // Fallo de autenticación
     return response()->json(['message' => 'Credenciales incorrectas'], 401);
 });
 
