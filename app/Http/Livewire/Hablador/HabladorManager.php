@@ -173,7 +173,7 @@ class HabladorManager extends Component
         foreach ($this->productos as $index => $prod) {
             if (isset($prod['imagen']) && !is_string($prod['imagen'])) {
                 $this->validate([
-                    "productos.$index.imagen" => 'file|mimes:jpg,jpeg,png,mp4,mov,avi,webm|max:20480'
+                    "productos.$index.imagen" => 'file|mimes:jpg,jpeg,png,mp4,mov,avi,webm|max:102400'
                 ]);
             }
         }

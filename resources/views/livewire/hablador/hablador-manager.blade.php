@@ -231,7 +231,7 @@
                                             @endif
                                         </div>
                                         <div class="flex-grow-1">
-                                            <label class="small text-muted mb-0" style="font-size: 0.65rem;">Imagen o Video (Máx 20MB)</label>
+                                            <label class="small text-muted mb-0" style="font-size: 0.65rem;">Imagen o Video (Máx 100MB)</label>
                                             <input type="file" wire:model="productos.{{$index}}.imagen" class="form-control form-control-sm rounded-pill">
                                             <div wire:loading wire:target="productos.{{$index}}.imagen" class="text-primary mt-1 fw-bold" style="font-size: 0.6rem;">
                                                 <i class="bi bi-arrow-repeat spin"></i> Subiendo...
