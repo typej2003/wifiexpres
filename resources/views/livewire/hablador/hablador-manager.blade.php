@@ -230,12 +230,27 @@
                                                 </div>
                                             @endif
                                         </div>
-                                        <div class="flex-grow-1">
+                                        <div class="flex-grow-1" 
+                                             x-data="{ uploading: false, progress: 0 }"
+                                             x-on:livewire-upload-start="uploading = true"
+                                             x-on:livewire-upload-finish="uploading = false"
+                                             x-on:livewire-upload-error="uploading = false"
+                                             x-on:livewire-upload-progress="progress = $event.detail.progress">
+                                             
                                             <label class="small text-muted mb-0" style="font-size: 0.65rem;">Imagen o Video (Máx 100MB)</label>
                                             <input type="file" wire:model="productos.{{$index}}.imagen" class="form-control form-control-sm rounded-pill">
-                                            <div wire:loading wire:target="productos.{{$index}}.imagen" class="text-primary mt-1 fw-bold" style="font-size: 0.6rem;">
-                                                <i class="bi bi-arrow-repeat spin"></i> Subiendo...
+                                            
+                                            <!-- Barra de Progreso -->
+                                            <div x-show="uploading" class="mt-2">
+                                                <div class="progress" style="height: 10px;">
+                                                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                                                         role="progressbar" 
+                                                         :style="`width: ${progress}%`" 
+                                                         x-bind:aria-valuenow="progress" aria-valuemin="0" aria-valuemax="100"></div>
+                                                </div>
+                                                <small class="text-primary fw-bold" style="font-size: 0.6rem;" x-text="`Subiendo: ${progress}%`"></small>
                                             </div>
+
                                             @error("productos.$index.imagen") <span class="text-danger d-block mt-1" style="font-size: 0.6rem;">{{ $message }}</span> @enderror
                                         </div>
                                     </div>
