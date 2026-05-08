@@ -83,7 +83,7 @@
                         <div class="bg-black bg-opacity-10">
                             <span class="text-white-50 small d-block pt-2">DESCARGAS</span>
                             <a href="{{ route('apk.download') }}" class="text-white py-3 d-block text-decoration-none fw-bold">
-                                <i class="bi bi-android2 me-1"></i> wifiexpres v1
+                                <i class="bi bi-android2 me-1"></i> wifiexpres v1 (Android)
                             </a>
                         </div>
                     </nav>
