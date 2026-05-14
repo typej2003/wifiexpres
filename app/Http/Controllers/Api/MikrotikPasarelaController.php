@@ -18,6 +18,7 @@ use App\Models\Pagomovil;
 use App\Models\Router;
 use App\Models\UserMikrotik;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
 
 class MikrotikPasarelaController extends Controller
@@ -431,11 +432,6 @@ class IpgBdv2
 	
 	function __construct($user,$pass){
 
-		session_start();		
-		if(!isset($_SESSION[self::ACCESS_TOKEN])){
-			$_SESSION[self::ACCESS_TOKEN] = '';
-		}
-
 		$this->user = $user;
 		$this->pass = $pass;
 		$this->messages = array(
@@ -481,11 +477,8 @@ class IpgBdv2
 	
 	public function checkPayment($paymentToken) {
 		
-		if($_SESSION[self::ACCESS_TOKEN] == ''){
-			$this->refreshToken();	
-		}
-		
-		$response = $this->getPayment($paymentToken);		
+		$this->ensureTokenIsValid();
+		$response = $this->getPayment($paymentToken);
 		
 		if($response->responseCode == 401){				
 			$this->refreshToken();				
@@ -497,10 +490,7 @@ class IpgBdv2
 	
     public function createPayment($paymentRequest) {
 		
-		if($_SESSION[self::ACCESS_TOKEN] == ''){
-			$this->refreshToken();	
-		}
-
+		$this->ensureTokenIsValid();
 		$response = $this->postPayment($paymentRequest);
 	
 		if($response->responseCode == 401){		
@@ -511,8 +501,17 @@ class IpgBdv2
 		return $response;		
     }	
 
+	/**
+	 * Asegura que el token de acceso exista en la caché.
+	 */
+	private function ensureTokenIsValid() {
+		if (!Cache::has(self::ACCESS_TOKEN)) {
+			$this->refreshToken();
+		}
+	}
+
 	private function getMessageDescription($code) {
-		 return $this->messages[$code];
+		 return $this->messages[$code] ?? "Error desconocido";
 	}
 
 	private function refreshToken() {
@@ -548,7 +547,8 @@ class IpgBdv2
 		if ($httpcode == 200)
 		{
 			$auxResp = json_decode($resp);
-			$_SESSION[self::ACCESS_TOKEN] = $auxResp->access_token;
+			// Guardar en caché (ajustar el tiempo de vida según sea necesario, ej: 3600s)
+			Cache::put(self::ACCESS_TOKEN, $auxResp->access_token, 3000);
 		}
     }
 	 
@@ -557,7 +557,7 @@ class IpgBdv2
 
 		$headers = [
 			'Content-Type: application/json',
-		    'Authorization: Bearer '.$_SESSION[self::ACCESS_TOKEN],
+		    'Authorization: Bearer ' . Cache::get(self::ACCESS_TOKEN),
 		];		
 
 		$data = array(
@@ -640,7 +640,7 @@ class IpgBdv2
 
 		$headers = [
 			'Content-Type: application/json',
-			  'Authorization: Bearer '.$_SESSION[self::ACCESS_TOKEN],
+			  'Authorization: Bearer ' . Cache::get(self::ACCESS_TOKEN),
 		];
 		
 		$url = self::URL_API;

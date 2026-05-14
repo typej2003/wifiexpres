@@ -1,0 +1,551 @@
+/* Variables */
+:root {
+    --primary: #FF572F;
+    --secondary: #6700da;
+    --glass: rgba(255, 255, 255, 0.1);
+    --transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    overflow-x: hidden;
+    background-color: #2d2d2d; /* Gris que combina con el naranja */
+}
+
+/* Fondo Fijo */
+.fixed-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('img/mapamundi.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    z-index: -1;
+}
+
+/* Ajustes Header Dual (Sin espacios blancos) */
+#mainNavbar {
+    top: 0;
+    z-index: 1050;
+    transition: transform 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.navbar-top {
+    position: relative;
+    z-index: 1060; /* Por encima del submenú */
+}
+
+.navbar {
+    position: relative;
+    z-index: 1060; /* Por encima del submenú */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.navbar-logo {
+    height: 50px;
+    transition: var(--transition);
+}
+
+.login-link {
+    transition: color 0.3s;
+    font-size: 0.9rem;
+}
+
+.login-link:hover {
+    color: var(--primary) !important;
+}
+
+.navbar.scrolled .navbar-logo {
+    height: 35px;
+}
+
+.navbar-logo {
+    height: 60px;
+    transition: var(--transition);
+}
+
+.navbar.scrolled .navbar-logo {
+    height: 40px;
+}
+
+/* Iluminación Menu */
+.nav-link {
+    color: #fff !important;
+    font-weight: 600;
+    padding: 8px 15px !important;
+    margin: 0 5px;
+    position: relative;
+    transition: var(--transition);
+    border-radius: 8px;
+}
+
+.nav-link:hover {
+    background: white;
+    color: var(--primary) !important;
+}
+
+/* Login Button */
+.btn-login-custom {
+    background: var(--secondary);
+    color: white;
+    border-radius: 50px;
+    padding: 8px 25px;
+    border: 2px solid var(--secondary);
+    transition: var(--transition);
+}
+
+.btn-login-custom:hover {
+    background: transparent;
+    color: white;
+    box-shadow: 0 0 20px var(--secondary);
+}
+
+/* Submenu */
+.submenu-container {
+    position: fixed;
+    top: 90px;
+    left: 0;
+    width: 100%;
+    background: white;
+    z-index: 1040; /* Por debajo de las barras de navegación */
+    margin-top: 0;
+    transform: translateY(-150%);
+    visibility: hidden;
+    transition: var(--transition);
+    border-top: 1px solid #eee;
+}
+
+.submenu-container.active {
+    transform: translateY(0);
+    visibility: visible;
+}
+
+.submenu-item {
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.submenu-item:hover {
+    transform: scale(1.1);
+    color: var(--primary);
+}
+
+/* Estilos Específicos Sección Inicio */
+.main-hero-section {
+    background: linear-gradient(to right, var(--secondary) 0%, #4b0099 100%) !important;
+    padding-top: 120px; /* Ajustado para la altura del navbar dual */
+    overflow: hidden;
+    position: relative;
+}
+
+.hero-curve-divider {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 50%;
+    height: 100%;
+    background-color: var(--primary);
+    clip-path: ellipse(100% 100% at 100% 50%);
+    z-index: 1;
+}
+
+/* Contenedor de elementos de fondo en el Botón */
+.hero-bg-elements {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    pointer-events: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.wave-purple {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    border: 2px solid var(--secondary);
+    border-radius: 50%;
+    animation: waveExpandButton 3s linear infinite;
+    opacity: 0;
+    box-shadow: 0 0 15px var(--secondary);
+}
+
+.wave-purple:nth-child(2) { animation-delay: 1s; }
+.wave-purple:nth-child(3) { animation-delay: 2s; }
+
+@keyframes waveExpandButton {
+    0% { transform: scale(0.5); opacity: 0.8; }
+    100% { transform: scale(6); opacity: 0; }
+}
+
+.hero-title {
+    font-size: 3.5rem; /* Título un poco más pequeño */
+    line-height: 1.1;
+    text-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+    min-height: 10rem;
+    display: flex;
+    align-items: flex-start;
+}
+
+/* Typewriter Cursor */
+.typewriter-cursor {
+    animation: blink 0.7s infinite;
+    color: white;
+    font-weight: bold;
+    margin-left: 2px;
+    display: inline-block;
+}
+
+.typewriter-target {
+    transition: opacity 0.5s ease;
+}
+
+.typewriter-fade-out {
+    opacity: 0;
+}
+
+@keyframes blink {
+    from, to { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+/* Estilo para el icono insertado por Typewriter */
+.typewriter-icon {
+    height: 1.1em; 
+    vertical-align: middle; /* Se baja para que no flote sobre el texto */
+    margin: 0 1px 0 -2px; /* Pegado a la letra anterior */
+    display: inline-block;
+    transform: translateY(-0.05em);
+    filter: drop-shadow(0 0 2px white) drop-shadow(0 0 5px rgba(255,255,255,0.5));
+}
+
+/* Contenedor de la Chica e Iconos */
+.chica-wrapper {
+    position: relative;
+    width: 400px; /* Contenedor más grande */
+    height: 400px;
+    margin-top: 50px; /* Baja la imagen respecto al texto */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    perspective: 1500px;
+    transform-style: preserve-3d;
+}
+
+.chica-center {
+    position: absolute;
+    width: 280px; /* Imagen más grande */
+    height: 280px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transform: translateZ(0); /* Eje central */
+    z-index: 5; 
+}
+
+.central-icon {
+    font-size: 10rem;
+    color: white;
+    filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.6));
+    z-index: 6;
+    position: relative;
+}
+
+.chica-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    border: none;
+    box-shadow: 0 0 50px rgba(255, 255, 255, 0.5);
+    transform: translateZ(5px); /* Posición en el eje Z para la órbita */
+}
+
+/* Efecto de Ondas (Waves) */
+.wave {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    transform: translate(-50%, -50%);
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    z-index: -1;
+    animation: waveExpand 4s linear infinite;
+    display: block !important;
+    pointer-events: none;
+    opacity: 0;
+}
+
+.wave:nth-child(2) { animation-delay: 1.3s; }
+.wave:nth-child(3) { animation-delay: 2.6s; }
+
+@keyframes waveExpand {
+    0% { width: 100%; height: 100%; opacity: 0.8; }
+    100% { width: 500%; height: 500%; opacity: 0; }
+}
+
+/* Animación de Órbita */
+.orbit {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transform-style: preserve-3d;
+}
+
+.orbit-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 60px;
+    height: 60px;
+    background: #007bff; /* Azul solicitado */
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 12px; /* Cuadrados redondeados 3D */
+    font-size: 1.5rem;
+    box-shadow: 0 10px 20px rgba(0,123,255,0.4), inset 0 -4px 0 rgba(0,0,0,0.2);
+    backface-visibility: hidden;
+}
+
+/* Animaciones individuales para que orbiten sin girar sobre su eje */
+.orbit-icon:nth-child(1) { animation: orbit1 12s linear infinite; }
+.orbit-icon:nth-child(2) { animation: orbit2 12s linear infinite; }
+.orbit-icon:nth-child(3) { animation: orbit3 12s linear infinite; }
+.orbit-icon:nth-child(4) { animation: orbit4 12s linear infinite; }
+
+/* Animaciones con profundidad (Z-Index simulado por transformaciones 3D) */
+@keyframes orbit1 {
+    0% { transform: rotateY(0deg) translateZ(280px) rotateY(0deg); z-index: 10; }
+    50% { transform: rotateY(180deg) translateZ(280px) rotateY(-180deg); z-index: 1; }
+    100% { transform: rotateY(360deg) translateZ(280px) rotateY(-360deg); z-index: 10; }
+}
+@keyframes orbit2 {
+    0% { transform: rotateY(90deg) translateZ(280px) rotateY(-90deg); z-index: 10; }
+    50% { transform: rotateY(270deg) translateZ(280px) rotateY(-270deg); z-index: 1; }
+    100% { transform: rotateY(450deg) translateZ(280px) rotateY(-450deg); z-index: 10; }
+}
+@keyframes orbit3 {
+    0% { transform: rotateY(180deg) translateZ(280px) rotateY(-180deg); z-index: 1; }
+    50% { transform: rotateY(360deg) translateZ(280px) rotateY(-360deg); z-index: 10; }
+    100% { transform: rotateY(540deg) translateZ(280px) rotateY(-540deg); z-index: 1; }
+}
+@keyframes orbit4 {
+    0% { transform: rotateY(270deg) translateZ(280px) rotateY(-270deg); z-index: 1; }
+    50% { transform: rotateY(450deg) translateZ(280px) rotateY(-450deg); z-index: 10; }
+    100% { transform: rotateY(630deg) translateZ(280px) rotateY(-630deg); z-index: 1; }
+}
+
+/* Secciones */
+.section-full {
+    min-height: 100vh;
+}
+
+.section-content {
+    padding: 100px 0;
+    min-height: 80vh;
+}
+
+.bg-overlay {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+/* Títulos Sobresalientes */
+.section-title {
+    color: var(--primary);
+    font-weight: 900;
+    font-size: 3.5rem;
+    text-transform: uppercase;
+    letter-spacing: 5px;
+}
+
+/* Efecto Reveal para títulos */
+.reveal-title {
+    opacity: 0;
+    transform: translateX(-100px);
+    transition: all 0.8s ease-out;
+}
+
+.reveal-title.visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Contenedor para tarjetas de igual altura */
+.cards-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+}
+
+/* Cards con Glassmorphism y Hover */
+.card-glass-effect {
+    background: var(--glass);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 30px;
+    border-radius: 20px;
+    color: white;
+    text-align: center;
+    transition: var(--transition);
+    height: 100%; /* Asegura igual altura en el grid */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    animation: fadeInUp 0.8s ease backwards;
+}
+
+.card-glass-effect.bg-light-card { background: rgba(0,0,0,0.05); color: #333; border-color: #ddd; }
+.card-glass-effect:hover {
+    transform: translateY(-20px) scale(1.05);
+    border-color: var(--primary);
+    box-shadow: 0 15px 40px rgba(247, 134, 52, 0.3);
+}
+
+.card-icon {
+    font-size: 3rem;
+    color: var(--primary);
+    margin-bottom: 20px;
+}
+
+/* Colores de Maquina de Escribir por Sección */
+.typewriter-home { color: white; }
+.typewriter-ventajas { color: var(--secondary) !important; }
+.typewriter-planes { color: var(--primary) !important; }
+
+.section-ventajas {
+    background-color: #ffffff;
+}
+
+.section-planes {
+    background-color: #2d2d2d;
+    padding: 80px 0;
+    color: white;
+}
+
+.plan-price {
+    font-size: 3rem;
+    font-weight: 800;
+    color: var(--primary);
+    margin: 15px 0;
+}
+
+.plan-price span { font-size: 1rem; color: #aaa; }
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Botones Dinámicos */
+.btn-glow {
+    background: var(--primary);
+    border: none;
+    color: white;
+    padding: 15px 45px;
+    border-radius: 50px;
+    animation: pulsate 2s infinite;
+}
+
+@keyframes pulsate {
+    0% { box-shadow: 0 0 0 0 rgba(255, 87, 47, 0.4); }
+    70% { box-shadow: 0 0 0 20px rgba(255, 87, 47, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 87, 47, 0); }
+}
+
+/* Estilos Contacto / Footer Personalizado */
+.footer-top-section {
+    background: white;
+    padding: 60px 0;
+    color: #333;
+}
+
+.footer-bottom-section {
+    background: var(--secondary) !important;
+    padding: 30px 0;
+    border-top: 1px solid #eee;
+    color: white !important;
+}
+
+.footer-logo-main { height: 60px; margin-bottom: 20px; }
+.footer-logo-ddr { height: 40px; }
+
+.social-icons-footer a {
+    font-size: 1.8rem;
+    margin: 0 15px;
+    transition: var(--transition);
+    color: white;
+}
+.social-icons-footer a:hover { transform: scale(1.2) rotate(10deg); color: var(--primary); }
+
+.social-icons-footer {
+    padding-right: 60px; /* Margen para no chocar con el botón de WhatsApp */
+}
+
+/* Botones Flotantes */
+.floating-controls {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.btn-whatsapp {
+    width: 60px;
+    height: 60px;
+    background: #25d366;
+    border-radius: 50%;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 30px;
+    text-decoration: none;
+    transition: var(--transition);
+}
+
+.btn-top {
+    width: 50px;
+    height: 50px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    opacity: 0;
+    visibility: hidden;
+    transition: var(--transition);
+}
+
+.btn-top.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Ajuste Responsive Móvil */
+@media (max-width: 768px) {
+    .main-hero-section {
+        padding-top: 180px; /* Más espacio en móvil para el header dual */
+    }
+    .hero-title {
+        font-size: 2.5rem;
+        min-height: 8.5rem;
+    }
+}

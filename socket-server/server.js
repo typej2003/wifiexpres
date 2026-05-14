@@ -120,23 +120,31 @@ app.get('/api/check-task-result', (req, res) => {
 app.get('/api/routers-online', (req, res) => {
     try {
         const ahora = Date.now();
+        
+        // Pre-agrupar comandos en tránsito por MAC para mejorar el rendimiento
+        const transitoPorMac = {};
+        Object.values(comandosEnTransito).forEach(item => {
+            if (!transitoPorMac[item.mac]) transitoPorMac[item.mac] = [];
+            transitoPorMac[item.mac].push({
+                tid: item.tid,
+                cmd: item.cmd,
+                age: Math.round((ahora - item.ts) / 1000) + 's'
+            });
+        });
+
         const lista = Object.keys(routersEnLinea).map(macKey => {
             const r = routersEnLinea[macKey];
+            const transito = transitoPorMac[macKey] || [];
+            
             return {
                 mac: macKey,
                 identity: r.identity,
                 ip: r.ip,
                 lastSeen: Math.round((ahora - r.lastSeen) / 1000) + 's ago',
                 queueSize: (colasPorRouter[macKey] || []).length,
-                transitSize: Object.values(comandosEnTransito).filter(i => i.mac === macKey).length,
+                transitSize: transito.length,
                 comandosDetalle: (colasPorRouter[macKey] || []).map(c => c.cmd),
-                transitoDetalle: Object.values(comandosEnTransito)
-                    .filter(i => i.mac === macKey)
-                    .map(i => ({ 
-                        tid: i.tid, 
-                        cmd: i.cmd, 
-                        age: Math.round((ahora - i.ts) / 1000) + 's' 
-                    }))
+                transitoDetalle: transito
             };
         });
         res.json(lista);
