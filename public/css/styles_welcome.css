@@ -53,11 +53,16 @@ img, picture, .img-responsive {
 /* ---------------------------------- */
 /* SECCIONES PRINCIPALES (MAIN)       */
 /* ---------------------------------- */
-/* CAMBIADO: Altura de las secciones para ocupar la pantalla completa menos la navbar */
-.vh-70 {
-    /* height: calc(100vh - 90px); 100% de la pantalla menos la altura del header fijo */
-    /* min-height: 400px; */
+/* Altura completa para el carrusel de promociones */
+.vh-100 {
+    height: 100vh;
+    height: 100dvh;
     overflow: hidden;
+}
+
+/* Ocultar leyendas en el carrusel de promociones */
+.promo-carousel .carousel-caption {
+    display: none !important;
 }
 
 /* Colores de fondo intercalados para diferenciar secciones */
