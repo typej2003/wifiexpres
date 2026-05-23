@@ -96,52 +96,8 @@
     </div>
     @endif
 
-    {{-- RESUMEN DETALLADO POR FILTROS --}}
-    @if(count($summaries) > 0)
-    <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
-        <div class="card-header bg-primary text-white py-3">
-            <h6 class="mb-0 fw-bold text-uppercase small"><i class="fas fa-chart-pie me-2"></i>Resumen de Impacto por Filtro</h6>
-        </div>
-        <div class="table-responsive">
-            <table class="table align-middle mb-0">
-                <thead class="bg-light text-muted small">
-                    <tr class="text-uppercase">
-                        <th class="ps-4">Segmento / Filtro</th>
-                        <th class="text-center">Total Conexiones</th>
-                        <th class="text-center">Usuarios Únicos</th>
-                        <th class="text-center">% Participación</th>
-                        <th class="text-center">Promedio Conex. / Usuario</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($summaries as $label => $data)
-                    <tr class="{{ $label == 'General' ? 'bg-primary bg-opacity-10 fw-bold' : '' }}">
-                        <td class="ps-4">
-                            @if($label == 'General') <i class="fas fa-globe text-primary me-2"></i> @endif
-                            @if(str_contains($label, 'Femenino')) <i class="fas fa-venus text-danger me-2"></i> @endif
-                            @if(str_contains($label, 'Masculino')) <i class="fas fa-mars text-primary me-2"></i> @endif
-                            @if(str_contains($label, 'Edad')) <i class="fas fa-birthday-cake text-warning me-2"></i> @endif
-                            {{ $label }}
-                        </td>
-                        <td class="text-center"><span class="badge bg-primary rounded-pill">{{ number_format($data['conexiones']) }}</span></td>
-                        <td class="text-center text-dark">{{ number_format($data['usuarios']) }}</td>
-                        <td class="text-center">
-                            <div class="progress mt-1" style="height: 6px;">
-                                <div class="progress-bar bg-info" role="progressbar" style="width: {{ $data['porcentaje'] }}%"></div>
-                            </div>
-                            <small class="text-muted">{{ number_format($data['porcentaje'], 1) }}%</small>
-                        </td>
-                        <td class="text-center text-muted">
-                            {{ $data['usuarios'] > 0 ? number_format($data['conexiones'] / $data['usuarios'], 2) : 0 }}
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    </div>
-
     {{-- TABLAS DE OCUPACIÓN POR SEGMENTO --}}
+    @if(count($reports) > 0)
     @php 
         // Ordenamos para que General siempre sea la primera tabla
         $orderedReports = collect($reports)->sortByDesc(fn($v, $k) => $k === 'General');

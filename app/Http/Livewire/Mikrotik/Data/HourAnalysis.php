@@ -76,93 +76,86 @@ class HourAnalysis extends Component
         $this->reports = [];
         $this->summaries = [];
 
-        // 1. Definir los segmentos a analizar
+        // 1. Query Base: Solo Router y Rango de Fechas (El punto de partida "General")
         $baseQuery = TicketLog::where('router_id', $this->selectedRouter)
             ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()]);
 
-        // Filtro por Zona (Basado en el segmento IP guardado en mac_address)
+        // 2. Definir qué tablas (segmentos) vamos a generar
+        $segmentsToProcess = [
+            'General' => clone $baseQuery
+        ];
+
+        // Si se seleccionó Zona, creamos un segmento específico
         if ($this->selectedZona) {
             $mapping = AntennaMapping::find($this->selectedZona);
             if ($mapping) {
-                // Extraemos los primeros 3 octetos de la IP de la zona
                 $ipParts = explode('.', $mapping->ip_address);
                 if (count($ipParts) >= 3) {
                     $segmento = $ipParts[0] . '.' . $ipParts[1] . '.' . $ipParts[2] . '.';
-                    $baseQuery->where('mac_address', 'LIKE', $segmento . '%');
+                    $segmentsToProcess['Zona: ' . $mapping->location_name] = (clone $baseQuery)
+                        ->where('mac_address', 'LIKE', $segmento . '%');
                 }
             }
         }
 
-        // 2. Procesar Segmentos (General, Géneros, Edades)
-        $segments = [
-            'General' => null,
-            'Femenino' => ['field' => 'gender', 'value' => 'F'],
-            'Masculino' => ['field' => 'gender', 'value' => 'M'],
-            'Edad: < 18' => ['field' => 'age', 'case' => 'menor18'],
-            'Edad: 18-24' => ['field' => 'age', 'case' => '18-24'],
-            'Edad: 25-35' => ['field' => 'age', 'case' => '25-35'],
-            'Edad: > 35' => ['field' => 'age', 'case' => 'mayor35'],
-        ];
-
-        foreach ($segments as $label => $filter) {
-            $segmentQuery = clone $baseQuery;
-
-            if ($filter) {
-                $segmentQuery->whereExists(function ($q) use ($filter) {
+        // Si se seleccionó Edad, creamos un segmento específico
+        if ($this->selectedEdad) {
+            $labels = ['menor18' => '< 18', '18-24' => '18-24', '25-35' => '25-35', 'mayor35' => '> 35'];
+            $segmentsToProcess['Edad: ' . $labels[$this->selectedEdad]] = (clone $baseQuery)
+                ->whereExists(function ($q) {
                     $q->select(DB::raw(1))
                         ->from('user_mikrotiks')
                         ->whereColumn('user_mikrotiks.name', 'ticket_logs.username')
                         ->whereColumn('user_mikrotiks.router_id', 'ticket_logs.router_id');
-                    
-                    if ($filter['field'] === 'gender') {
-                        $q->where('gender', $filter['value']);
-                    }
-                    
-                    if ($filter['field'] === 'age') {
-                        switch ($filter['case']) {
-                            case 'menor18': $q->whereRaw('TIMESTAMPDIFF(YEAR, birthday, CURDATE()) < 18'); break;
-                            case '18-24': $q->whereRaw('TIMESTAMPDIFF(YEAR, birthday, CURDATE()) BETWEEN 18 AND 24'); break;
-                            case '25-35': $q->whereRaw('TIMESTAMPDIFF(YEAR, birthday, CURDATE()) BETWEEN 25 AND 35'); break;
-                            case 'mayor35': $q->whereRaw('TIMESTAMPDIFF(YEAR, birthday, CURDATE()) > 35'); break;
-                        }
+                    switch ($this->selectedEdad) {
+                        case 'menor18': $q->whereRaw('TIMESTAMPDIFF(YEAR, birthday, CURDATE()) < 18'); break;
+                        case '18-24': $q->whereRaw('TIMESTAMPDIFF(YEAR, birthday, CURDATE()) BETWEEN 18 AND 24'); break;
+                        case '25-35': $q->whereRaw('TIMESTAMPDIFF(YEAR, birthday, CURDATE()) BETWEEN 25 AND 35'); break;
+                        case 'mayor35': $q->whereRaw('TIMESTAMPDIFF(YEAR, birthday, CURDATE()) > 35'); break;
                     }
                 });
-            }
-
-            // Obtener Totales
-            $totalC = $segmentQuery->count();
-            $uniqueU = $segmentQuery->distinct('username')->count('username');
-
-            if ($totalC > 0 || $label === 'General') {
-                $percent = 100;
-                if ($label !== 'General' && isset($this->summaries['General'])) {
-                    $percent = $this->summaries['General']['usuarios'] > 0 ? ($uniqueU / $this->summaries['General']['usuarios']) * 100 : 0;
-                }
-
-                $this->summaries[$label] = [
-                    'conexiones' => $totalC,
-                    'usuarios' => $uniqueU,
-                    'porcentaje' => $percent
-                ];
-
-                // Obtener Matriz horaria
-                $results = $segmentQuery->select([
-                        DB::raw('DATE(created_at) as fecha'),
-                        DB::raw('HOUR(created_at) as hora'),
-                        DB::raw('COUNT(*) as total')
-                    ])
-                    ->groupBy('fecha', 'hora')
-                    ->get();
-
-                $matrix = [];
-                foreach ($results as $row) {
-                    $matrix[$row->fecha][$row->hora] = $row->total;
-                }
-                $this->reports[$label] = $matrix;
-            }
         }
 
-        // Notificar al navegador para posibles actualizaciones de UI (JS)
+        // Si se seleccionó Género, creamos un segmento específico
+        if ($this->selectedGenero) {
+            $genLabel = $this->selectedGenero == 'F' ? 'Femenino' : 'Masculino';
+            $segmentsToProcess['Género: ' . $genLabel] = (clone $baseQuery)
+                ->whereExists(function ($q) {
+                    $q->select(DB::raw(1))
+                        ->from('user_mikrotiks')
+                        ->whereColumn('user_mikrotiks.name', 'ticket_logs.username')
+                        ->whereColumn('user_mikrotiks.router_id', 'ticket_logs.router_id')
+                        ->where('gender', $this->selectedGenero);
+                });
+        }
+
+        // 3. Ejecutar y mapear cada segmento
+        foreach ($segmentsToProcess as $label => $segmentQuery) {
+            $totalC = (clone $segmentQuery)->count();
+            $uniqueU = (clone $segmentQuery)->distinct('username')->count('username');
+
+            // Guardamos resumen para los badges de las tablas
+            $this->summaries[$label] = [
+                'conexiones' => $totalC,
+                'usuarios' => $uniqueU,
+                'porcentaje' => 100 // No necesario para tabla de impacto pero útil para lógica interna
+            ];
+
+            $results = $segmentQuery->select([
+                DB::raw('DATE(created_at) as fecha'),
+                DB::raw('HOUR(created_at) as hora'),
+                DB::raw('COUNT(*) as total')
+            ])
+            ->groupBy('fecha', 'hora')
+            ->get();
+
+            $matrix = [];
+            foreach ($results as $row) {
+                $matrix[$row->fecha][$row->hora] = $row->total;
+            }
+            $this->reports[$label] = $matrix;
+        }
+
         $this->dispatchBrowserEvent('reportUpdated');
     }
 
