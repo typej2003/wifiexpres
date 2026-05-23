@@ -55,6 +55,47 @@
         </div>
     </div>
 
+    {{-- INFORMACIÓN DE FILTROS APLICADOS --}}
+    @if($selectedRouter)
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-body p-3 bg-light">
+            <h6 class="mb-2 fw-bold text-muted small text-uppercase"><i class="fas fa-filter me-2"></i>Filtros Aplicados</h6>
+            <div class="d-flex flex-wrap gap-2">
+                <span class="badge bg-primary text-white border border-primary px-3 py-2 fw-normal">
+                    <i class="fas fa-calendar-alt me-1"></i> {{ \Carbon\Carbon::parse($fromDate)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($toDate)->format('d/m/Y') }}
+                </span>
+                <span class="badge bg-dark text-white border border-dark px-3 py-2 fw-normal">
+                    <i class="fas fa-network-wired me-1"></i> Router: {{ $routers->find($selectedRouter)->identity ?? 'N/A' }}
+                </span>
+                @if($selectedZona)
+                <span class="badge bg-info bg-opacity-10 text-info border border-info px-3 py-2 fw-normal">
+                    <i class="fas fa-map-marker-alt me-1"></i> Zona: {{ $zonas->find($selectedZona)->location_name ?? 'N/A' }}
+                </span>
+                @endif
+                @if($selectedEdad)
+                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning px-3 py-2 fw-normal">
+                    <i class="fas fa-user-tag me-1"></i> Edad: 
+                    @if($selectedEdad == 'menor18') Menores de 18
+                    @elseif($selectedEdad == '18-24') 18-24 años
+                    @elseif($selectedEdad == '25-35') 25-35 años
+                    @elseif($selectedEdad == 'mayor35') Mayores de 35
+                    @endif
+                </span>
+                @endif
+                @if($selectedGenero)
+                <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 fw-normal">
+                    <i class="fas fa-venus-mars me-1"></i> Género: 
+                    @if($selectedGenero == 'F') Femenino
+                    @elseif($selectedGenero == 'M') Masculino
+                    @endif
+                </span>
+                @endif
+                @if(!$selectedZona && !$selectedEdad && !$selectedGenero) <span class="badge bg-secondary text-white px-3 py-2 fw-normal">Sin filtros adicionales</span> @endif
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- RESUMEN DETALLADO POR FILTROS --}}
     @if(count($summaries) > 0)
     <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
@@ -68,16 +109,17 @@
                         <th class="ps-4">Segmento / Filtro</th>
                         <th class="text-center">Total Conexiones</th>
                         <th class="text-center">Usuarios Únicos</th>
-                        <th class="text-center">Promedio Conex. x Usuario</th>
+                        <th class="text-center">Promedio Conex. / Usuario</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($summaries as $label => $data)
                     <tr class="{{ $label == 'General' ? 'bg-light fw-bold' : '' }}">
                         <td class="ps-4">
-                            @if($label == 'General') <i class="fas fa-globe text-primary me-2"></i>
-                            @elseif(str_contains($label, 'Edad')) <i class="fas fa-birthday-cake text-warning me-2"></i>
-                            @else <i class="fas fa-user-tag text-info me-2"></i> @endif
+                            @if($label == 'General') <i class="fas fa-globe text-primary me-2"></i> @endif
+                            @if(str_contains($label, 'Femenino')) <i class="fas fa-venus text-pink me-2"></i> @endif
+                            @if(str_contains($label, 'Masculino')) <i class="fas fa-mars text-blue me-2"></i> @endif
+                            @if(str_contains($label, 'Edad')) <i class="fas fa-birthday-cake text-warning me-2"></i> @endif
                             {{ $label }}
                         </td>
                         <td class="text-center"><span class="badge bg-primary rounded-pill">{{ number_format($data['conexiones']) }}</span></td>
@@ -91,7 +133,6 @@
             </table>
         </div>
     </div>
-
     {{-- TABLAS DE OCUPACIÓN POR SEGMENTO --}}
     @foreach($reports as $label => $matrix)
     <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-5">
@@ -127,13 +168,28 @@
         </div>
     </div>
     @endforeach
+    @else
+        @if($selectedRouter)
+            <div class="alert alert-info rounded-4 shadow-sm">
+                <i class="fas fa-info-circle me-2"></i> No se encontraron registros para los criterios seleccionados.
+            </div>
+        @endif
     @endif
 
-    @if(count($summaries) == 0 && $selectedRouter)
-        <div class="alert alert-info rounded-4 shadow-sm">
-            <i class="fas fa-info-circle me-2"></i> No se encontraron registros para los criterios seleccionados.
-        </div>
-    @endif
+    {{-- Mover el script al final del div principal para que se ejecute después de que Livewire haya renderizado todo --}}
+    <script>
+        window.addEventListener('reportUpdated', event => {
+            console.log('Datos actualizados correctamente.');
+            // Aquí puedes añadir lógica de scroll o resaltado con Vanilla JS
+        });
+    </script>
+</div>
+
+<style>
+    /* Colores adicionales para los iconos de género */
+    .text-pink { color: #e83e8c !important; }
+    .text-blue { color: #007bff !important; }
+</style>
 
     <script>
         window.addEventListener('reportUpdated', event => {
