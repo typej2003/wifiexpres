@@ -96,6 +96,45 @@
     </div>
     @endif
 
+    {{-- TABLA DE RESUMEN DE IMPACTO --}}
+    @if(count($summaries) > 0)
+    <div class="card shadow-sm border-0 rounded-4 mb-4">
+        <div class="card-header bg-white py-3">
+            <h6 class="mb-0 fw-bold text-dark text-uppercase"><i class="fas fa-chart-pie me-2"></i>Resumen de Impacto por Segmento</h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light small text-uppercase fw-bold">
+                        <tr>
+                            <th class="ps-4">Segmento / Filtro</th>
+                            <th class="text-center">Total Conexiones</th>
+                            <th class="text-center">Usuarios Únicos</th>
+                            <th class="text-center">Alcance %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($summaries as $label => $data)
+                        <tr>
+                            <td class="ps-4 fw-bold text-primary">{{ $label }}</td>
+                            <td class="text-center"><span class="badge bg-light text-dark border px-3">{{ number_format($data['conexiones']) }}</span></td>
+                            <td class="text-center fw-bold">{{ number_format($data['usuarios']) }}</td>
+                            <td class="text-center">
+                                @php $perc = $summaries['General']['usuarios'] > 0 ? ($data['usuarios'] / $summaries['General']['usuarios']) * 100 : 0; @endphp
+                                <div class="progress" style="height: 8px; width: 100px; margin: 0 auto;">
+                                    <div class="progress-bar bg-primary" role="progressbar" style="width: {{ $perc }}%"></div>
+                                </div>
+                                <small class="text-muted" style="font-size: 10px;">{{ number_format($perc, 1) }}% del total</small>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- TABLAS DE OCUPACIÓN POR SEGMENTO --}}
     @if(count($reports) > 0)
     @php 
