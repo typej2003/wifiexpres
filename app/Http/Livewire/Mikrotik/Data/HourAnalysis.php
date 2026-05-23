@@ -93,7 +93,7 @@ class HourAnalysis extends Component
                 if (count($ipParts) >= 3) {
                     $segmento = $ipParts[0] . '.' . $ipParts[1] . '.' . $ipParts[2] . '.';
                     $segmentsToProcess['Zona: ' . $mapping->location_name] = (clone $baseQuery)
-                        ->where('mac_address', 'LIKE', $segmento . '%');
+                        ->where('ip_address', 'LIKE', $segmento . '%');
                 }
             }
         }
@@ -101,12 +101,14 @@ class HourAnalysis extends Component
         // Si se seleccionó Edad, creamos un segmento específico
         if ($this->selectedEdad) {
             $labels = ['menor18' => '< 18', '18-24' => '18-24', '25-35' => '25-35', 'mayor35' => '> 35'];
+            $tableName = (new TicketLog)->getTable();
+
             $segmentsToProcess['Edad: ' . $labels[$this->selectedEdad]] = (clone $baseQuery)
-                ->whereExists(function ($q) {
+                ->whereExists(function ($q) use ($tableName) {
                     $q->select(DB::raw(1))
                         ->from('user_mikrotiks')
-                        ->whereColumn('user_mikrotiks.name', 'ticket_logs.username')
-                        ->whereColumn('user_mikrotiks.router_id', 'ticket_logs.router_id');
+                        ->whereColumn('user_mikrotiks.name', $tableName . '.username')
+                        ->whereColumn('user_mikrotiks.router_id', $tableName . '.router_id');
                     switch ($this->selectedEdad) {
                         case 'menor18': $q->whereRaw('TIMESTAMPDIFF(YEAR, birthday, CURDATE()) < 18'); break;
                         case '18-24': $q->whereRaw('TIMESTAMPDIFF(YEAR, birthday, CURDATE()) BETWEEN 18 AND 24'); break;
@@ -119,12 +121,14 @@ class HourAnalysis extends Component
         // Si se seleccionó Género, creamos un segmento específico
         if ($this->selectedGenero) {
             $genLabel = $this->selectedGenero == 'F' ? 'Femenino' : 'Masculino';
+            $tableName = (new TicketLog)->getTable();
+
             $segmentsToProcess['Género: ' . $genLabel] = (clone $baseQuery)
-                ->whereExists(function ($q) {
+                ->whereExists(function ($q) use ($tableName) {
                     $q->select(DB::raw(1))
                         ->from('user_mikrotiks')
-                        ->whereColumn('user_mikrotiks.name', 'ticket_logs.username')
-                        ->whereColumn('user_mikrotiks.router_id', 'ticket_logs.router_id')
+                        ->whereColumn('user_mikrotiks.name', $tableName . '.username')
+                        ->whereColumn('user_mikrotiks.router_id', $tableName . '.router_id')
                         ->where('gender', $this->selectedGenero);
                 });
         }
@@ -141,17 +145,19 @@ class HourAnalysis extends Component
                 'porcentaje' => 100 // No necesario para tabla de impacto pero útil para lógica interna
             ];
 
-            $results = $segmentQuery->select([
-                DB::raw('DATE(created_at) as fecha'),
-                DB::raw('HOUR(created_at) as hora'),
-                DB::raw('COUNT(*) as total')
-            ])
-            ->groupBy('fecha', 'hora')
+            $results = $segmentQuery->toBase()
+                ->select([
+                    DB::raw('DATE(created_at) as fecha'),
+                    DB::raw('HOUR(created_at) as hora'),
+                    DB::raw('COUNT(*) as total')
+                ])
+                ->groupBy(DB::raw('DATE(created_at)'), DB::raw('HOUR(created_at)'))
             ->get();
 
             $matrix = [];
             foreach ($results as $row) {
-                $matrix[$row->fecha][$row->hora] = $row->total;
+                $h = (int)$row->hora;
+                $matrix[$row->fecha][$h] = $row->total;
             }
             $this->reports[$label] = $matrix;
         }
