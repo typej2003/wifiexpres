@@ -27,13 +27,22 @@ class HourAnalysis extends Component
     // Resultados
     public $reportData = [];
     public $dates = [];
+    public $totalConexiones = 0;
+    public $totalUsuarios = 0;
 
     public function mount()
     {
-        // Inicializar con el mes actual de 2026 según el contexto
-        $this->fromDate = Carbon::create(2026, 3, 1)->format('Y-m-d');
-        $this->toDate = Carbon::create(2026, 3, 30)->format('Y-m-d');
+        // 1. Inicializar con el día actual
+        $this->fromDate = Carbon::now()->format('Y-m-d');
+        $this->toDate = Carbon::now()->format('Y-m-d');
         $this->routers = Router::where('is_active', true)->get();
+
+        // Cargar datos automáticamente si existen routers para mejorar la experiencia de usuario
+        if ($this->routers->isNotEmpty()) {
+            $this->selectedRouter = $this->routers->first()->id;
+            $this->updatedSelectedRouter($this->selectedRouter);
+            $this->consultar();
+        }
     }
 
     public function updatedSelectedRouter($value)
@@ -113,6 +122,10 @@ class HourAnalysis extends Component
                 }
             });
         }
+
+        // Cálculos de Resumen (Totales basados en los filtros aplicados)
+        $this->totalConexiones = (clone $query)->count();
+        $this->totalUsuarios = (clone $query)->distinct('username')->count('username');
 
         // Agrupación por Día y Hora para la matriz
         $results = $query->select([

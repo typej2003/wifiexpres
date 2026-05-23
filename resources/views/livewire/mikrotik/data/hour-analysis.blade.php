@@ -55,6 +55,46 @@
         </div>
     </div>
 
+    {{-- TABLA DE RESUMEN DE FILTROS --}}
+    @if($selectedRouter)
+    <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+        <div class="card-header bg-white py-3">
+            <h6 class="mb-0 fw-bold text-muted small text-uppercase"><i class="fas fa-info-circle me-2"></i>Resumen de Filtros Aplicados</h6>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead class="bg-light text-muted small text-uppercase">
+                    <tr>
+                        <th class="ps-4 py-2">Total Conexiones</th>
+                        <th class="py-2">Usuarios Únicos</th>
+                        <th class="py-2">Router</th>
+                        <th class="py-2">Periodo</th>
+                        <th class="pe-4 py-2">Filtros Activos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="fw-bold">
+                        <td class="ps-4">
+                            <span class="fs-5 text-primary">{{ number_format($totalConexiones) }}</span>
+                        </td>
+                        <td>
+                            <span class="fs-5 text-dark">{{ number_format($totalUsuarios) }}</span>
+                        </td>
+                        <td class="text-secondary small">{{ $routers->find($selectedRouter)->identity ?? 'N/A' }}</td>
+                        <td class="text-secondary small">{{ Carbon\Carbon::parse($fromDate)->format('d/m/Y') }} al {{ Carbon\Carbon::parse($toDate)->format('d/m/Y') }}</td>
+                        <td class="pe-4">
+                            @if($selectedZona) <span class="badge bg-info bg-opacity-10 text-info border border-info px-2">Zona</span> @endif
+                            @if($selectedEdad) <span class="badge bg-info bg-opacity-10 text-info border border-info px-2">Edad</span> @endif
+                            @if($selectedGenero) <span class="badge bg-info bg-opacity-10 text-info border border-info px-2">Género</span> @endif
+                            @if(!$selectedZona && !$selectedEdad && !$selectedGenero) <span class="text-muted small fw-normal">Ninguno</span> @endif
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    @endif
+
     <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
         <div class="card-header bg-dark text-white py-3">
             <h6 class="mb-0 fw-bold text-uppercase">Ocupación por hora - Cliente</h6>
@@ -76,8 +116,8 @@
                                 <td class="fw-bold bg-light small text-center">{{ $date }}</td>
                                 @for($h=0; $h<24; $h++)
                                     @php $count = $reportData[$date][$h] ?? 0; @endphp
-                                    <td class="text-center small {{ $count > 0 ? 'fw-bold text-primary' : 'text-muted' }}" 
-                                        style="{{ $count > 0 ? 'background-color: rgba(0,123,255,'.min($count/50, 0.4).')' : '' }}">
+                                    <td class="text-center small {{ $count > 0 ? 'bg-primary text-white fw-bold' : 'text-muted' }}" 
+                                        style="{{ $count > 0 ? 'border: 1px solid #fff !important;' : '' }}">
                                         {{ $count }}
                                     </td>
                                 @endfor
