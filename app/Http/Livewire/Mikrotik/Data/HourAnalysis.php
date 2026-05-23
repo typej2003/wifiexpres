@@ -106,7 +106,7 @@ class HourAnalysis extends Component
                 ->whereExists(function ($q) use ($tableName) {
                     $q->select(DB::raw(1))
                         ->from('user_mikrotiks')
-                        ->whereRaw("LOWER(TRIM(user_mikrotiks.name)) = LOWER(TRIM({$tableName}.username))");
+                        ->whereRaw("LOWER(TRIM(user_mikrotiks.name)) = REPLACE(LOWER(TRIM({$tableName}.username)), 't-', '')");
                     switch ($this->selectedEdad) {
                         case 'menor18': $q->whereRaw('TIMESTAMPDIFF(YEAR, birthday, CURDATE()) < 18'); break;
                         case '18-24': $q->whereRaw('TIMESTAMPDIFF(YEAR, birthday, CURDATE()) BETWEEN 18 AND 24'); break;
@@ -124,7 +124,7 @@ class HourAnalysis extends Component
                 ->whereExists(function ($q) use ($tableName) {
                     $q->select(DB::raw(1))
                         ->from('user_mikrotiks')
-                        ->whereRaw("LOWER(TRIM(user_mikrotiks.name)) = LOWER(TRIM({$tableName}.username))")
+                        ->whereRaw("LOWER(TRIM(user_mikrotiks.name)) = REPLACE(LOWER(TRIM({$tableName}.username)), 't-', '')")
                         ->where('gender', $this->selectedGenero);
                 });
         }
