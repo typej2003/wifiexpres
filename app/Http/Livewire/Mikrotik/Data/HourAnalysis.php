@@ -131,10 +131,18 @@ class HourAnalysis extends Component
 
             // Obtener Totales
             $totalC = $segmentQuery->count();
+            $uniqueU = $segmentQuery->distinct('username')->count('username');
+
             if ($totalC > 0 || $label === 'General') {
+                $percent = 100;
+                if ($label !== 'General' && isset($this->summaries['General'])) {
+                    $percent = $this->summaries['General']['usuarios'] > 0 ? ($uniqueU / $this->summaries['General']['usuarios']) * 100 : 0;
+                }
+
                 $this->summaries[$label] = [
                     'conexiones' => $totalC,
-                    'usuarios' => $segmentQuery->distinct('username')->count('username')
+                    'usuarios' => $uniqueU,
+                    'porcentaje' => $percent
                 ];
 
                 // Obtener Matriz horaria

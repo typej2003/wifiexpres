@@ -109,21 +109,28 @@
                         <th class="ps-4">Segmento / Filtro</th>
                         <th class="text-center">Total Conexiones</th>
                         <th class="text-center">Usuarios Únicos</th>
+                        <th class="text-center">% Participación</th>
                         <th class="text-center">Promedio Conex. / Usuario</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($summaries as $label => $data)
-                    <tr class="{{ $label == 'General' ? 'bg-light fw-bold' : '' }}">
+                    <tr class="{{ $label == 'General' ? 'bg-primary bg-opacity-10 fw-bold' : '' }}">
                         <td class="ps-4">
                             @if($label == 'General') <i class="fas fa-globe text-primary me-2"></i> @endif
-                            @if(str_contains($label, 'Femenino')) <i class="fas fa-venus text-pink me-2"></i> @endif
-                            @if(str_contains($label, 'Masculino')) <i class="fas fa-mars text-blue me-2"></i> @endif
+                            @if(str_contains($label, 'Femenino')) <i class="fas fa-venus text-danger me-2"></i> @endif
+                            @if(str_contains($label, 'Masculino')) <i class="fas fa-mars text-primary me-2"></i> @endif
                             @if(str_contains($label, 'Edad')) <i class="fas fa-birthday-cake text-warning me-2"></i> @endif
                             {{ $label }}
                         </td>
                         <td class="text-center"><span class="badge bg-primary rounded-pill">{{ number_format($data['conexiones']) }}</span></td>
                         <td class="text-center text-dark">{{ number_format($data['usuarios']) }}</td>
+                        <td class="text-center">
+                            <div class="progress mt-1" style="height: 6px;">
+                                <div class="progress-bar bg-info" role="progressbar" style="width: {{ $data['porcentaje'] }}%"></div>
+                            </div>
+                            <small class="text-muted">{{ number_format($data['porcentaje'], 1) }}%</small>
+                        </td>
                         <td class="text-center text-muted">
                             {{ $data['usuarios'] > 0 ? number_format($data['conexiones'] / $data['usuarios'], 2) : 0 }}
                         </td>
@@ -133,12 +140,18 @@
             </table>
         </div>
     </div>
+
     {{-- TABLAS DE OCUPACIÓN POR SEGMENTO --}}
-    @foreach($reports as $label => $matrix)
-    <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-5">
-        <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
+    @php 
+        // Ordenamos para que General siempre sea la primera tabla
+        $orderedReports = collect($reports)->sortByDesc(fn($v, $k) => $k === 'General');
+    @endphp
+
+    @foreach($orderedReports as $label => $matrix)
+    <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
+        <div class="card-header {{ $label == 'General' ? 'bg-primary' : 'bg-dark' }} text-white py-3 d-flex justify-content-between align-items-center">
             <h6 class="mb-0 fw-bold text-uppercase">Ocupación: {{ $label }}</h6>
-            <span class="badge bg-light text-dark">{{ count($matrix) }} días con actividad</span>
+            <span class="badge bg-white text-dark">{{ $summaries[$label]['usuarios'] }} Usuarios</span>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -168,33 +181,15 @@
         </div>
     </div>
     @endforeach
-    @else
-        @if($selectedRouter)
-            <div class="alert alert-info rounded-4 shadow-sm">
-                <i class="fas fa-info-circle me-2"></i> No se encontraron registros para los criterios seleccionados.
-            </div>
-        @endif
     @endif
 
-    {{-- Mover el script al final del div principal para que se ejecute después de que Livewire haya renderizado todo --}}
     <script>
         window.addEventListener('reportUpdated', event => {
-            console.log('Datos actualizados correctamente.');
             // Aquí puedes añadir lógica de scroll o resaltado con Vanilla JS
         });
     </script>
 </div>
 
 <style>
-    /* Colores adicionales para los iconos de género */
-    .text-pink { color: #e83e8c !important; }
-    .text-blue { color: #007bff !important; }
+    .bg-primary.bg-opacity-10 { background-color: rgba(13, 110, 253, 0.1) !important; }
 </style>
-
-    <script>
-        window.addEventListener('reportUpdated', event => {
-            console.log('Datos actualizados correctamente');
-            // Aquí puedes añadir lógica de scroll o resaltado con Vanilla JS
-        });
-    </script>
-</div>
