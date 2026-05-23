@@ -135,6 +135,20 @@
     </div>
     @endif
 
+    {{-- GRÁFICO DE ÁREA DE CONEXIONES --}}
+    @if(count($reports) > 0)
+    <div class="card shadow-sm border-0 rounded-4 mb-4">
+        <div class="card-header bg-white py-3">
+            <h6 class="mb-0 fw-bold text-dark text-uppercase"><i class="fas fa-chart-area me-2"></i>Tendencia de Conexiones (General)</h6>
+        </div>
+        <div class="card-body">
+            <div style="position: relative; height: 300px;" wire:ignore>
+                <canvas id="areaChartGeneral"></canvas>
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- TABLAS DE OCUPACIÓN POR SEGMENTO --}}
     @if(count($reports) > 0)
     @php 
@@ -178,11 +192,70 @@
     @endforeach
     @endif
 
+    @push('js')
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+        let areaChart;
+
+        function initAreaChart(labels, data) {
+            const ctx = document.getElementById('areaChartGeneral').getContext('2d');
+            
+            if (areaChart) {
+                areaChart.destroy();
+            }
+
+            // Crear gradiente para el área
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, 'rgba(13, 110, 253, 0.4)');
+            gradient.addColorStop(1, 'rgba(13, 110, 253, 0.0)');
+
+            areaChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Conexiones',
+                        data: data,
+                        fill: true,
+                        backgroundColor: gradient,
+                        borderColor: '#0d6efd',
+                        borderWidth: 2,
+                        pointRadius: 2,
+                        pointHoverRadius: 5,
+                        tension: 0.3 // Suaviza la línea
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                maxRotation: 0,
+                                autoSkip: true,
+                                maxTicksLimit: 12
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#f0f0f0' }
+                        }
+                    }
+                }
+            });
+        }
+
         window.addEventListener('reportUpdated', event => {
-            // Aquí puedes añadir lógica de scroll o resaltado con Vanilla JS
+            if(event.detail.labels) {
+                initAreaChart(event.detail.labels, event.detail.data);
+            }
         });
     </script>
+    @endpush
 </div>
 
 <style>

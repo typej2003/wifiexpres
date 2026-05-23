@@ -29,6 +29,10 @@ class HourAnalysis extends Component
     public $dates = [];
     public $summaries = []; // Totales por segmento
 
+    // Datos para el gráfico de área
+    public $chartLabels = [];
+    public $chartData = [];
+
     public function mount()
     {
         // 1. Inicializar con el día actual
@@ -158,7 +162,19 @@ class HourAnalysis extends Component
             $this->reports[$label] = $matrix;
         }
 
-        $this->dispatchBrowserEvent('reportUpdated');
+        // 4. Preparar datos para el gráfico de área (Basado en el segmento General)
+        $this->chartLabels = [];
+        $this->chartData = [];
+        foreach ($this->dates as $date) {
+            for ($h = 0; $h < 24; $h++) {
+                // Etiqueta corta: "DD/MM 00h"
+                $label = Carbon::parse($date)->format('d/m') . ' ' . str_pad($h, 2, '0', STR_PAD_LEFT) . 'h';
+                $this->chartLabels[] = $label;
+                $this->chartData[] = $this->reports['General'][$date][$h] ?? 0;
+            }
+        }
+
+        $this->dispatchBrowserEvent('reportUpdated', ['labels' => $this->chartLabels, 'data' => $this->chartData]);
     }
 
     public function render()
