@@ -76,14 +76,14 @@ class HourAnalysis extends Component
         $this->reports = [];
         $this->summaries = [];
 
+        $tableName = (new TicketLog)->getTable();
+
         // 1. Query Base: Solo Router y Rango de Fechas (El punto de partida "General")
-        $baseQuery = TicketLog::where('router_id', $this->selectedRouter)
-            ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()]);
+        $baseQuery = TicketLog::where($tableName . '.router_id', $this->selectedRouter)
+            ->whereBetween($tableName . '.created_at', [$start->startOfDay(), $end->endOfDay()]);
 
         // 2. Definir qué tablas (segmentos) vamos a generar
-        $segmentsToProcess = [
-            'General' => clone $baseQuery
-        ];
+        $segmentsToProcess = ['General' => clone $baseQuery];
 
         // Si se seleccionó Zona, creamos un segmento específico
         if ($this->selectedZona) {
@@ -93,7 +93,7 @@ class HourAnalysis extends Component
                 if (count($ipParts) >= 3) {
                     $segmento = $ipParts[0] . '.' . $ipParts[1] . '.' . $ipParts[2] . '.';
                     $segmentsToProcess['Zona: ' . $mapping->location_name] = (clone $baseQuery)
-                        ->where('ip_address', 'LIKE', $segmento . '%');
+                        ->where($tableName . '.ip_address', 'LIKE', $segmento . '%');
                 }
             }
         }
@@ -101,7 +101,6 @@ class HourAnalysis extends Component
         // Si se seleccionó Edad, creamos un segmento específico
         if ($this->selectedEdad) {
             $labels = ['menor18' => '< 18', '18-24' => '18-24', '25-35' => '25-35', 'mayor35' => '> 35'];
-            $tableName = (new TicketLog)->getTable();
 
             $segmentsToProcess['Edad: ' . $labels[$this->selectedEdad]] = (clone $baseQuery)
                 ->whereExists(function ($q) use ($tableName) {
@@ -121,7 +120,6 @@ class HourAnalysis extends Component
         // Si se seleccionó Género, creamos un segmento específico
         if ($this->selectedGenero) {
             $genLabel = $this->selectedGenero == 'F' ? 'Femenino' : 'Masculino';
-            $tableName = (new TicketLog)->getTable();
 
             $segmentsToProcess['Género: ' . $genLabel] = (clone $baseQuery)
                 ->whereExists(function ($q) use ($tableName) {
@@ -147,12 +145,12 @@ class HourAnalysis extends Component
 
             $results = $segmentQuery->toBase()
                 ->select([
-                    DB::raw('DATE(created_at) as fecha'),
-                    DB::raw('HOUR(created_at) as hora'),
+                    DB::raw("DATE({$tableName}.created_at) as fecha"),
+                    DB::raw("HOUR({$tableName}.created_at) as hora"),
                     DB::raw('COUNT(*) as total')
                 ])
-                ->groupBy(DB::raw('DATE(created_at)'), DB::raw('HOUR(created_at)'))
-            ->get();
+                ->groupBy(DB::raw("DATE({$tableName}.created_at)"), DB::raw("HOUR({$tableName}.created_at)"))
+                ->get();
 
             $matrix = [];
             foreach ($results as $row) {
