@@ -24,11 +24,10 @@ class HourAnalysis extends Component
     public $routers = [];
     public $zonas = [];
 
-    // Resultados
-    public $reportData = [];
+    // Resultados estructurados
+    public $reports = []; // Matriz de matrices [segmento][fecha][hora]
     public $dates = [];
-    public $totalConexiones = 0;
-    public $totalUsuarios = 0;
+    public $summaries = []; // Totales por segmento
 
     public function mount()
     {
@@ -74,8 +73,11 @@ class HourAnalysis extends Component
             $tempDate->addDay();
         }
 
-        // Consulta Base sobre TicketLog
-        $query = TicketLog::where('router_id', $this->selectedRouter)
+        $this->reports = [];
+        $this->summaries = [];
+
+        // 1. Definir los segmentos a analizar
+        $baseQuery = TicketLog::where('router_id', $this->selectedRouter)
             ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()]);
 
         // Filtro por Zona (Basado en el segmento IP guardado en mac_address)
@@ -86,63 +88,71 @@ class HourAnalysis extends Component
                 $ipParts = explode('.', $mapping->ip_address);
                 if (count($ipParts) >= 3) {
                     $segmento = $ipParts[0] . '.' . $ipParts[1] . '.' . $ipParts[2] . '.';
-                    $query->where('mac_address', 'LIKE', $segmento . '%');
+                    $baseQuery->where('mac_address', 'LIKE', $segmento . '%');
                 }
             }
         }
 
-        // Filtros de Edad y Género cruzando con UserMikrotik
-        if ($this->selectedEdad || $this->selectedGenero) {
-            $query->whereExists(function ($q) {
-                $q->select(DB::raw(1))
-                    ->from('user_mikrotiks')
-                    ->whereColumn('user_mikrotiks.name', 'ticket_logs.username')
-                    ->whereColumn('user_mikrotiks.router_id', 'ticket_logs.router_id');
-                
-                if ($this->selectedGenero) {
-                    $q->where('gender', $this->selectedGenero);
-                }
+        // 2. Procesar Segmentos (General, Géneros, Edades)
+        $segments = [
+            'General' => null,
+            'Femenino' => ['field' => 'gender', 'value' => 'F'],
+            'Masculino' => ['field' => 'gender', 'value' => 'M'],
+            'Edad: < 18' => ['field' => 'age', 'case' => 'menor18'],
+            'Edad: 18-24' => ['field' => 'age', 'case' => '18-24'],
+            'Edad: 25-35' => ['field' => 'age', 'case' => '25-35'],
+            'Edad: > 35' => ['field' => 'age', 'case' => 'mayor35'],
+        ];
 
-                if ($this->selectedEdad) {
-                    // Cálculo de edad basado en el campo birthday
-                    switch ($this->selectedEdad) {
-                        case 'menor18': 
-                            $q->whereRaw('TIMESTAMPDIFF(YEAR, birthday, CURDATE()) < 18'); 
-                            break;
-                        case '18-24': 
-                            $q->whereRaw('TIMESTAMPDIFF(YEAR, birthday, CURDATE()) BETWEEN 18 AND 24'); 
-                            break;
-                        case '25-35': 
-                            $q->whereRaw('TIMESTAMPDIFF(YEAR, birthday, CURDATE()) BETWEEN 25 AND 35'); 
-                            break;
-                        case 'mayor35': 
-                            $q->whereRaw('TIMESTAMPDIFF(YEAR, birthday, CURDATE()) > 35'); 
-                            break;
+        foreach ($segments as $label => $filter) {
+            $segmentQuery = clone $baseQuery;
+
+            if ($filter) {
+                $segmentQuery->whereExists(function ($q) use ($filter) {
+                    $q->select(DB::raw(1))
+                        ->from('user_mikrotiks')
+                        ->whereColumn('user_mikrotiks.name', 'ticket_logs.username')
+                        ->whereColumn('user_mikrotiks.router_id', 'ticket_logs.router_id');
+                    
+                    if ($filter['field'] === 'gender') {
+                        $q->where('gender', $filter['value']);
                     }
+                    
+                    if ($filter['field'] === 'age') {
+                        switch ($filter['case']) {
+                            case 'menor18': $q->whereRaw('TIMESTAMPDIFF(YEAR, birthday, CURDATE()) < 18'); break;
+                            case '18-24': $q->whereRaw('TIMESTAMPDIFF(YEAR, birthday, CURDATE()) BETWEEN 18 AND 24'); break;
+                            case '25-35': $q->whereRaw('TIMESTAMPDIFF(YEAR, birthday, CURDATE()) BETWEEN 25 AND 35'); break;
+                            case 'mayor35': $q->whereRaw('TIMESTAMPDIFF(YEAR, birthday, CURDATE()) > 35'); break;
+                        }
+                    }
+                });
+            }
+
+            // Obtener Totales
+            $totalC = $segmentQuery->count();
+            if ($totalC > 0 || $label === 'General') {
+                $this->summaries[$label] = [
+                    'conexiones' => $totalC,
+                    'usuarios' => $segmentQuery->distinct('username')->count('username')
+                ];
+
+                // Obtener Matriz horaria
+                $results = $segmentQuery->select([
+                        DB::raw('DATE(created_at) as fecha'),
+                        DB::raw('HOUR(created_at) as hora'),
+                        DB::raw('COUNT(*) as total')
+                    ])
+                    ->groupBy('fecha', 'hora')
+                    ->get();
+
+                $matrix = [];
+                foreach ($results as $row) {
+                    $matrix[$row->fecha][$row->hora] = $row->total;
                 }
-            });
+                $this->reports[$label] = $matrix;
+            }
         }
-
-        // Cálculos de Resumen (Totales basados en los filtros aplicados)
-        $this->totalConexiones = (clone $query)->count();
-        $this->totalUsuarios = (clone $query)->distinct('username')->count('username');
-
-        // Agrupación por Día y Hora para la matriz
-        $results = $query->select([
-                DB::raw('DATE(created_at) as fecha'),
-                DB::raw('HOUR(created_at) as hora'),
-                DB::raw('COUNT(*) as total')
-            ])
-            ->groupBy('fecha', 'hora')
-            ->get();
-
-        // Mapear los resultados a una matriz estructurada [fecha][hora]
-        $matrix = [];
-        foreach ($results as $row) {
-            $matrix[$row->fecha][$row->hora] = $row->total;
-        }
-
-        $this->reportData = $matrix;
 
         // Notificar al navegador para posibles actualizaciones de UI (JS)
         $this->dispatchBrowserEvent('reportUpdated');

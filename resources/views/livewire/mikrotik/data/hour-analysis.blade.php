@@ -55,85 +55,85 @@
         </div>
     </div>
 
-    {{-- TABLA DE RESUMEN DE FILTROS --}}
-    @if($selectedRouter)
+    {{-- RESUMEN DETALLADO POR FILTROS --}}
+    @if(count($summaries) > 0)
     <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
-        <div class="card-header bg-white py-3">
-            <h6 class="mb-0 fw-bold text-muted small text-uppercase"><i class="fas fa-info-circle me-2"></i>Resumen de Filtros Aplicados</h6>
+        <div class="card-header bg-primary text-white py-3">
+            <h6 class="mb-0 fw-bold text-uppercase small"><i class="fas fa-chart-pie me-2"></i>Resumen de Impacto por Filtro</h6>
         </div>
         <div class="table-responsive">
-            <table class="table table-sm align-middle mb-0">
-                <thead class="bg-light text-muted small text-uppercase">
-                    <tr>
-                        <th class="ps-4 py-2">Total Conexiones</th>
-                        <th class="py-2">Usuarios Únicos</th>
-                        <th class="py-2">Router</th>
-                        <th class="py-2">Periodo</th>
-                        <th class="pe-4 py-2">Filtros Activos</th>
+            <table class="table align-middle mb-0">
+                <thead class="bg-light text-muted small">
+                    <tr class="text-uppercase">
+                        <th class="ps-4">Segmento / Filtro</th>
+                        <th class="text-center">Total Conexiones</th>
+                        <th class="text-center">Usuarios Únicos</th>
+                        <th class="text-center">Promedio Conex. x Usuario</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr class="fw-bold">
+                    @foreach($summaries as $label => $data)
+                    <tr class="{{ $label == 'General' ? 'bg-light fw-bold' : '' }}">
                         <td class="ps-4">
-                            <span class="fs-5 text-primary">{{ number_format($totalConexiones) }}</span>
+                            @if($label == 'General') <i class="fas fa-globe text-primary me-2"></i>
+                            @elseif(str_contains($label, 'Edad')) <i class="fas fa-birthday-cake text-warning me-2"></i>
+                            @else <i class="fas fa-user-tag text-info me-2"></i> @endif
+                            {{ $label }}
                         </td>
-                        <td>
-                            <span class="fs-5 text-dark">{{ number_format($totalUsuarios) }}</span>
-                        </td>
-                        <td class="text-secondary small">{{ $routers->find($selectedRouter)->identity ?? 'N/A' }}</td>
-                        <td class="text-secondary small">{{ Carbon\Carbon::parse($fromDate)->format('d/m/Y') }} al {{ Carbon\Carbon::parse($toDate)->format('d/m/Y') }}</td>
-                        <td class="pe-4">
-                            @if($selectedZona) <span class="badge bg-info bg-opacity-10 text-info border border-info px-2">Zona</span> @endif
-                            @if($selectedEdad) <span class="badge bg-info bg-opacity-10 text-info border border-info px-2">Edad</span> @endif
-                            @if($selectedGenero) <span class="badge bg-info bg-opacity-10 text-info border border-info px-2">Género</span> @endif
-                            @if(!$selectedZona && !$selectedEdad && !$selectedGenero) <span class="text-muted small fw-normal">Ninguno</span> @endif
+                        <td class="text-center"><span class="badge bg-primary rounded-pill">{{ number_format($data['conexiones']) }}</span></td>
+                        <td class="text-center text-dark">{{ number_format($data['usuarios']) }}</td>
+                        <td class="text-center text-muted">
+                            {{ $data['usuarios'] > 0 ? number_format($data['conexiones'] / $data['usuarios'], 2) : 0 }}
                         </td>
                     </tr>
+                    @endforeach
                 </tbody>
             </table>
         </div>
     </div>
-    @endif
 
-    <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
-        <div class="card-header bg-dark text-white py-3">
-            <h6 class="mb-0 fw-bold text-uppercase">Ocupación por hora - Cliente</h6>
+    {{-- TABLAS DE OCUPACIÓN POR SEGMENTO --}}
+    @foreach($reports as $label => $matrix)
+    <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-5">
+        <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 fw-bold text-uppercase">Ocupación: {{ $label }}</h6>
+            <span class="badge bg-light text-dark">{{ count($matrix) }} días con actividad</span>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-bordered table-hover mb-0" id="table-analysis">
-                    <thead class="bg-primary text-white text-center">
+                <table class="table table-bordered mb-0">
+                    <thead class="bg-light text-center small text-uppercase fw-bold">
                         <tr>
-                            <th style="min-width: 120px;">FECHA</th>
-                            @for($h=0; $h<24; $h++)
-                                <th style="font-size: 11px;">{{ str_pad($h, 2, '0', STR_PAD_LEFT) }}:00</th>
-                            @endfor
+                            <th style="min-width: 120px;" class="bg-white">Fecha</th>
+                            @for($h=0; $h<24; $h++) <th style="font-size: 10px;">{{ str_pad($h, 2, '0', STR_PAD_LEFT) }}h</th> @endfor
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($dates as $date)
+                        @foreach($dates as $date)
                             <tr>
-                                <td class="fw-bold bg-light small text-center">{{ $date }}</td>
+                                <td class="fw-bold bg-light small text-center">{{ \Carbon\Carbon::parse($date)->format('d/m/Y') }}</td>
                                 @for($h=0; $h<24; $h++)
-                                    @php $count = $reportData[$date][$h] ?? 0; @endphp
+                                    @php $count = $matrix[$date][$h] ?? 0; @endphp
                                     <td class="text-center small {{ $count > 0 ? 'bg-primary text-white fw-bold' : 'text-muted' }}" 
                                         style="{{ $count > 0 ? 'border: 1px solid #fff !important;' : '' }}">
-                                        {{ $count }}
+                                        {{ $count ?: '-' }}
                                     </td>
                                 @endfor
                             </tr>
-                        @empty
-                            <tr>
-                                <td colspan="25" class="text-center py-5 text-muted">
-                                    No hay datos para mostrar. Seleccione un router y presione Consultar.
-                                </td>
-                            </tr>
-                        @endforelse
+                        @endforeach
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
+    @endforeach
+    @endif
+
+    @if(count($summaries) == 0 && $selectedRouter)
+        <div class="alert alert-info rounded-4 shadow-sm">
+            <i class="fas fa-info-circle me-2"></i> No se encontraron registros para los criterios seleccionados.
+        </div>
+    @endif
 
     <script>
         window.addEventListener('reportUpdated', event => {
