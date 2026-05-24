@@ -50,7 +50,7 @@ class TicketsHistory extends Component
         $this->sortDirection = ($this->sortDirection === 'asc') ? 'desc' : 'asc';
     }
 
-    public function openSyncModal() { dd('oi');$this->isSyncModalOpen = true; }
+    public function openSyncModal() { $this->isSyncModalOpen = true; }
     public function closeSyncModal() { $this->isSyncModalOpen = false; }
     public function closeSummaryModal() { $this->isSummaryModalOpen = false; }
 

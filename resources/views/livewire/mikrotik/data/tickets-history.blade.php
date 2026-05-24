@@ -45,7 +45,7 @@
                         <i class="bi bi-printer me-1"></i> IMPRIMIR CONSULTA
                     </a>
                     
-                    <button wire:click="openSyncModal" 
+                    <button wire:click="syncData" 
                             class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm"
                             {{ !$filterRouter ? 'disabled' : '' }}
                             wire:loading.attr="disabled"
