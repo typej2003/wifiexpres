@@ -174,10 +174,12 @@ class TicketsHistory extends Component
 
             $ticketExistente = Ticket::where('router_id', $routerId)->where('username', $uName)->first();
             $nuevoIdentity = (!empty($p[4]) && $p[4] !== "nil") ? $p[4] : ($ticketExistente ? $ticketExistente->identity : "IMP-{$uName}");
+            $isActivado = ($p[4] === 'activo');
 
             Ticket::updateOrCreate(
                 ['router_id' => $routerId, 'username' => $uName],
                 [
+                    'activado'         => $isActivado ? 1 : ($ticketExistente ? $ticketExistente->activado : 0),
                     'password'         => $p[1] ?? '',
                     'plan'             => $nombrePlanSync,
                     'costo'            => $costoSync,
@@ -190,7 +192,6 @@ class TicketsHistory extends Component
             );
             $processedCount++;
         }
-        Ticket::where('router_id', $routerId)->whereNotIn('username', $mikrotikUsernames)->delete();
         return $processedCount;
     }
 
