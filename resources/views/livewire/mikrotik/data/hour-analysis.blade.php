@@ -1,4 +1,4 @@
-<div class="p-4">
+<div class="p-4" wire:poll.30s="refreshStatus">
     <div class="card shadow-sm border-0 rounded-4 mb-4">
         <div class="card-header bg-white py-3">
             <h5 class="mb-0 fw-bold text-primary"><i class="fas fa-filter me-2"></i>Filtros de Análisis</h5>
@@ -17,7 +17,11 @@
                     <label class="small fw-bold text-muted">ROUTER</label>
                     <select wire:model="selectedRouter" class="form-select border-0 shadow-sm">
                         <option value="">-- Seleccionar --</option>
-                        @foreach($routers as $r) <option value="{{ $r->id }}">{{ $r->identity }}</option> @endforeach
+                        @foreach($routers as $r) 
+                            <option value="{{ $r->id }}">
+                                {{ ($routerStatus[$r->id] ?? false) ? '🟢' : '🔴' }} {{ $r->identity }}
+                            </option> 
+                        @endforeach
                     </select>
                 </div>
                 <div class="col-md-3">

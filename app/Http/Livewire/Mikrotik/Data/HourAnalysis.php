@@ -8,6 +8,7 @@ use App\Models\TicketLog;
 use App\Models\AntennaMapping;
 use App\Models\UserMikrotik;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Carbon\Carbon;
 
 class HourAnalysis extends Component
@@ -23,6 +24,7 @@ class HourAnalysis extends Component
     // Datos para selectores
     public $routers = [];
     public $zonas = [];
+    public $routerStatus = [];
 
     // Resultados estructurados
     public $reports = []; // Matriz de matrices [segmento][fecha][hora]
@@ -40,12 +42,29 @@ class HourAnalysis extends Component
         $this->toDate = Carbon::now()->format('Y-m-d');
         $this->routers = Router::where('is_active', true)->get();
 
+        $this->refreshStatus();
+
         // Cargar datos automáticamente si existen routers para mejorar la experiencia de usuario
         if ($this->routers->isNotEmpty()) {
             $this->selectedRouter = $this->routers->first()->id;
             $this->updatedSelectedRouter($this->selectedRouter);
             $this->consultar();
         }
+    }
+
+    /**
+     * Consulta el bridge para saber qué routers están conectados actualmente
+     */
+    public function refreshStatus()
+    {
+        try {
+            $response = Http::timeout(2)->get('http://188.95.113.44:3000/api/routers-online');
+            $activeMacs = $response->successful() ? collect($response->json())->pluck('mac')->toArray() : [];
+
+            foreach ($this->routers as $r) {
+                $this->routerStatus[$r->id] = in_array(strtoupper(trim($r->macAddress)), $activeMacs);
+            }
+        } catch (\Exception $e) {}
     }
 
     public function updatedSelectedRouter($value)

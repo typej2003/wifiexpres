@@ -1,4 +1,4 @@
-<div class="container-fluid py-4">
+<div class="container-fluid py-4" wire:poll.30s="refreshStatus">
     {{-- OVERLAY DE CARGA --}}
     @if($showOverlay)
     <div class="d-print-none" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
@@ -67,7 +67,9 @@
                     <select wire:model="filterRouter" class="form-select">
                         <option value="">Todos los Routers</option>
                         @foreach($routers as $r) 
-                            <option value="{{ $r->id }}">{{ $r->active ? '🟢' : '🔴' }} {{ $r->identity }}</option> 
+                            <option value="{{ $r->id }}">
+                                {{ ($routerStatus[$r->id] ?? false) ? '🟢' : '🔴' }} {{ $r->identity }}
+                            </option> 
                         @endforeach
                     </select>
                 </div>

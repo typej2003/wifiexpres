@@ -33,6 +33,7 @@ class TicketsHistory extends Component
     public $isSummaryModalOpen = false;
     public $syncAmount = 50;
     public $showOverlay = false;
+    public $routerStatus = [];
 
     protected $bridgeUrl = "http://188.95.113.44:3000";
 
@@ -52,6 +53,23 @@ class TicketsHistory extends Component
     public function openSyncModal() { $this->isSyncModalOpen = true; }
     public function closeSyncModal() { $this->isSyncModalOpen = false; }
     public function closeSummaryModal() { $this->isSummaryModalOpen = false; }
+
+    /**
+     * Consulta el bridge para saber qué routers están conectados actualmente
+     */
+    public function refreshStatus()
+    {
+        try {
+            $response = Http::timeout(2)->get('http://188.95.113.44:3000/api/routers-online');
+            $activeMacs = $response->successful() ? collect($response->json())->pluck('mac')->toArray() : [];
+
+            $user = Auth::user();
+            $routers = Router::where('is_active', true)->when($user->role !== 'admin', fn($q) => $q->where('user_id', $user->id))->get();
+            foreach ($routers as $r) {
+                $this->routerStatus[$r->id] = in_array(strtoupper(trim($r->macAddress)), $activeMacs);
+            }
+        } catch (\Exception $e) {}
+    }
 
     public function syncData()
     {
@@ -180,10 +198,15 @@ class TicketsHistory extends Component
 
         $query->orderBy('tiempo_consumido', $this->sortDirection);
 
+        $this->refreshStatus();
+
         return view('livewire.mikrotik.data.tickets-history', [
             'tickets' => $query->paginate(15),
             'aliados' => User::where('role', 'aliado')->get(),
-            'routers' => Router::when($user->role !== 'admin', fn($q) => $q->where('user_id', $user->id))->get(),
+            'routers' => Router::where('is_active', true)
+                ->when($user->role !== 'admin', fn($q) => $q->where('user_id', $user->id))
+                ->orderBy('identity', 'asc')
+                ->get(),
             'planes'  => Plan::select('name')->distinct()->get()
         ])->layout('layouts.app');
     }
