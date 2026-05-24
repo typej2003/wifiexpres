@@ -31,7 +31,10 @@
                         <i class="bi bi-printer me-1"></i> IMPRIMIR CONSULTA
                     </a>
                     
-                    <button wire:click="openSyncModal" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm">
+                    <button wire:click="openSyncModal" 
+                            class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm"
+                            {{ !$filterRouter ? 'disabled' : '' }}
+                            title="{{ !$filterRouter ? 'Seleccione un router primero' : 'Sincronizar datos' }}">
                         <i class="bi bi-arrow-repeat me-1"></i> SINCRONIZAR SMART
                     </button>
                 </div>
@@ -67,8 +70,9 @@
                     <select wire:model="filterRouter" class="form-select">
                         <option value="">Todos los Routers</option>
                         @foreach($routers as $r) 
-                            <option value="{{ $r->id }}">
-                                {{ ($routerStatus[$r->id] ?? false) ? '🟢' : '🔴' }} {{ $r->identity }}
+                            @php $isOnline = $routerStatus[$r->id] ?? false; @endphp
+                            <option value="{{ $r->id }}" {{ !$isOnline ? 'disabled' : '' }}>
+                                {{ $isOnline ? '🟢' : '🔴' }} {{ $r->identity }} {{ !$isOnline ? '(Offline)' : '' }}
                             </option> 
                         @endforeach
                     </select>

@@ -78,10 +78,18 @@ class TicketsHistory extends Component
             return;
         }
 
+        $router = Router::find($this->filterRouter);
+
+        // Validar si el router está online antes de proceder
+        if (!($this->routerStatus[$router->id] ?? false)) {
+            session()->flash('error', 'El router seleccionado no está en línea.');
+            $this->isSyncModalOpen = false;
+            return;
+        }
+
         $this->showOverlay = true;
         $this->isSyncModalOpen = false;
         
-        $router = Router::find($this->filterRouter);
         $mac = strtoupper($router->macAddress);
         $tid = "HSYNC" . time();
 
