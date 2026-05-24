@@ -31,9 +31,15 @@ class ImprimirTickets extends Component
 
     public function mount()
     {
-        if (Auth::user()->role !== 'admin') {
+        $user = Auth::user();
+        if (!in_array($user->role, ['admin', 'aliado'])) {
             abort(403);
         }
+
+        if ($user->role === 'aliado') {
+            $this->selectedAliado = $user->id;
+        }
+
         $this->refreshStatus();
     }
 
@@ -42,10 +48,13 @@ class ImprimirTickets extends Component
         try {
             $response = Http::timeout(5)->get("{$this->bridgeUrl}/api/routers-online");
             if ($response->successful()) {
+                $user = Auth::user();
                 $activeMacs = collect($response->json())->map(fn($item) => strtoupper(trim($item['mac'])))->toArray();
-                $this->routerStatus = Router::all()->mapWithKeys(function ($r) use ($activeMacs) {
-                    return [$r->id => in_array(strtoupper(trim($r->macAddress)), $activeMacs)];
-                })->toArray();
+                $this->routerStatus = Router::when($user->role !== 'admin', fn($q) => $q->where('user_id', $user->id))
+                    ->get()
+                    ->mapWithKeys(function ($r) use ($activeMacs) {
+                        return [$r->id => in_array(strtoupper(trim($r->macAddress)), $activeMacs)];
+                    })->toArray();
             }
         } catch (\Exception $e) { $this->routerStatus = []; }
     }
@@ -93,9 +102,14 @@ class ImprimirTickets extends Component
 
     public function render()
     {
+        $user = Auth::user();
         return view('livewire.mikrotik.ticket.imprimir-tickets', [
             'aliados' => User::where('role', 'aliado')->get(),
-            'routersList' => Router::when($this->selectedAliado, fn($q) => $q->where('user_id', $this->selectedAliado))->get(),
+            'routersList' => Router::where('is_active', true)
+                ->when($user->role !== 'admin', fn($q) => $q->where('user_id', $user->id))
+                ->when($user->role === 'admin' && $this->selectedAliado, fn($q) => $q->where('user_id', $this->selectedAliado))
+                ->orderBy('identity', 'asc')
+                ->get(),
             'tickets' => $this->selectedRouter ? Ticket::where('router_id', $this->selectedRouter)->latest('id')->paginate(10) : []
         ])->layout('layouts.app');
     }

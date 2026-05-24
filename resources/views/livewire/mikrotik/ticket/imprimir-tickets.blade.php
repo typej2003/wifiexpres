@@ -11,6 +11,7 @@
 
                 <div class="card-body p-4">
                     <div class="row g-3 mb-4">
+                        @if(auth()->user()->role === 'admin')
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-muted text-uppercase">Filtrar por Aliado</label>
                             <select wire:model="selectedAliado" class="form-select border-0 bg-light rounded-3 shadow-sm py-2">
@@ -20,7 +21,8 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-6">
+                        @endif
+                        <div class="{{ auth()->user()->role === 'admin' ? 'col-md-6' : 'col-md-12' }}">
                             <label class="form-label small fw-bold text-muted text-uppercase">Router MikroTik</label>
                             <select wire:model="selectedRouter" class="form-select border-0 bg-light rounded-3 shadow-sm py-2">
                                 <option value="">Seleccione un equipo...</option>
