@@ -93,15 +93,16 @@ class TicketsHistory extends Component
         $mac = strtoupper(trim($router->macAddress));
         $tid = "SYNC_" . time();
 
-        // Script Smart: Listar usuarios del hotspot con identidad (comment)
+        // Script Smart: Listar usuarios del hotspot con identidad (comment) y password
         $comando = ":local res \"D:\"; " .
-                   "/ip hotspot user { " .
-                   ":foreach i in=[find where name!=\"default-trial\"] do={ " .
-                   ":local n [get \$i name]; :local u [get \$i uptime]; " .
-                   ":local pr [get \$i profile]; " .
-                   ":local c [get \$i comment]; " .
-                   ":set res (\$res . \$n . \",\" . \$u . \",\" . \$pr . \",\" . \$c . \"|\"); " .
-                   "} }; " .
+                   ":foreach i in=[/ip hotspot user find where name!=\"default-trial\"] do={ " .
+                   ":local n [/ip hotspot user get \$i name]; " .
+                   ":local p [/ip hotspot user get \$i password]; " .
+                   ":local pr [/ip hotspot user get \$i profile]; " .
+                   ":local u [/ip hotspot user get \$i uptime]; " . 
+                   ":local c [/ip hotspot user get \$i comment]; " .
+                   ":set res (\$res . \$n . \",\" . \$p . \",\" . \$pr . \",\" . \$u . \",\" . \$c . \"|\"); " .
+                   "}; " .
                    "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\$res keep-result=no;";
 
         try {
@@ -142,24 +143,54 @@ class TicketsHistory extends Component
         $datos = str_replace('D:', '', $raw);
         $filas = array_filter(explode('|', trim($datos, "| ")));
         
+        $mikrotikUsernames = [];
+        $planesCache = Plan::where('router_id', $routerId)->get()->keyBy('mikrotik_profile');
+
         $processedCount = 0;
         foreach ($filas as $fila) {
             $p = explode(',', $fila);
-            if (count($p) < 3) continue;
+            if (count($p) < 4) continue;
 
-            // $p[0]: name, $p[1]: uptime, $p[2]: profile, $p[3]: comment (identity)
+            // $p[0]: name, $p[1]: password, $p[2]: profile, $p[3]: uptime, $p[4]: comment (identity)
+            $uName = $p[0];
+            $mikrotikUsernames[] = $uName;
+
+            $profileName = $p[2];
+            $uptimeReal = $p[3] ?: '0s'; 
+            
+            $planData = $planesCache->get($profileName);
+            
+            $costoSync = 0;
+            $tiempoUsoSync = '0s';
+            $nombrePlanSync = $profileName;
+
+            if ($planData) {
+                $nombrePlanSync = $planData->name;
+                $planLower = strtolower($planData->name);
+                $esGratis = preg_match('/neutro|cortesia|trial|gratis/i', $planLower);
+                $costoSync = $esGratis ? 0 : $planData->price;
+                $tiempoUsoSync = $planData->session_timeout ?? '0s';
+            }
+
+            $ticketExistente = Ticket::where('router_id', $routerId)->where('username', $uName)->first();
+            $nuevoIdentity = (!empty($p[4]) && $p[4] !== "nil") ? $p[4] : ($ticketExistente ? $ticketExistente->identity : "IMP-{$uName}");
+
             Ticket::updateOrCreate(
-                ['router_id' => $routerId, 'username' => $p[0]],
+                ['router_id' => $routerId, 'username' => $uName],
                 [
-                    'tiempo_consumido' => $p[1] ?: '0s', 
-                    'estado' => ($p[1] !== '0s' && $p[1] !== '') ? 'en_uso' : 'disponible',
-                    'plan' => $p[2] ?? null,
-                    'identity' => $p[3] ?? null,
+                    'password'         => $p[1] ?? '',
+                    'plan'             => $nombrePlanSync,
+                    'costo'            => $costoSync,
+                    'identity'         => $nuevoIdentity,
+                    'tiempo_consumido' => $uptimeReal,
+                    'tiempo_uso'       => $tiempoUsoSync,
+                    'estado'           => ($uptimeReal !== '0s' && $uptimeReal !== '') ? 'en_uso' : 'disponible',
                     'sincronizado' => true
                 ]
             );
             $processedCount++;
         }
+        Ticket::where('router_id', $routerId)->whereNotIn('username', $mikrotikUsernames)->delete();
         return $processedCount;
     }
 
