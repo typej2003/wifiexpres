@@ -94,15 +94,13 @@ class TicketsHistory extends Component
         $tid = "SYNC_" . time();
 
         // Script optimizado: Listar usuarios del hotspot con datos esenciales
-        $comando = ":local count 0; :local res \"D:\"; " .
+        $comando = ":local res \"D:\"; " .
                    "/ip hotspot user { " .
                    ":foreach i in=[find where name!=\"default-trial\"] do={ " .
-                   ":if (\$count < {$this->syncAmount}) do={ " .
                    ":local n [get \$i name]; :local u [get \$i uptime]; " .
                    ":local pr [get \$i profile]; " .
                    ":set res (\$res . \$n . \",\" . \$u . \",\" . \$pr . \"|\"); " .
-                   ":set count (\$count + 1); " .
-                   "} } }; " .
+                   "} }; " .
                    "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\$res keep-result=no;";
 
         try {
