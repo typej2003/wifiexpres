@@ -93,13 +93,14 @@ class TicketsHistory extends Component
         $mac = strtoupper(trim($router->macAddress));
         $tid = "SYNC_" . time();
 
-        // Script optimizado: Listar usuarios del hotspot con datos esenciales
+        // Script Smart: Listar usuarios del hotspot con identidad (comment)
         $comando = ":local res \"D:\"; " .
                    "/ip hotspot user { " .
                    ":foreach i in=[find where name!=\"default-trial\"] do={ " .
                    ":local n [get \$i name]; :local u [get \$i uptime]; " .
                    ":local pr [get \$i profile]; " .
-                   ":set res (\$res . \$n . \",\" . \$u . \",\" . \$pr . \"|\"); " .
+                   ":local c [get \$i comment]; " .
+                   ":set res (\$res . \$n . \",\" . \$u . \",\" . \$pr . \",\" . \$c . \"|\"); " .
                    "} }; " .
                    "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\$res keep-result=no;";
 
@@ -144,15 +145,16 @@ class TicketsHistory extends Component
         $processedCount = 0;
         foreach ($filas as $fila) {
             $p = explode(',', $fila);
-            if (count($p) < 2) continue;
+            if (count($p) < 3) continue;
 
-            // $p[0]: name, $p[1]: uptime, $p[2]: profile
+            // $p[0]: name, $p[1]: uptime, $p[2]: profile, $p[3]: comment (identity)
             Ticket::updateOrCreate(
                 ['router_id' => $routerId, 'username' => $p[0]],
                 [
                     'tiempo_consumido' => $p[1] ?: '0s', 
                     'estado' => ($p[1] !== '0s' && $p[1] !== '') ? 'en_uso' : 'disponible',
                     'plan' => $p[2] ?? null,
+                    'identity' => $p[3] ?? null,
                     'sincronizado' => true
                 ]
             );
