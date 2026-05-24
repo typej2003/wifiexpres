@@ -149,9 +149,9 @@ class TicketsHistory extends Component
         $processedCount = 0;
         foreach ($filas as $fila) {
             $p = explode(',', $fila);
-            if (count($p) < 4) continue;
+            if (count($p) < 3) continue;
 
-            // $p[0]: name, $p[1]: password, $p[2]: profile, $p[3]: uptime, $p[4]: comment (identity)
+            // $p[0]: name, $p[1]: password, $p[2]: profile, $p[3]: uptime, $p[4]: comment
             $uName = $p[0];
             $mikrotikUsernames[] = $uName;
 
@@ -174,24 +174,26 @@ class TicketsHistory extends Component
 
             $ticketExistente = Ticket::where('router_id', $routerId)->where('username', $uName)->first();
             $nuevoIdentity = (!empty($p[4]) && $p[4] !== "nil") ? $p[4] : ($ticketExistente ? $ticketExistente->identity : "IMP-{$uName}");
-            $isActivado = ($p[4] === 'activo');
 
             Ticket::updateOrCreate(
                 ['router_id' => $routerId, 'username' => $uName],
                 [
-                    'activado'         => $isActivado ? 1 : ($ticketExistente ? $ticketExistente->activado : 0),
                     'password'         => $p[1] ?? '',
                     'plan'             => $nombrePlanSync,
                     'costo'            => $costoSync,
                     'identity'         => $nuevoIdentity,
                     'tiempo_consumido' => $uptimeReal,
                     'tiempo_uso'       => $tiempoUsoSync,
-                    'estado'           => ($uptimeReal !== '0s' && $uptimeReal !== '') ? 'en_uso' : 'disponible',
-                    'sincronizado' => true
+                    'sincronizado'     => true,
+                    'estado'           => ($uptimeReal !== '0s' && $uptimeReal !== '') ? 'en_uso' : 'disponible'
                 ]
             );
             $processedCount++;
         }
+
+        // Eliminar registros locales que ya no existen en el MikroTik (igual que en Aliado)
+        Ticket::where('router_id', $routerId)->whereNotIn('username', $mikrotikUsernames)->delete();
+
         return $processedCount;
     }
 
