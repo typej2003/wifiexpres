@@ -90,25 +90,32 @@ class TicketsHistory extends Component
         $this->showOverlay = true;
         $this->isSyncModalOpen = false;
         
-        $mac = strtoupper($router->macAddress);
-        $tid = "HSYNC" . time();
+        $mac = strtoupper(trim($router->macAddress));
+        $tid = "SYNC_" . time();
 
-        $comando = ":local count 0; :local res \"D:\"; :foreach i in=[/ip hotspot user find where name!=\"default-trial\"] do={ " .
+        // Script optimizado: Listar usuarios del hotspot con datos esenciales
+        $comando = ":local count 0; :local res \"D:\"; " .
+                   "/ip hotspot user { " .
+                   ":foreach i in=[find where name!=\"default-trial\"] do={ " .
                    ":if (\$count < {$this->syncAmount}) do={ " .
-                   ":local n [/ip hotspot user get \$i name]; :local p [/ip hotspot user get \$i password]; " .
-                   ":local pr [/ip hotspot user get \$i profile]; :local u [/ip hotspot user get \$i uptime]; " .
-                   ":local c [/ip hotspot user get \$i comment]; " .
-                   ":set res (\$res . \$n . \",\" . \$p . \",\" . \$pr . \",\" . \$u . \",\" . \$c . \"|\"); " .
+                   ":local n [get \$i name]; :local u [get \$i uptime]; " .
+                   ":local pr [get \$i profile]; " .
+                   ":set res (\$res . \$n . \",\" . \$u . \",\" . \$pr . \"|\"); " .
                    ":set count (\$count + 1); " .
-                   "} }; /tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\$res keep-result=no;";
+                   "} } }; " .
+                   "/tool fetch url=\"{$this->bridgeUrl}/post-result?mac=$mac&tid=$tid\" http-method=post http-data=\$res keep-result=no;";
 
         try {
-            Http::timeout(15)->withHeaders(['x-mac' => $mac, 'x-id' => $tid])
+            $response = Http::timeout(10)->withHeaders(['x-mac' => $mac, 'x-id' => $tid])
                 ->withBody(trim($comando), 'text/plain')
                 ->post("{$this->bridgeUrl}/set-command");
 
+            if (!$response->successful()) {
+                throw new \Exception("El servidor Bridge no aceptó el comando.");
+            }
+
             $raw = null;
-            for ($i = 0; $i < 10; $i++) {
+            for ($i = 0; $i < 15; $i++) {
                 sleep(1);
                 $res = Http::get("{$this->bridgeUrl}/api/check-task-result", ['mac' => $mac, 'tid' => $tid]);
                 if ($res->successful() && $res->json('status') === 'ready') {
@@ -119,7 +126,7 @@ class TicketsHistory extends Component
             
             if ($raw) {
                 $count = $this->processSyncRawData($raw, $router->id);
-                session()->flash('message', "Sincronización exitosa: se procesaron $count registros del MikroTik.");
+                session()->flash('message', "Sincronización finalizada. Se actualizaron $count tickets.");
                 $this->isSummaryModalOpen = true;
             } else {
                 session()->flash('error', 'El servidor Bridge no recibió respuesta del MikroTik a tiempo.');
@@ -139,10 +146,17 @@ class TicketsHistory extends Component
         $processedCount = 0;
         foreach ($filas as $fila) {
             $p = explode(',', $fila);
-            if (count($p) < 3) continue;
+            if (count($p) < 2) continue;
+
+            // $p[0]: name, $p[1]: uptime, $p[2]: profile
             Ticket::updateOrCreate(
                 ['router_id' => $routerId, 'username' => $p[0]],
-                ['tiempo_consumido' => $p[3] ?: '0s', 'estado' => ($p[3] !== '0s') ? 'en_uso' : 'disponible', 'sincronizado' => true]
+                [
+                    'tiempo_consumido' => $p[1] ?: '0s', 
+                    'estado' => ($p[1] !== '0s' && $p[1] !== '') ? 'en_uso' : 'disponible',
+                    'plan' => $p[2] ?? null,
+                    'sincronizado' => true
+                ]
             );
             $processedCount++;
         }
