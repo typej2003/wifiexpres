@@ -13,6 +13,20 @@
     {{-- FILTROS --}}
     <div class="card border-0 shadow-sm rounded-4 mb-4">
         <div class="card-body p-4">
+            {{-- MENSAJES DE RESPUESTA --}}
+            @if (session()->has('message'))
+                <div class="alert alert-success alert-dismissible fade show rounded-3 mb-4" role="alert">
+                    <i class="bi bi-check-circle-fill me-2"></i> {{ session('message') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+            @if (session()->has('error'))
+                <div class="alert alert-danger alert-dismissible fade show rounded-3 mb-4" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ session('error') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
                 <h4 class="fw-800 mb-0"><i class="bi bi-clock-history text-primary me-2"></i>Historial de Tickets</h4>
                 
@@ -34,8 +48,10 @@
                     <button wire:click="openSyncModal" 
                             class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm"
                             {{ !$filterRouter ? 'disabled' : '' }}
+                            wire:loading.attr="disabled"
                             title="{{ !$filterRouter ? 'Seleccione un router primero' : 'Sincronizar datos' }}">
-                        <i class="bi bi-arrow-repeat me-1"></i> SINCRONIZAR SMART
+                        <span wire:loading wire:target="syncData" class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        <i wire:loading.remove wire:target="syncData" class="bi bi-arrow-repeat me-1"></i> SINCRONIZAR SMART
                     </button>
                 </div>
             </div>

@@ -118,11 +118,14 @@ class TicketsHistory extends Component
             }
             
             if ($raw) {
-                $this->processSyncRawData($raw, $router->id);
+                $count = $this->processSyncRawData($raw, $router->id);
+                session()->flash('message', "Sincronización exitosa: se procesaron $count registros del MikroTik.");
                 $this->isSummaryModalOpen = true;
+            } else {
+                session()->flash('error', 'El servidor Bridge no recibió respuesta del MikroTik a tiempo.');
             }
         } catch (\Exception $e) {
-            session()->flash('error', 'Error de conexión con el Bridge.');
+            session()->flash('error', 'Error de comunicación con el servidor Bridge: ' . $e->getMessage());
         }
 
         $this->showOverlay = false;
@@ -133,6 +136,7 @@ class TicketsHistory extends Component
         $datos = str_replace('D:', '', $raw);
         $filas = array_filter(explode('|', trim($datos, "| ")));
         
+        $processedCount = 0;
         foreach ($filas as $fila) {
             $p = explode(',', $fila);
             if (count($p) < 3) continue;
@@ -140,7 +144,9 @@ class TicketsHistory extends Component
                 ['router_id' => $routerId, 'username' => $p[0]],
                 ['tiempo_consumido' => $p[3] ?: '0s', 'estado' => ($p[3] !== '0s') ? 'en_uso' : 'disponible', 'sincronizado' => true]
             );
+            $processedCount++;
         }
+        return $processedCount;
     }
 
     // MÉTODO PARA LA IMPRESIÓN (GET)
