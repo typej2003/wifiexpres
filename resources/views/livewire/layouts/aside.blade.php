@@ -180,12 +180,14 @@
                 <i class="bi bi-code-slash"></i> 
                 <span class="menu-text">Versiones Hotspot</span>
             </a>
-            
-            <a href="/users" class="sidebar-link">
+
+            @if(auth()->user()->role === 'admin')
+            <a href="/users" class="sidebar-link {{ request()->is('users*') ? 'active' : '' }}">
                 <i class="bi bi-people"></i> 
                 <span class="menu-text">Usuarios</span>
                 <span class="badge rounded-pill bg-info text-dark ms-2">{{ $totalUsuarios ?? '0' }}</span>
             </a>
+            @endif
 
             <a href="{{ route('admin.subscriptions') }}" class="sidebar-link {{ request()->routeIs('admin.subscriptions') ? 'active' : '' }}">
                 <i class="bi bi-person-check"></i> 
@@ -252,7 +254,7 @@
 
             @php
                 $adminConfigActive = request()->routeIs([
-                    'mikrotik.crear-directorios', 'mikrotik.remoto', 'mikrotik.confdetallada', 
+                    'listCarrusel', 'mikrotik.crear-directorios', 'mikrotik.remoto', 'mikrotik.confdetallada', 
                     'mikrotik.cambiar-trial', 'mikrotik.herramientas.interfaces', 
                     'admin.diagnostico', 'mikrotik.logs', 'admin.configuraciones'
                 ]);
