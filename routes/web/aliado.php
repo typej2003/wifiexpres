@@ -12,6 +12,7 @@ use App\Http\Livewire\Mikrotik\Aliado\HotspotConfig;
 // NUEVAS IMPORTACIONES
 use App\Http\Livewire\Mikrotik\Aliado\AliadoRanking;
 use App\Http\Livewire\Mikrotik\Aliado\MonitorAccounts; // <--- NUEVA IMPORTACIÓN
+use App\Http\Livewire\Mikrotik\Aliado\ListAgeRanges;
 use App\Http\Livewire\Hablador\HabladorManager;
 use App\Models\Pantalla;
 use App\Http\Livewire\Mikrotik\Aliado\SalesReports;
@@ -39,6 +40,9 @@ Route::middleware(['auth'])->group(function () {
         // MONITOR DE CUENTAS (Ubicación por IP/Antena)
         // Se coloca aquí para que el Admin pueda ver a todos y el Aliado lo use en su red
         Route::get('/monitor-cuentas', MonitorAccounts::class)->name('aliado.monitor');
+
+        // Gestión de Rangos de Edad
+        Route::get('/aliado/age-ranges', ListAgeRanges::class)->name('aliado.age-ranges');
     });
 
     // Rutas exclusivas del aliado
