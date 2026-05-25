@@ -176,11 +176,6 @@
                 <span class="badge rounded-pill bg-warning text-dark ms-auto menu-text" style="font-size: 0.6rem; font-weight: 800;">PRO</span>
             </a> 
 
-            <a href="{{ route('listCarrusel') }}" class="sidebar-link {{ request()->routeIs('listCarrusel') ? 'active' : '' }}">
-                <i class="bi bi-images"></i> 
-                <span class="menu-text">Carrusel</span>
-            </a>
-
             <a href="{{ route('hotspot.versions') }}" class="sidebar-link {{ request()->routeIs('hotspot.versions') ? 'active' : '' }}">
                 <i class="bi bi-code-slash"></i> 
                 <span class="menu-text">Versiones Hotspot</span>
@@ -271,6 +266,10 @@
                     <i class="bi bi-chevron-down menu-text"></i>
                 </a>
                 <div class="sidebar-dropdown {{ $adminConfigActive ? 'show' : '' }}">
+                    <a href="{{ route('listCarrusel') }}" class="sidebar-link {{ request()->routeIs('listCarrusel') ? 'active' : '' }}">
+                        <i class="bi bi-images"></i> 
+                        <span class="menu-text">Carrusel</span>
+                    </a>
                     <a href="{{ route('mikrotik.crear-directorios') }}" class="sidebar-link {{ request()->routeIs('mikrotik.crear-directorios') ? 'active' : '' }}">
                         <i class="bi bi-folder-plus"></i>  
                         <span class="menu-text">Gestionar Directorios</span>
