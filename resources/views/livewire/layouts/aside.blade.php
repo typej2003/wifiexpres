@@ -120,6 +120,31 @@
             display: none !important;
         }
     }
+
+    /* --- DROPDOWN (ACORDEÓN) --- */
+    .sidebar-dropdown {
+        display: none;
+        background: #fcfcfc;
+    }
+
+    .sidebar-dropdown.show {
+        display: block;
+    }
+
+    .sidebar-link.has-dropdown .bi-chevron-down {
+        margin-left: auto;
+        transition: transform 0.3s;
+        font-size: 0.8rem;
+    }
+
+    .sidebar-link.has-dropdown.open .bi-chevron-down {
+        transform: rotate(180deg);
+    }
+
+    .sidebar-dropdown .sidebar-link {
+        padding-left: 55px;
+        font-size: 0.85rem;
+    }
 </style>
 
 <div class="sidebar-rednet" id="sidebar">
@@ -230,61 +255,61 @@
                 <span class="nav-link-text ms-1">USUARIOS ONLINE</span>
             </a>
 
-            <a href="{{ route('mikrotik.crear-directorios') }}" class="sidebar-link">
-                <i class="fas fa-folder-plus"></i>  
-                <span class="menu-text">Gestionar Directorios</span>
-            </a>
+            @php
+                $adminConfigActive = request()->routeIs([
+                    'mikrotik.crear-directorios', 'mikrotik.remoto', 'mikrotik.confdetallada', 
+                    'mikrotik.cambiar-trial', 'mikrotik.herramientas.interfaces', 
+                    'admin.diagnostico', 'mikrotik.logs', 'admin.configuraciones'
+                ]);
+            @endphp
 
-            <a href="{{ route('mikrotik.remoto') }}" class="sidebar-link {{ request()->routeIs('mikrotik.remoto') ? 'active' : '' }}">
-                <i class="bi bi-terminal"></i> 
-                <span class="menu-text">Conf Remoto</span>
-            </a>
-
-            <a href="{{ route('mikrotik.confdetallada') }}" class="sidebar-link {{ request()->routeIs('mikrotik.confdetallada') ? 'active' : '' }}">
-                <i class="bi bi-terminal"></i> 
-                <span class="menu-text">Conf Remoto Detallada</span>
-            </a>
-
-            <a class="sidebar-link {{ request()->routeIs('mikrotik.cambiar-trial') ? 'active bg-gradient-primary text-white' : '' }}" 
-            href="{{ route('mikrotik.cambiar-trial') }}">
-                <div class="icon icon-shape icon-sm border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                    <i class="bi bi-calendar-event {{ request()->routeIs('mikrotik.cambiar-trial') ? 'text-white' : 'text-primary' }} text-sm opacity-10"></i>
+            <div class="sidebar-item">
+                <a href="javascript:void(0)" class="sidebar-link has-dropdown {{ $adminConfigActive ? 'open' : '' }}" 
+                   onclick="this.nextElementSibling.classList.toggle('show'); this.classList.toggle('open');">
+                    <i class="bi bi-gear"></i>
+                    <span class="menu-text">Configuración</span>
+                    <i class="bi bi-chevron-down menu-text"></i>
+                </a>
+                <div class="sidebar-dropdown {{ $adminConfigActive ? 'show' : '' }}">
+                    <a href="{{ route('mikrotik.crear-directorios') }}" class="sidebar-link {{ request()->routeIs('mikrotik.crear-directorios') ? 'active' : '' }}">
+                        <i class="bi bi-folder-plus"></i>  
+                        <span class="menu-text">Gestionar Directorios</span>
+                    </a>
+                    <a href="{{ route('mikrotik.remoto') }}" class="sidebar-link {{ request()->routeIs('mikrotik.remoto') ? 'active' : '' }}">
+                        <i class="bi bi-terminal"></i> 
+                        <span class="menu-text">Conf Remoto</span>
+                    </a>
+                    <a href="{{ route('mikrotik.confdetallada') }}" class="sidebar-link {{ request()->routeIs('mikrotik.confdetallada') ? 'active' : '' }}">
+                        <i class="bi bi-terminal-split"></i> 
+                        <span class="menu-text">Conf Remoto Detallada</span>
+                    </a>
+                    <a href="{{ route('mikrotik.cambiar-trial') }}" class="sidebar-link {{ request()->routeIs('mikrotik.cambiar-trial') ? 'active' : '' }}">
+                        <i class="bi bi-calendar-event"></i>
+                        <span class="menu-text">Perfil Trial</span>
+                    </a>
+                    <a href="{{ route('mikrotik.herramientas.interfaces') }}" class="sidebar-link {{ request()->routeIs('mikrotik.herramientas.interfaces') ? 'active' : '' }}">
+                        <i class="bi bi-hdd-network"></i>
+                        <span class="menu-text">Interfaces</span>
+                    </a>
+                    <a href="{{ route('admin.diagnostico') }}" class="sidebar-link {{ request()->routeIs('admin.diagnostico') ? 'active' : '' }}">
+                        <i class="bi bi-heart-pulse"></i> 
+                        <span class="menu-text">Diagnóstico</span>
+                    </a>
+                    <a href="{{ route('mikrotik.logs') }}" class="sidebar-link {{ request()->routeIs('mikrotik.logs') ? 'active' : '' }}">
+                        <i class="bi bi-journal-text"></i>
+                        <span class="menu-text">Visor de Logs</span>
+                    </a>
+                    <a href="{{ route('admin.configuraciones') }}" class="sidebar-link {{ request()->routeIs('admin.configuraciones') ? 'active' : '' }}">
+                        <i class="bi bi-gear-wide-connected"></i> 
+                        <span class="menu-text">Ajustes Sistema</span>
+                    </a>
                 </div>
-                <span class="nav-link-text ms-1 text-uppercase">Cambiar Perfil Trial</span>
-            </a>
-
-            <a class="sidebar-link {{ request()->routeIs('mikrotik.confdetallada') ? 'active' : '' }}" 
-            href="{{ route('mikrotik.herramientas.interfaces') }}">
-                <i class="fas fa-network-wired"></i>
-                <span>Interfaces</span>
-            </a>
-
-            <a href="{{ route('admin.diagnostico') }}" class="sidebar-link {{ request()->routeIs('admin.diagnostico') ? 'active' : '' }}">
-                <i class="bi bi-terminal"></i> 
-                <span class="menu-text">Diagnóstico</span>
-            </a>
-
-            <a href="{{ route('mikrotik.logs') }}" class="sidebar-link {{ request()->routeIs('mikrotik.logs') ? 'active' : '' }}">
-                <i class="bi bi-journal-text me-2"></i>
-                <span class="menu-text">Visor de Logs</span>
-            </a>
+            </div>
 
             <a href="{{ route('admin.bridge.auditor') }}" class="sidebar-link {{ request()->routeIs('admin.bridge.auditor') ? 'active' : '' }}">
                 <i class="bi bi-cpu-fill text-info"></i> 
                 <span class="menu-text">Auditoría Bridge</span>
                 <span class="badge rounded-pill bg-dark text-white ms-2">LIVE</span>
-            </a>
-
-            {{-- NUEVO ENLACE: REPORTE GLOBAL DE VENTAS --}}
-            <a href="{{ route('mikrotik.router.all-sales') }}" class="sidebar-link {{ request()->routeIs('mikrotik.router.all-sales') ? 'active' : '' }}">
-                <i class="bi bi-graph-up-arrow text-warning"></i> 
-                <span class="menu-text">Ventas Globales</span>
-            </a>
-
-            {{-- NUEVO: Enlace para Campañas de Encuestas --}}
-            <a href="{{ route('mikrotik.aliado.campaigns') }}" class="sidebar-link {{ request()->routeIs('mikrotik.aliado.campaigns') ? 'active' : '' }}">
-                <i class="bi bi-megaphone"></i> 
-                <span class="menu-text">CAMPAÑAS / ENCUESTAS</span>
             </a>
 
             <a href="{{ route('mikrotik.data.notificaciones') }}" 
@@ -293,10 +318,12 @@
                     <span class="menu-text">NOTIFICACIONES APP</span>
                 </a>
 
-            <a href="{{ route('admin.configuraciones') }}" class="sidebar-link {{ request()->routeIs('admin.configuraciones') ? 'active' : '' }}">
-                <i class="bi bi-gear-wide-connected"></i> 
-                <span class="menu-text">Configuraciones</span>
+            {{-- NUEVO ENLACE: REPORTE GLOBAL DE VENTAS --}}
+            <a href="{{ route('mikrotik.router.all-sales') }}" class="sidebar-link {{ request()->routeIs('mikrotik.router.all-sales') ? 'active' : '' }}">
+                <i class="bi bi-graph-up-arrow text-warning"></i> 
+                <span class="menu-text">Ventas Globales</span>
             </a>
+
             
         @endif
 
@@ -327,10 +354,24 @@
                 <span class="menu-text">RENDIMIENTO POR ROUTER</span>
             </a>
 
-            <a href="{{ route('aliado.routers') }}" class="sidebar-link {{ request()->routeIs('aliado.routers') ? 'active' : '' }}">
-                <i class="bi bi-router"></i>
-                <span class="menu-text">MIS ROUTERS</span>
-            </a>
+            @php
+                $aliadoConfigActive = request()->routeIs(['aliado.routers', 'mikrotik.aliado.campaigns']);
+            @endphp
+
+            <div class="sidebar-item">
+                <a href="javascript:void(0)" class="sidebar-link has-dropdown {{ $aliadoConfigActive ? 'open' : '' }}" 
+                   onclick="this.nextElementSibling.classList.toggle('show'); this.classList.toggle('open');">
+                    <i class="bi bi-gear"></i>
+                    <span class="menu-text">Configuración</span>
+                    <i class="bi bi-chevron-down menu-text"></i>
+                </a>
+                <div class="sidebar-dropdown {{ $aliadoConfigActive ? 'show' : '' }}">
+                    <a href="{{ route('aliado.routers') }}" class="sidebar-link {{ request()->routeIs('aliado.routers') ? 'active' : '' }}">
+                        <i class="bi bi-router"></i>
+                        <span class="menu-text">MIS ROUTERS</span>
+                    </a>
+                </div>
+            </div>
 
             <a href="{{ route('mikrotik.history') }}" class="sidebar-link {{ request()->routeIs('mikrotik.history') ? 'active' : '' }}">
                 <i class="bi bi-clock-history"></i> 
@@ -369,17 +410,6 @@
                     <span class="nav-link-text ms-1">USUARIOS ONLINE</span>
                 </a>
 
-            {{-- NUEVO: Enlace para Campañas de Encuestas --}}
-            <a href="{{ route('mikrotik.aliado.campaigns') }}" class="sidebar-link {{ request()->routeIs('mikrotik.aliado.campaigns') ? 'active' : '' }}">
-                <i class="bi bi-megaphone"></i> 
-                <span class="menu-text">CAMPAÑAS / ENCUESTAS</span>
-            </a>
-
-            <!-- <a href="{{ route('habladores.index') }}" class="sidebar-link {{ request()->routeIs('habladores.index') ? 'active' : '' }}">
-                <i class="bi bi-tv"></i> 
-                <span class="menu-text">Habladores Digitales</span>
-                <span class="badge rounded-pill bg-warning text-dark ms-auto menu-text" style="font-size: 0.6rem; font-weight: 800;">PRO</span>
-            </a> -->
         @endif
 
         @if(auth()->user()->role === 'cliente')
