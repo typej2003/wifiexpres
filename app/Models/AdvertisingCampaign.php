@@ -2,20 +2,53 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class AdvertisingCampaign extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
-        'user_id', 'name', 'description', 'target_gender', 
-        'age_min', 'age_max', 'media_type', 'media_path', 'question', 'active'
+        'user_id',
+        'name',
+        'description',
+        'target_gender',
+        'age_range_id',
+        'media_type',
+        'media_path',
+        'question_text',
+        'question_type',
+        'options',
+        'active',
     ];
 
-    public function user() {
+    protected $casts = [
+        'options' => 'array',
+        'active' => 'boolean',
+    ];
+
+    /**
+     * Obtener el aliado (usuario) dueño de la campaña.
+     */
+    public function user()
+    {
         return $this->belongsTo(User::class);
     }
 
-    public function responses() {
+    /**
+     * Obtener el rango de edad configurado para la campaña.
+     */
+    public function ageRange()
+    {
+        return $this->belongsTo(AgeRange::class);
+    }
+
+    /**
+     * Obtener las respuestas registradas para esta campaña.
+     */
+    public function responses()
+    {
         return $this->hasMany(CampaignResponse::class, 'campaign_id');
     }
 }
