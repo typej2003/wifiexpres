@@ -10,6 +10,7 @@ class CreateAgeRangesTable extends Migration
     {
         Schema::create('age_ranges', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('name'); // Ej: "Jóvenes", "Adultos", "Tercera Edad"
             $table->integer('min_age');
             $table->integer('max_age');
