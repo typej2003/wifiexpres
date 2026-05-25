@@ -174,7 +174,12 @@
                 <i class="bi bi-tv"></i> 
                 <span class="menu-text">Habladores Digitales</span>
                 <span class="badge rounded-pill bg-warning text-dark ms-auto menu-text" style="font-size: 0.6rem; font-weight: 800;">PRO</span>
-            </a> 
+            </a>
+            
+            <a href="{{ route('mikrotik.aliado.campaigns') }}" class="sidebar-link {{ request()->routeIs('mikrotik.aliado.campaigns') ? 'active' : '' }}">
+                <i class="bi bi-bar-chart-steps"></i> 
+                <span class="menu-text">CAMPAÑAS</span>
+            </a>
 
             <a href="{{ route('hotspot.versions') }}" class="sidebar-link {{ request()->routeIs('hotspot.versions') ? 'active' : '' }}">
                 <i class="bi bi-code-slash"></i> 
