@@ -21,15 +21,16 @@ class CreateAdvertisingCampaignsTable extends Migration
             
             // Segmentación
             $table->string('target_gender')->default('todos'); // masculino, femenino, todos
-            $table->integer('age_min')->default(0);
-            $table->integer('age_max')->default(100);
+            $table->foreignId('age_range_id')->nullable()->constrained('age_ranges')->onDelete('set null');
             
             // Contenido Multimedia
             $table->string('media_type'); // imagen, video
             $table->string('media_path');
             
-            // La Pregunta
-            $table->string('question');
+            // Estructura de la Encuesta
+            $table->string('question_text');
+            $table->enum('question_type', ['simple', 'multiple_choice', 'single_choice'])->default('simple');
+            $table->json('options')->nullable(); // Guardará las opciones en caso de ser selección
             
             $table->boolean('active')->default(true);
             $table->timestamps();

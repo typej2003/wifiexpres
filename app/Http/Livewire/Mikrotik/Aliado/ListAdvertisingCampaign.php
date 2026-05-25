@@ -6,6 +6,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\WithFileUploads;
 use App\Models\AdvertisingCampaign;
+use App\Models\AgeRange;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -20,7 +21,12 @@ class ListAdvertisingCampaign extends Component
     
     // Propiedades del Formulario
     public $isModalOpen = false;
-    public $selected_id, $name, $description, $target_gender = 'todos', $age_min = 0, $age_max = 99, $media_type = 'imagen', $media, $question, $user_id, $current_media_path;
+    public $selected_id, $name, $description, $target_gender = 'todos';
+    public $age_range_id;
+    public $media_type = 'imagen', $media, $current_media_path;
+    public $question_text, $question_type = 'simple';
+    public $options = []; // Array para las opciones dinámicas
+    public $user_id;
 
     public function mount()
     {
@@ -44,11 +50,12 @@ class ListAdvertisingCampaign extends Component
         $this->name = '';
         $this->description = '';
         $this->target_gender = 'todos';
-        $this->age_min = 0;
-        $this->age_max = 99;
+        $this->age_range_id = '';
         $this->media_type = 'imagen';
         $this->media = null;
-        $this->question = '';
+        $this->question_text = '';
+        $this->question_type = 'simple';
+        $this->options = [];
         $this->selected_id = null;
         $this->current_media_path = null;
         if(!$this->isAdmin) $this->user_id = Auth::id();
@@ -69,14 +76,26 @@ class ListAdvertisingCampaign extends Component
         $this->name = $campaign->name;
         $this->description = $campaign->description;
         $this->target_gender = $campaign->target_gender;
-        $this->age_min = $campaign->age_min;
-        $this->age_max = $campaign->age_max;
+        $this->age_range_id = $campaign->age_range_id;
         $this->media_type = $campaign->media_type;
-        $this->question = $campaign->question;
+        $this->question_text = $campaign->question_text;
+        $this->question_type = $campaign->question_type;
+        $this->options = $campaign->options ?? [];
         $this->user_id = $campaign->user_id;
         $this->current_media_path = $campaign->media_path;
         
         $this->isModalOpen = true;
+    }
+
+    public function addOption()
+    {
+        $this->options[] = '';
+    }
+
+    public function removeOption($index)
+    {
+        unset($this->options[$index]);
+        $this->options = array_values($this->options);
     }
 
     public function delete($id)
@@ -95,7 +114,8 @@ class ListAdvertisingCampaign extends Component
             'name' => 'required',
             'user_id' => 'required',
             'media' => $this->selected_id ? 'nullable|max:20480' : 'required|max:20480',
-            'question' => 'required',
+            'question_text' => 'required',
+            'options' => $this->question_type != 'simple' ? 'required|array|min:2' : 'nullable',
         ]);
 
         $data = [
@@ -103,10 +123,11 @@ class ListAdvertisingCampaign extends Component
             'description' => $this->description,
             'user_id' => $this->user_id,
             'target_gender' => $this->target_gender,
-            'age_min' => $this->age_min,
-            'age_max' => $this->age_max,
+            'age_range_id' => $this->age_range_id,
             'media_type' => $this->media_type,
-            'question' => $this->question,
+            'question_text' => $this->question_text,
+            'question_type' => $this->question_type,
+            'options' => $this->question_type != 'simple' ? $this->options : null,
         ];
 
         if ($this->media) {
@@ -138,7 +159,8 @@ class ListAdvertisingCampaign extends Component
 
         return view('livewire.mikrotik.aliado.list-advertising-campaign', [
             'campaigns' => $query->latest()->paginate(10),
-            'aliados' => $this->isAdmin ? User::where('role', 'aliado')->get() : []
+            'aliados' => $this->isAdmin ? User::where('role', 'aliado')->get() : [],
+            'ageRanges' => AgeRange::all()
         ])->layout('layouts.app');
     }
 }

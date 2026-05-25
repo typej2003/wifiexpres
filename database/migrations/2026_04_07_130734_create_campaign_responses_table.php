@@ -26,7 +26,8 @@ class CreateCampaignResponsesTable extends Migration
                 ->constrained('user_mikrotiks')
                 ->onDelete('cascade');
 
-            $table->enum('response', ['aprobado', 'no_interesado']);
+            // Guardamos la respuesta abierta o el ID/Texto de la opción seleccionada
+            $table->text('answer'); 
             $table->timestamps();
         });
     }

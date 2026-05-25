@@ -65,7 +65,7 @@
                         </td>
                         <td>
                             <span class="badge bg-soft-info text-info rounded-pill px-3">
-                                {{ strtoupper($camp->target_gender) }} | {{ $camp->age_min }}-{{ $camp->age_max }} años
+                                {{ strtoupper($camp->target_gender) }} | {{ $camp->ageRange->name ?? 'Cualquier edad' }}
                             </span>
                         </td>
                         <td class="text-center">
@@ -146,6 +146,16 @@
                             </select>
                         </div>
 
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted">Rango de Edad</label>
+                            <select wire:model="age_range_id" class="form-select">
+                                <option value="">Cualquier edad</option>
+                                @foreach($ageRanges as $range)
+                                    <option value="{{ $range->id }}">{{ $range->name }} ({{ $range->min_age }}-{{ $range->max_age }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+
                         <div class="col-md-12">
                             <label class="form-label small fw-bold text-muted">Multimedia</label>
                             <input type="file" wire:model="media" class="form-control">
@@ -168,10 +178,41 @@
                             </div>
                         </div>
 
-                        <div class="col-md-12">
+                        <div class="col-md-8">
                             <label class="form-label small fw-bold text-muted">Pregunta de Encuesta</label>
-                            <input type="text" wire:model="question" class="form-control">
+                            <input type="text" wire:model="question_text" class="form-control" placeholder="¿Qué te parece nuestro servicio?">
                         </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted">Tipo de Respuesta</label>
+                            <select wire:model="question_type" class="form-select">
+                                <option value="simple">Respuesta Abierta</option>
+                                <option value="single_choice">Opción Única (Radio)</option>
+                                <option value="multiple_choice">Múltiples Opciones (Check)</option>
+                            </select>
+                        </div>
+
+                        {{-- GESTIÓN DE OPCIONES --}}
+                        @if($question_type != 'simple')
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label small fw-bold text-primary mb-0">Opciones de Respuesta</label>
+                                <button type="button" wire:click="addOption" class="btn btn-sm btn-outline-primary rounded-pill">
+                                    <i class="bi bi-plus"></i> Agregar Opción
+                                </button>
+                            </div>
+                            @foreach($options as $index => $option)
+                            <div class="input-group mb-2">
+                                <span class="input-group-text">{{ $index + 1 }}</span>
+                                <input type="text" wire:model.defer="options.{{ $index }}" class="form-control" placeholder="Texto de la opción">
+                                <button type="button" wire:click="removeOption({{ $index }})" class="btn btn-outline-danger">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                            @endforeach
+                            @error('options') <small class="text-danger">{{ $message }}</small> @enderror
+                        </div>
+                        @endif
                     </div>
                 </div>
 
