@@ -181,6 +181,11 @@
                 <span class="menu-text">CAMPAÑAS</span>
             </a>
 
+            <a href="{{ route('aliado.age-ranges') }}" class="sidebar-link {{ request()->routeIs('aliado.age-ranges') ? 'active' : '' }}">
+                <i class="bi bi-bar-chart-steps"></i> 
+                <span class="menu-text">Rangos de Edades</span>
+            </a>
+
             <a href="{{ route('hotspot.versions') }}" class="sidebar-link {{ request()->routeIs('hotspot.versions') ? 'active' : '' }}">
                 <i class="bi bi-code-slash"></i> 
                 <span class="menu-text">Versiones Hotspot</span>
