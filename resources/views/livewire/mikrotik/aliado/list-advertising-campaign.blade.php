@@ -149,7 +149,7 @@
                         <div class="col-md-4">
                             <label class="form-label small fw-bold text-muted">Rango de Edad</label>
                             <select wire:model="age_range_id" class="form-select">
-                                <option value="">Cualquier edad</option>
+                                <option value="0">Cualquier edad</option>
                                 @foreach($ageRanges as $range)
                                     <option value="{{ $range->id }}">{{ $range->name }} ({{ $range->min_age }}-{{ $range->max_age }})</option>
                                 @endforeach
