@@ -194,7 +194,7 @@ class ListAdvertisingCampaign extends Component
      * Obtiene la campaña activa, datos del router y planes disponibles.
      * Integrado para simplificar peticiones desde el login.html del hotspot.
      */
-    public static function getActiveCampaignByIdentity(Request $request)
+    public static function getCampaign(Request $request)
     {
         $identity = $request->query('identity');
         $mac = $request->query('mac');
