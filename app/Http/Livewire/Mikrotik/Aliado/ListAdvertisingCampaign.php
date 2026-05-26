@@ -165,7 +165,7 @@ class ListAdvertisingCampaign extends Component
         // Esto asegura que al crear una campaña se vean solo los rangos del dueño de la misma.
         $ageRangesQuery = AgeRange::query();
         if (!$this->isAdmin) {
-            $ageRangesQuery->where('user_id', Auth::id());
+            $ageRangesQuery->where('user_id', $this->user_id);
         } elseif ($this->user_id) {
             $ageRangesQuery->where('user_id', $this->user_id);
         }
