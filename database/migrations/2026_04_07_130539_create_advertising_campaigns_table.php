@@ -21,7 +21,7 @@ class CreateAdvertisingCampaignsTable extends Migration
             
             // Segmentación
             $table->string('target_gender')->default('todos'); // masculino, femenino, todos
-            $table->foreignId('age_range_id')->nullable()->constrained('age_ranges')->onDelete('set null');
+            $table->unsignedBigInteger('age_range_id')->default(0);
             
             // Contenido Multimedia
             $table->string('media_type'); // imagen, video

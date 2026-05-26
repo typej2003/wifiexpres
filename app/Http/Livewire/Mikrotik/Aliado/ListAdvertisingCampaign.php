@@ -32,7 +32,7 @@ class ListAdvertisingCampaign extends Component
     {
         $this->isAdmin = Auth::user()->role === 'admin';
         $this->user_id = Auth::id();
-        $this->age_range_id = '';
+        $this->age_range_id = 0;
     }
 
     public function openModal()
@@ -51,7 +51,7 @@ class ListAdvertisingCampaign extends Component
         $this->name = '';
         $this->description = '';
         $this->target_gender = 'todos';
-        $this->age_range_id = '';
+        $this->age_range_id = 0;
         $this->media_type = 'imagen';
         $this->media = null;
         $this->question_text = '';
@@ -114,7 +114,7 @@ class ListAdvertisingCampaign extends Component
         $this->validate([
             'name' => 'required',
             'user_id' => 'required',
-            'age_range_id' => 'nullable',
+            'age_range_id' => 'required',
             'media' => $this->selected_id ? 'nullable|max:20480' : 'required|max:20480',
             'question_text' => 'required',
             'options' => $this->question_type != 'simple' ? 'required|array|min:2' : 'nullable',
@@ -125,7 +125,7 @@ class ListAdvertisingCampaign extends Component
             'description' => $this->description,
             'user_id' => $this->user_id,
             'target_gender' => $this->target_gender,
-            'age_range_id' => $this->age_range_id,
+            'age_range_id' => $this->age_range_id ?: 0,
             'media_type' => $this->media_type,
             'question_text' => $this->question_text,
             'question_type' => $this->question_type,
