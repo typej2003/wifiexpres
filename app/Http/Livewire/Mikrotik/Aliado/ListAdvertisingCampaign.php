@@ -13,6 +13,7 @@ use App\Models\AgeRange;
 use App\Models\User;
 use Exception;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use RouterOS\Client;
 use RouterOS\Query;
@@ -193,13 +194,24 @@ class ListAdvertisingCampaign extends Component
      * Obtiene la campaña activa, datos del router y planes disponibles.
      * Integrado para simplificar peticiones desde el login.html del hotspot.
      */
-    public static function getActiveCampaignByIdentity($identity)
+    public static function getActiveCampaignByIdentity(Request $request)
     {
-        $campaign = AdvertisingCampaign::where('router_identity', $identity)
-            ->where('active', true)
+        $identity = $request->query('identity');
+        $mac = $request->query('mac');
+
+        // Encontrar el router de forma flexible (MAC o Identity)
+        $router = Router::when($identity, function($q) use ($identity) {
+                return $q->where('identity', $identity);
+            })
+            ->when($mac, function($q) use ($mac) {
+                return $q->orWhere('macAddress', $mac);
+            })
             ->first();
 
-        $router = Router::where('identity', $identity)->first();
+        // Si el router existe, usamos su identidad oficial; de lo contrario, el parámetro
+        $campaign = AdvertisingCampaign::where('router_identity', $router ? $router->identity : $identity)
+            ->where('active', true)
+            ->first();
 
         if (!$router) {
             return [

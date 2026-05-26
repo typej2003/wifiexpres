@@ -10,6 +10,7 @@ use App\Models\Router;
 use App\Models\UserMikrotik;
 use App\Models\Plan;
 use Exception;
+use App\Http\Livewire\Mikrotik\Aliado\ListAdvertisingCampaign;
 
 class UserController extends Controller
 {
@@ -20,6 +21,25 @@ class UserController extends Controller
                      ->orWhere('macAddress', $identity)
                      ->with('hotspotSetting')
                      ->first();
+    }
+
+    /**
+     * Obtiene la campaña activa, datos del router y planes disponibles.
+     * Consolida múltiples peticiones en una sola para el Hotspot.
+     */
+    public function getCampaign(Request $request)
+    {
+        $identity = $request->query('identity');
+        $mac = $request->query('mac');
+
+        if (!$identity && !$mac) {
+            return response()->json(['success' => false, 'message' => 'Identificador no recibido'], 400);
+        }
+
+        $data = ListAdvertisingCampaign::getActiveCampaignByIdentity($identity, $mac);
+
+        return response()->json(array_merge(['success' => true], $data), 200)
+            ->header('Access-Control-Allow-Origin', '*');
     }
 
     /**
