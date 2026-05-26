@@ -32,6 +32,7 @@ class ListAdvertisingCampaign extends Component
     {
         $this->isAdmin = Auth::user()->role === 'admin';
         $this->user_id = Auth::id();
+        $this->age_range_id = 0;
     }
 
     public function openModal()
@@ -50,7 +51,7 @@ class ListAdvertisingCampaign extends Component
         $this->name = '';
         $this->description = '';
         $this->target_gender = 'todos';
-        $this->age_range_id = '0';
+        $this->age_range_id = 0;
         $this->media_type = 'imagen';
         $this->media = null;
         $this->question_text = '';
@@ -113,6 +114,7 @@ class ListAdvertisingCampaign extends Component
         $this->validate([
             'name' => 'required',
             'user_id' => 'required',
+            'age_range_id' => 'required',
             'media' => $this->selected_id ? 'nullable|max:20480' : 'required|max:20480',
             'question_text' => 'required',
             'options' => $this->question_type != 'simple' ? 'required|array|min:2' : 'nullable',
@@ -151,16 +153,27 @@ class ListAdvertisingCampaign extends Component
         if (!$this->isAdmin) {
             $query->where('user_id', Auth::id());
         } else {
-            if ($this->filterAliado) $query->where('user_id', $this->filterAliado);
+            if ($this->filterAliado) {
+                $query->where('user_id', $this->filterAliado);
+            }
         }
         if ($this->search) {
             $query->where('name', 'like', '%' . $this->search . '%');
         }
 
+        // Obtener rangos de edad filtrados por el aliado seleccionado (o el logueado)
+        // Esto asegura que al crear una campaña se vean solo los rangos del dueño de la misma.
+        $ageRangesQuery = AgeRange::query();
+        if (!$this->isAdmin) {
+            $ageRangesQuery->where('user_id', Auth::id());
+        } elseif ($this->user_id) {
+            $ageRangesQuery->where('user_id', $this->user_id);
+        }
+
         return view('livewire.mikrotik.aliado.list-advertising-campaign', [
             'campaigns' => $query->latest()->paginate(10),
             'aliados' => $this->isAdmin ? User::where('role', 'aliado')->get() : [],
-            'ageRanges' => AgeRange::all()
+            'ageRanges' => $ageRangesQuery->get()
         ])->layout('layouts.app');
     }
 }
