@@ -21,7 +21,7 @@ class ListAdvertisingCampaign extends Component
     
     // Propiedades del Formulario
     public $isModalOpen = false;
-    public $selected_id, $name, $description, $target_gender = 'todos';
+    public $selected_id, $name, $description, $target_gender = 'todos', $router_identity;
     public $age_range_id;
     public $media_type = 'imagen', $media, $current_media_path;
     public $question_text, $question_type = 'simple';
@@ -51,6 +51,7 @@ class ListAdvertisingCampaign extends Component
         $this->name = '';
         $this->description = '';
         $this->target_gender = 'todos';
+        $this->router_identity = '';
         $this->age_range_id = 0;
         $this->media_type = 'imagen';
         $this->media = null;
@@ -81,6 +82,7 @@ class ListAdvertisingCampaign extends Component
         $this->name = $campaign->name;
         $this->description = $campaign->description;
         $this->target_gender = $campaign->target_gender;
+        $this->router_identity = $campaign->router_identity;
         $this->age_range_id = $campaign->age_range_id;
         $this->media_type = $campaign->media_type;
         $this->question_text = $campaign->question_text;
@@ -117,6 +119,7 @@ class ListAdvertisingCampaign extends Component
     {
         $this->validate([
             'name' => 'required',
+            'router_identity' => 'required',
             'user_id' => 'required',
             'age_range_id' => 'required',
             'media' => $this->selected_id ? 'nullable|max:20480' : 'required|max:20480',
@@ -127,6 +130,7 @@ class ListAdvertisingCampaign extends Component
         $data = [
             'name' => $this->name,
             'description' => $this->description,
+            'router_identity' => $this->router_identity,
             'user_id' => $this->user_id,
             'target_gender' => $this->target_gender,
             'age_range_id' => $this->age_range_id ?: 0,
@@ -177,5 +181,16 @@ class ListAdvertisingCampaign extends Component
             'aliados' => $this->isAdmin ? User::where('role', 'aliado')->get() : [],
             'ageRanges' => $ageRanges
         ])->layout('layouts.app');
+    }
+
+    /**
+     * Obtiene la campaña activa para un router específico por su identidad.
+     * Esta función es invocada desde el controlador de la API.
+     */
+    public static function getActiveCampaignByIdentity($identity)
+    {
+        return AdvertisingCampaign::where('router_identity', $identity)
+            ->where('active', true)
+            ->first();
     }
 }

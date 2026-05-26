@@ -107,6 +107,9 @@ Route::prefix('v2')->group(function () {
     Route::get('/users/check-status', [UserController::class, 'checkStatus']);
 
     Route::post('/free-connection', [UserController::class, 'freeConnection']);
+
+    // Obtener campaña publicitaria por identidad del router
+    Route::get('/get-campaign', [UserController::class, 'getCampaign']);
 });
 
 /** * RUTAS V3 - MARKETING
@@ -263,4 +266,3 @@ Route::middleware('auth:sanctum')->get('/get-assigned-hablador', function (Reque
 });
 
 //**** fin de habladores ****/
-

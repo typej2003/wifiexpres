@@ -12,6 +12,7 @@ class AdvertisingCampaign extends Model
     protected $fillable = [
         'user_id',
         'name',
+        'router_identity',
         'description',
         'target_gender',
         'age_range_id',
