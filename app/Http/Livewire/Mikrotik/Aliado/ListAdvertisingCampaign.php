@@ -31,7 +31,7 @@ class ListAdvertisingCampaign extends Component
     public function mount()
     {
         $this->isAdmin = Auth::user()->role === 'admin';
-        $this->user_id = Auth::id();
+        $this->user_id = $this->isAdmin ? '' : Auth::id();
         $this->age_range_id = 0;
     }
 
@@ -59,7 +59,11 @@ class ListAdvertisingCampaign extends Component
         $this->options = [];
         $this->selected_id = null;
         $this->current_media_path = null;
-        if(!$this->isAdmin) $this->user_id = Auth::id();
+        if ($this->isAdmin) {
+            $this->user_id = '';
+        } else {
+            $this->user_id = Auth::id();
+        }
     }
 
     // FUNCIÓN PARA CAMBIAR ESTADO ACTIVO/INACTIVO
@@ -163,17 +167,15 @@ class ListAdvertisingCampaign extends Component
 
         // Obtener rangos de edad filtrados por el aliado seleccionado (o el logueado)
         // Esto asegura que al crear una campaña se vean solo los rangos del dueño de la misma.
-        $ageRangesQuery = AgeRange::query();
-        if (!$this->isAdmin) {
-            $ageRangesQuery->where('user_id', $this->user_id);
-        } elseif ($this->user_id) {
-            $ageRangesQuery->where('user_id', $this->user_id);
-        }
+        $userIdForRanges = $this->isAdmin ? $this->user_id : Auth::id();
+        $ageRanges = $userIdForRanges 
+            ? AgeRange::where('user_id', $userIdForRanges)->get() 
+            : collect();
 
         return view('livewire.mikrotik.aliado.list-advertising-campaign', [
             'campaigns' => $query->latest()->paginate(10),
             'aliados' => $this->isAdmin ? User::where('role', 'aliado')->get() : [],
-            'ageRanges' => $ageRangesQuery->get()
+            'ageRanges' => $ageRanges
         ])->layout('layouts.app');
     }
 }
