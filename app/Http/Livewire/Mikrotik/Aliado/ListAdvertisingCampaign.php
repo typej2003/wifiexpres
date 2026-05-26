@@ -50,7 +50,7 @@ class ListAdvertisingCampaign extends Component
         $this->name = '';
         $this->description = '';
         $this->target_gender = 'todos';
-        $this->age_range_id = '';
+        $this->age_range_id = '0';
         $this->media_type = 'imagen';
         $this->media = null;
         $this->question_text = '';
