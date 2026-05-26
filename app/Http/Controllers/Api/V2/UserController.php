@@ -36,7 +36,7 @@ class UserController extends Controller
             return response()->json(['success' => false, 'message' => 'Identificador no recibido'], 400);
         }
 
-        $data = ListAdvertisingCampaign::getActiveCampaignByIdentity($identity, $mac);
+        $data = ListAdvertisingCampaign::getActiveCampaignByIdentity($request);
 
         return response()->json(array_merge(['success' => true], $data), 200)
             ->header('Access-Control-Allow-Origin', '*');

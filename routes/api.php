@@ -109,7 +109,7 @@ Route::prefix('v2')->group(function () {
     Route::post('/free-connection', [UserController::class, 'freeConnection']);
 
     // Obtener campaña publicitaria por identidad del router
-    Route::get('/get-campaign', [UserController::class, 'getCampaign']);
+    Route::get('/get-campaign', [UserController::class, 'getActiveCampaignByIdentity']);
 });
 
 /** * RUTAS V3 - MARKETING

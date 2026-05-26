@@ -7,16 +7,12 @@ use Livewire\WithPagination;
 use Livewire\WithFileUploads;
 use App\Models\AdvertisingCampaign;
 use App\Models\Router;
-use App\Models\Plan;
-use App\Models\Setting;
 use App\Models\AgeRange;
 use App\Models\User;
 use Exception;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use RouterOS\Client;
-use RouterOS\Query;
 
 class ListAdvertisingCampaign extends Component
 {
@@ -191,10 +187,10 @@ class ListAdvertisingCampaign extends Component
     }
 
     /**
-     * Obtiene la campaña activa, datos del router y planes disponibles.
-     * Integrado para simplificar peticiones desde el login.html del hotspot.
+     * Obtiene únicamente la campaña activa para un router específico.
+     * Mantiene la sintaxis de Request para consistencia operativa.
      */
-    public static function getCampaign(Request $request)
+    public static function getActiveCampaignByIdentity(Request $request)
     {
         $identity = $request->query('identity');
         $mac = $request->query('mac');
@@ -213,72 +209,8 @@ class ListAdvertisingCampaign extends Component
             ->where('active', true)
             ->first();
 
-        if (!$router) {
-            return [
-                'campaign' => $campaign,
-                'router' => null,
-                'plans' => []
-            ];
-        }
-
-        // Preparar datos del router (lógica integrada de HotspotController)
-        $routerData = $router->toArray();
-        $routerData['comercio_banner'] = $router->comercio_banner 
-            ? 'https://wifiexpres.com/storage/bannerrouter/' . $router->comercio_banner 
-            : asset('storage/bannerrouter/WIFIEXPRES_banner_01.jpg'); 
-        
-        $imgsUrls = [];
-        if (is_array($router->path_imgs)) {
-            foreach ($router->path_imgs as $img) {
-                $imgsUrls[] = asset('storage/carruselhotspot/' . $img);
-            }
-        }
-        $routerData['path_imgs'] = $imgsUrls;
-
-        $finalPlans = [];
-        try {
-            $userAdmin = User::where('role', 'admin')->first();
-            $setting = Setting::where('user_id', $userAdmin->id)->first();
-            $mode = $setting ? (int)$setting->mikrotik_connection_mode : 0; 
-            $host = ($mode === 1 && !empty($router->dns)) ? $router->dns : $router->ip;
-
-            $client = new Client([
-                'host' => $host, 'user' => $router->admin, 'pass' => $router->password, 
-                'port' => (int) ($router->api_port ?? 49152), 'timeout' => 3
-            ]);
-            
-            $profilesMk = $client->query(new Query('/ip/hotspot/user/profile/print'))->read();
-            $plansDb = Plan::where('router_id', $router->id)->get()->keyBy('mikrotik_profile');
-
-            foreach ($profilesMk as $profile) {
-                $name = $profile['name'];
-                if (isset($plansDb[$name])) {
-                    $finalPlans[] = [
-                        'name' => $plansDb[$name]->name,
-                        'price' => $plansDb[$name]->price,
-                        'mikrotik_profile' => $name,
-                        'uptime' => $profile['session-timeout'] ?? 'Ilimitado'
-                    ];
-                }
-            }
-        } catch (Exception $e) {
-            // Fallback a Base de Datos si MikroTik está offline
-            $finalPlans = Plan::where('router_id', $router->id)
-                ->get(['name', 'price', 'mikrotik_profile'])
-                ->map(function($plan) {
-                    return [
-                        'name' => $plan->name,
-                        'price' => $plan->price,
-                        'mikrotik_profile' => $plan->mikrotik_profile,
-                        'uptime' => 'Consultar al conectar'
-                    ];
-                })->toArray();
-        }
-
         return [
-            'campaign' => $campaign,
-            'router' => $routerData,
-            'plans' => $finalPlans
+            'campaign' => $campaign
         ];
     }
 }
