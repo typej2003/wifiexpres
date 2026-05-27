@@ -18,7 +18,7 @@ use App\Http\Livewire\Notificacion\EmailController;
 class HotspotController extends Controller
 {
     // URL del Bridge Node.js
-    private $bridgeUrl = "https://wifiexpres.com";
+    private $bridgeUrl = "http://188.95.113.44:3000";
 
     /**
      * Busca un router de forma flexible: por MAC o por Identity.
@@ -28,14 +28,13 @@ class HotspotController extends Controller
     {
         $query = Router::query();
 
-        if ($identity) {
+        if ($identity && $mac) {
+            $query->where('identity', $identity)->orWhere('macAddress', $mac);
+        } elseif ($identity) {
             $query->where('identity', $identity);
+        } elseif ($mac) {
+            $query->where('macAddress', $mac);
         }
-
-        if ($mac) {
-            $query->orWhere('macAddress', $mac);
-        }
-
         return $query->first();
     }
 
@@ -248,16 +247,22 @@ class HotspotController extends Controller
         $router = $this->findRouter($mac, $identity);
 
         if (!$router) {
-            return response()->json(['success' => false, 'message' => 'Router no registrado: ' . ($identity ?? $mac)], 404);
+            return response()->json(['success' => false, 'message' => 'Router no registrado'], 404)
+                             ->header('Access-Control-Allow-Origin', '*');
         }
 
         $routerData = $router->toArray();
+        $routerData['comercio_nombre'] = $router->comercio_nombre; // Aseguramos que se envíe
         $routerData['comercio_banner'] = $router->comercio_banner ? 'https://wifiexpres.com/storage/bannerrouter/' . $router->comercio_banner : asset('storage/bannerrouter/WIFIEXPRES_banner_01.jpg'); 
         
         $imgsUrls = [];
-        if (is_array($router->path_imgs)) {
-            foreach ($router->path_imgs as $img) {
-                $imgsUrls[] = asset('storage/carruselhotspot/' . $img);
+        $pathImgs = is_string($router->path_imgs) ? json_decode($router->path_imgs, true) : $router->path_imgs;
+
+        if (is_array($pathImgs)) {
+            foreach ($pathImgs as $img) {
+                if ($img) {
+                    $imgsUrls[] = asset('storage/carruselhotspot/' . $img);
+                }
             }
         }
         $routerData['path_imgs'] = $imgsUrls;
@@ -288,7 +293,8 @@ class HotspotController extends Controller
                     ];
                 }
             }
-            return response()->json(['success' => true, 'router' => $routerData, 'plans' => $finalPlans], 200);
+            return response()->json(['success' => true, 'router' => $routerData, 'plans' => $finalPlans], 200)
+                             ->header('Access-Control-Allow-Origin', '*');
             
         } catch (Exception $e) {
             // Fallback a Base de Datos si MikroTik está offline
@@ -308,7 +314,8 @@ class HotspotController extends Controller
                 'router' => $routerData, 
                 'plans' => $plansBackup, 
                 'status' => 'offline_db'
-            ], 200);
+            ], 200)
+            ->header('Access-Control-Allow-Origin', '*');
         }
     }
 
@@ -325,16 +332,22 @@ class HotspotController extends Controller
         $router = $this->findRouter($mac, $identity);
 
         if (!$router) {
-            return response()->json(['success' => false, 'message' => 'Router no registrado: ' . ($identity ?? $mac)], 404);
+            return response()->json(['success' => false, 'message' => 'Router no registrado'], 404)
+                             ->header('Access-Control-Allow-Origin', '*');
         }
 
         $routerData = $router->toArray();
+        $routerData['comercio_nombre'] = $router->comercio_nombre;
         $routerData['comercio_banner'] = $router->comercio_banner ? 'https://wifiexpres.com/storage/bannerrouter/' . $router->comercio_banner : asset('storage/bannerrouter/WIFIEXPRES_banner_01.jpg'); 
         
         $imgsUrls = [];
-        if (is_array($router->path_imgs)) {
-            foreach ($router->path_imgs as $img) {
-                $imgsUrls[] = asset('storage/carruselhotspot/' . $img);
+        $pathImgs = is_string($router->path_imgs) ? json_decode($router->path_imgs, true) : $router->path_imgs;
+
+        if (is_array($pathImgs)) {
+            foreach ($pathImgs as $img) {
+                if ($img) {
+                    $imgsUrls[] = asset('storage/carruselhotspot/' . $img);
+                }
             }
         }
         $routerData['path_imgs'] = $imgsUrls;
@@ -365,7 +378,8 @@ class HotspotController extends Controller
                     ];
                 }
             }
-            return response()->json(['success' => true, 'router' => $routerData, 'plans' => $finalPlans], 200);
+            return response()->json(['success' => true, 'router' => $routerData, 'plans' => $finalPlans], 200)
+                             ->header('Access-Control-Allow-Origin', '*');
             
         } catch (Exception $e) {
             // Fallback a Base de Datos si MikroTik está offline
@@ -385,7 +399,8 @@ class HotspotController extends Controller
                 'router' => $routerData, 
                 'plans' => $plansBackup, 
                 'status' => 'offline_db'
-            ], 200);
+            ], 200)
+            ->header('Access-Control-Allow-Origin', '*');
         }
     }
 
