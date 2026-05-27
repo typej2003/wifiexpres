@@ -70,6 +70,12 @@ class ListAdvertisingCampaign extends Component
         }
     }
 
+    public function updatedUserId($value)
+    {
+        $this->router_identity = '';
+        $this->age_range_id = 0;
+    }
+
     // FUNCIÓN PARA CAMBIAR ESTADO ACTIVO/INACTIVO
     public function toggleStatus($id)
     {
@@ -179,10 +185,15 @@ class ListAdvertisingCampaign extends Component
             ? AgeRange::where('user_id', $userIdForRanges)->get() 
             : collect();
 
+        $routers = $userIdForRanges
+            ? Router::where('user_id', $userIdForRanges)->get()
+            : collect();
+
         return view('livewire.mikrotik.aliado.list-advertising-campaign', [
             'campaigns' => $query->latest()->paginate(10),
             'aliados' => $this->isAdmin ? User::where('role', 'aliado')->get() : [],
-            'ageRanges' => $ageRanges
+            'ageRanges' => $ageRanges,
+            'routers' => $routers
         ])->layout('layouts.app');
     }
 

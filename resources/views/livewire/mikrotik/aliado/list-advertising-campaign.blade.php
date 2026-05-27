@@ -132,6 +132,18 @@
                         </div>
                         @endif
 
+                        {{-- Selector de Routers --}}
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold text-muted">Router de la Campaña</label>
+                            <select wire:model="router_identity" class="form-select @error('router_identity') is-invalid @enderror">
+                                <option value="">Seleccione un router...</option>
+                                @foreach($routers as $router)
+                                    <option value="{{ $router->identity }}">{{ $router->comercio_nombre }} ({{ $router->identity }})</option>
+                                @endforeach
+                            </select>
+                            @error('router_identity') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+
                         <div class="col-md-8">
                             <label class="form-label small fw-bold text-muted">Nombre</label>
                             <input type="text" wire:model="name" class="form-control" placeholder="Ej: Promo Verano">
