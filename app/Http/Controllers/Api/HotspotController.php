@@ -364,10 +364,17 @@ class HotspotController extends Controller
         }
         $routerData['path_imgs'] = $imgsUrls;
 
-        // Consultar si existe una campaña activa para este router
-        $campaign = AdvertisingCampaign::where('router_identity', $router->identity)
-            ->where('active', true)
-            ->first();
+        // Consulta segura de campaña para no romper el flujo principal
+        $campaign = null;
+        try {
+            if (class_exists('App\Models\AdvertisingCampaign')) {
+                $campaign = AdvertisingCampaign::where('router_identity', $router->identity)
+                    ->where('active', true)
+                    ->first();
+            }
+        } catch (\Exception $e) {
+            \Log::warning("Error consultando campaña: " . $e->getMessage());
+        }
 
         try {
             $userAdmin = User::where('role', 'admin')->first();
