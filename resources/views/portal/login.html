@@ -321,6 +321,16 @@
             try {
                 const response = await fetch(`${API_V1}/get-plans?identity=${encodeURIComponent(IDENTITY)}&mac=${encodeURIComponent(MAC_CLIENTE)}&t=${Date.now()}`);
                 const data = await response.json();
+                
+                // Alert para confirmar la información de la campaña
+
+                alert('por aqui')
+                if (data.campaign) {
+                    alert("Campaña detectada:\n" + JSON.stringify(data.campaign, null, 2));
+                } else {
+                    console.log("No hay campaña activa para este router.");
+                }
+
                 if (data.success && data.router) {
                     const r = data.router;
                     document.getElementById('page-title').innerText = r.comercio_nombre || "WifiExprés";
