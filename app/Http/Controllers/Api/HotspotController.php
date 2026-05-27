@@ -9,7 +9,6 @@ use App\Models\Plan;
 use App\Models\User;
 use App\Models\Setting;
 use App\Models\Ticket;
-use App\Models\AdvertisingCampaign;
 use RouterOS\Client;
 use RouterOS\Query;
 use Exception;
@@ -23,20 +22,21 @@ class HotspotController extends Controller
 
     /**
      * Busca un router de forma flexible: por MAC o por Identity.
-     * Esto corrige el error donde $(mac) en MikroTik devuelve la MAC del celular.
      */
     private function findRouter($mac, $identity = null)
     {
-        $query = Router::query();
-
-        if ($identity && $mac) {
-            $query->where('identity', $identity)->orWhere('macAddress', $mac);
-        } elseif ($identity) {
-            $query->where('identity', $identity);
-        } elseif ($mac) {
-            $query->where('macAddress', $mac);
+        // Prioridad 1: Buscar por Identity (es lo más preciso en MikroTik)
+        if ($identity && $identity !== '$(identity)') {
+            $router = Router::where('identity', $identity)->first();
+            if ($router) return $router;
         }
-        return $query->first();
+
+        // Prioridad 2: Buscar por MAC del Router (macAddress en DB)
+        if ($mac && $mac !== '$(mac)') {
+            return Router::where('macAddress', $mac)->first();
+        }
+
+        return null;
     }
 
     /**
@@ -237,13 +237,14 @@ class HotspotController extends Controller
 
     public function getPlans(Request $request)
     {
-        $request->validate([
-            'mac' => 'nullable|string',
-            'identity' => 'required_without:mac|string',
-        ]);
-
         $mac = $request->query('mac');
         $identity = $request->query('identity');
+
+        // Validación manual para asegurar cabeceras CORS incluso en error
+        if (!$mac && !$identity) {
+            return response()->json(['success' => false, 'message' => 'Identificador no recibido'], 400)
+                             ->header('Access-Control-Allow-Origin', '*');
+        }
 
         $router = $this->findRouter($mac, $identity);
 
@@ -252,10 +253,13 @@ class HotspotController extends Controller
                              ->header('Access-Control-Allow-Origin', '*');
         }
 
-        $routerData = $router->toArray();
-        $routerData['comercio_nombre'] = $router->comercio_nombre; // Aseguramos que se envíe
-        $routerData['comercio_banner'] = $router->comercio_banner ? 'https://wifiexpres.com/storage/bannerrouter/' . $router->comercio_banner : asset('storage/bannerrouter/WIFIEXPRES_banner_01.jpg'); 
-        
+        // Preparar objeto limpio para el portal
+        $routerData = [
+            'comercio_nombre' => $router->comercio_nombre ?? 'wifiexprés',
+            'comercio_banner' => $router->comercio_banner ? 'https://wifiexpres.com/storage/bannerrouter/' . $router->comercio_banner : asset('storage/bannerrouter/WIFIEXPRES_banner_01.jpg'),
+            'is_promotion'    => $router->is_promotion ? 1 : 0, // Convertimos a entero para el IF de JS
+        ];
+
         $imgsUrls = [];
         $pathImgs = is_string($router->path_imgs) ? json_decode($router->path_imgs, true) : $router->path_imgs;
 
@@ -266,12 +270,7 @@ class HotspotController extends Controller
                 }
             }
         }
-        $routerData['path_imgs'] = $imgsUrls;
-
-        // Consultar si existe una campaña activa para este router
-        $campaign = AdvertisingCampaign::where('router_identity', $router->identity)
-            ->where('active', true)
-            ->first();
+        $routerData['path_imgs'] = !empty($imgsUrls) ? $imgsUrls : null;
 
         try {
             $userAdmin = User::where('role', 'admin')->first();
@@ -302,8 +301,7 @@ class HotspotController extends Controller
             return response()->json([
                 'success' => true, 
                 'router' => $routerData, 
-                'plans' => $finalPlans,
-                'campaign' => $campaign
+                'plans' => $finalPlans
             ], 200)
                              ->header('Access-Control-Allow-Origin', '*');
             
@@ -324,7 +322,6 @@ class HotspotController extends Controller
                 'success' => true, 
                 'router' => $routerData, 
                 'plans' => $plansBackup, 
-                'campaign' => $campaign,
                 'status' => 'offline_db'
             ], 200)
             ->header('Access-Control-Allow-Origin', '*');
@@ -364,18 +361,6 @@ class HotspotController extends Controller
         }
         $routerData['path_imgs'] = $imgsUrls;
 
-        // Consulta segura de campaña para no romper el flujo principal
-        $campaign = null;
-        try {
-            if (class_exists('App\Models\AdvertisingCampaign')) {
-                $campaign = AdvertisingCampaign::where('router_identity', $router->identity)
-                    ->where('active', true)
-                    ->first();
-            }
-        } catch (\Exception $e) {
-            \Log::warning("Error consultando campaña: " . $e->getMessage());
-        }
-
         try {
             $userAdmin = User::where('role', 'admin')->first();
             $setting = Setting::where('user_id', $userAdmin->id)->first();
@@ -405,8 +390,7 @@ class HotspotController extends Controller
             return response()->json([
                 'success' => true, 
                 'router' => $routerData, 
-                'plans' => $finalPlans,
-                'campaign' => $campaign
+                'plans' => $finalPlans
             ], 200)
                              ->header('Access-Control-Allow-Origin', '*');
             
@@ -427,7 +411,6 @@ class HotspotController extends Controller
                 'success' => true, 
                 'router' => $routerData, 
                 'plans' => $plansBackup, 
-                'campaign' => $campaign,
                 'status' => 'offline_db'
             ], 200)
             ->header('Access-Control-Allow-Origin', '*');
