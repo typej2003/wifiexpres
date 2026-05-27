@@ -16,6 +16,7 @@ class CreateAdvertisingCampaignsTable extends Migration
         Schema::create('advertising_campaigns', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade'); // El Aliado dueño
+            $table->string('router_identity')->nullable(); // Para asociar la campaña a un router específico
             $table->string('name');
             $table->text('description')->nullable();
             

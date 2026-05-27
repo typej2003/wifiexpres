@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Router;
 use App\Models\Plan;
+use App\Models\AdvertisingCampaign;
 use App\Models\User;
 use App\Models\Setting;
 use App\Models\Ticket;
@@ -272,6 +273,15 @@ class HotspotController extends Controller
         }
         $routerData['path_imgs'] = !empty($imgsUrls) ? $imgsUrls : null;
 
+        // Consultar campaña publicitaria
+        $campaign = AdvertisingCampaign::where('router_identity', $router->identity)
+            ->where('active', true)
+            ->first();
+
+        if ($campaign && $campaign->media_path) {
+            $campaign->media_url = asset('storage/' . $campaign->media_path);
+        }
+
         try {
             $userAdmin = User::where('role', 'admin')->first();
             $setting = Setting::where('user_id', $userAdmin->id)->first();
@@ -301,7 +311,8 @@ class HotspotController extends Controller
             return response()->json([
                 'success' => true, 
                 'router' => $routerData, 
-                'plans' => $finalPlans
+                'plans' => $finalPlans,
+                'campaign' => $campaign
             ], 200)
                              ->header('Access-Control-Allow-Origin', '*');
             
@@ -322,7 +333,8 @@ class HotspotController extends Controller
                 'success' => true, 
                 'router' => $routerData, 
                 'plans' => $plansBackup, 
-                'status' => 'offline_db'
+                'status' => 'offline_db',
+                'campaign' => $campaign
             ], 200)
             ->header('Access-Control-Allow-Origin', '*');
         }
@@ -361,6 +373,15 @@ class HotspotController extends Controller
         }
         $routerData['path_imgs'] = $imgsUrls;
 
+        // Consultar campaña publicitaria
+        $campaign = AdvertisingCampaign::where('router_identity', $router->identity)
+            ->where('active', true)
+            ->first();
+
+        if ($campaign && $campaign->media_path) {
+            $campaign->media_url = asset('storage/' . $campaign->media_path);
+        }
+
         try {
             $userAdmin = User::where('role', 'admin')->first();
             $setting = Setting::where('user_id', $userAdmin->id)->first();
@@ -390,7 +411,8 @@ class HotspotController extends Controller
             return response()->json([
                 'success' => true, 
                 'router' => $routerData, 
-                'plans' => $finalPlans
+                'plans' => $finalPlans,
+                'campaign' => $campaign
             ], 200)
                              ->header('Access-Control-Allow-Origin', '*');
             
@@ -411,7 +433,8 @@ class HotspotController extends Controller
                 'success' => true, 
                 'router' => $routerData, 
                 'plans' => $plansBackup, 
-                'status' => 'offline_db'
+                'status' => 'offline_db',
+                'campaign' => $campaign
             ], 200)
             ->header('Access-Control-Allow-Origin', '*');
         }
