@@ -309,6 +309,17 @@ class UserController extends Controller
     public function freeConnection(Request $request) 
     {
         try {
+            $request->validate([
+                'mac_cliente'   => 'required|string',
+                'identity'      => 'required|string',
+                'full_name'     => 'required|string|max:255',
+                'gender'        => 'required|in:M,F,O',
+                'birthday'      => 'required|date',
+                'email'         => 'required|email',
+                'cellphonecode' => 'required|numeric',
+                'cellphone'     => 'required|digits:7',
+            ]);
+
             $macCliente = strtoupper($request->input('mac_cliente'));
             $identity   = $request->input('identity');
             $password   = "12345"; // Contraseña genérica para el login posterior

@@ -237,12 +237,13 @@ class HotspotController extends Controller
 
     public function getPlans(Request $request)
     {
-        $mac = $request->query('mac'); 
-        $identity = $request->query('identity'); // Soportamos buscar por nombre de router
+        $request->validate([
+            'mac' => 'nullable|string',
+            'identity' => 'required_without:mac|string',
+        ]);
 
-        if (!$mac && !$identity) {
-            return response()->json(['success' => false, 'message' => 'Identificador no recibido'], 400);
-        }
+        $mac = $request->query('mac');
+        $identity = $request->query('identity');
 
         $router = $this->findRouter($mac, $identity);
 
