@@ -317,29 +317,10 @@
         // Esta es la variable clave de MikroTik para el login Trial
         const LINK_TRIAL = "$(link-login-only)?dst=$(link-orig-esc)&username=T-$(mac-esc)";
 
-        async function initPortal(retries = 3) {
+        async function initPortal() {
             try {
-                // Pequeña espera inicial para que la red del móvil se estabilice
-                // Esto evita el error ERR_NETWORK_CHANGED en dispositivos móviles
-                if (retries === 3) await new Promise(resolve => setTimeout(resolve, 800));
-
-                const url = `${API_V1}/get-plans?identity=${encodeURIComponent(IDENTITY)}&mac=${encodeURIComponent(MAC_CLIENTE)}&t=${Date.now()}`;
-                const response = await fetch(url);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP Error: ${response.status}`);
-                }
-
+                const response = await fetch(`${API_V1}/get-plans?identity=${encodeURIComponent(IDENTITY)}&mac=${encodeURIComponent(MAC_CLIENTE)}&t=${Date.now()}`);
                 const data = await response.json();
-                
-                // Alert solicitado para confirmar la campaña y los datos del router
-                console.log("Datos recibidos:", data);
-                alert(`CONEXIÓN EXITOSA\n\nRouter: ${data.router ? data.router.comercio_nombre : 'No hallado'}\nCampaña: ${data.campaign ? data.campaign.name : 'Ninguna activa'}`);
-
-                if (data.campaign) {
-                    console.log("Info completa de campaña:", data.campaign);
-                }
-
                 if (data.success && data.router) {
                     const r = data.router;
                     document.getElementById('page-title').innerText = r.comercio_nombre || "WifiExprés";
@@ -360,12 +341,7 @@
                     }
                 }
             } catch (err) {
-                console.warn("Intento de conexión fallido:", err);
-                // Si falla por red inestable, reintentamos hasta 3 veces
-                if (retries > 0) {
-                    console.log(`Reintentando carga de datos... (${retries} intentos restantes)`);
-                    setTimeout(() => initPortal(retries - 1), 1500);
-                }
+                console.error("Error al cargar datos del router:", err);
             }
         }
 
