@@ -7,6 +7,8 @@ use Livewire\WithPagination;
 use Livewire\WithFileUploads;
 use App\Models\AdvertisingCampaign;
 use App\Models\Router;
+use App\Models\UserMikrotik;
+use App\Models\CampaignResponse;
 use App\Models\AgeRange;
 use App\Models\User;
 use Exception;
@@ -223,5 +225,66 @@ class ListAdvertisingCampaign extends Component
         return [
             'campaign' => $campaign
         ];
+    }
+
+    /**
+     * Procesa y guarda la información del portal cautivo.
+     * Soporta tanto el registro estándar como las respuestas de campaña.
+     */
+    public static function savePortalData(Request $request)
+    {
+        try {
+            $mac = strtoupper($request->input('mac_cliente'));
+            $identity = $request->input('identity');
+            $isCampaign = $request->input('is_campaign', false);
+
+            $router = Router::where('identity', $identity)->orWhere('macAddress', $identity)->first();
+            if (!$router) {
+                return response()->json(['success' => false, 'message' => 'Router no identificado'], 404);
+            }
+
+            // 1. Gestionar UserMikrotik (Siempre se crea o actualiza por MAC)
+            $userData = [
+                'router_id' => $router->id,
+                'server'    => $identity,
+                'macaddress'=> $mac,
+                'password'  => '12345',
+                'active'    => true,
+            ];
+
+            // Si no es campaña, vienen los datos personales estándar
+            if (!$isCampaign) {
+                $userData = array_merge($userData, [
+                    'full_name'     => $request->input('full_name'),
+                    'gender'        => $request->input('gender'),
+                    'birthday'      => $request->input('birthday'),
+                    'email'         => $request->input('email'),
+                    'cellphonecode' => $request->input('cellphonecode'),
+                    'cellphone'     => $request->input('cellphone'),
+                    'profile'       => 'conexion_estandar'
+                ]);
+            }
+
+            $userMikrotik = UserMikrotik::updateOrCreate(['name' => $mac, 'router_id' => $router->id], $userData);
+
+            // 2. Gestionar Respuesta de Campaña si aplica
+            if ($isCampaign) {
+                CampaignResponse::create([
+                    'campaign_id'      => $request->input('campaign_id'),
+                    'user_mikrotik_id' => $userMikrotik->id,
+                    'mac_address'      => $mac,
+                    'router_identity'  => $identity,
+                    'answer'           => is_array($request->input('answer')) 
+                                          ? json_encode($request->input('answer')) 
+                                          : $request->input('answer'),
+                ]);
+            }
+
+            return response()->json(['success' => true]);
+
+        } catch (Exception $e) {
+            \Log::error("Error al guardar data del portal: " . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error interno del servidor'], 500);
+        }
     }
 }

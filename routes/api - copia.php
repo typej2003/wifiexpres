@@ -15,7 +15,6 @@ use App\Http\Livewire\Admin\Users\ListUsers;
 use App\Http\Controllers\Api\MikrotikController;
 use App\Http\Controllers\Api\HotspotController;
 use App\Http\Controllers\Api\MikrotikSocket;
-use App\Http\Livewire\Mikrotik\Aliado\ListAdvertisingCampaign;
 use App\Http\Controllers\Api\V2\UserController;
 use App\Models\NotificationApp;
 use App\Models\HotspotVersion;
@@ -111,9 +110,6 @@ Route::prefix('v2')->group(function () {
 
     // Obtener campaña publicitaria por identidad del router
     Route::get('/get-campaign', [UserController::class, 'getActiveCampaignByIdentity']);
-
-    // Guardar datos del portal (Standard o Campaña)
-    Route::post('/save-portal-data', [ListAdvertisingCampaign::class, 'savePortalData']);
 });
 
 /** * RUTAS V3 - MARKETING

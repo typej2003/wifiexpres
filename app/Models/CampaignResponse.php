@@ -12,6 +12,8 @@ class CampaignResponse extends Model
     protected $fillable = [
         'campaign_id',
         'user_mikrotik_id',
+        'mac_address',
+        'router_identity',
         'answer',
     ];
 

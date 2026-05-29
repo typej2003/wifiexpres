@@ -33,8 +33,8 @@
         /* Loader Overlay de pantalla completa */
         #loader-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255, 255, 255, 0.9);
-            z-index: 3000; display: none; flex-direction: column;
+            background: #ffffff;
+            z-index: 3000; display: flex; flex-direction: column;
             justify-content: center; align-items: center;
         }
         .spinner {
@@ -207,13 +207,27 @@
             0%, 100% { transform: translateX(-50%) translateY(0); }
             50% { transform: translateX(-50%) translateY(-15px); } /* Sube y baja */
         }
+
+        /* Contenedor de mensajes de error */
+        #error-message {
+            display: none;
+            color: #d32f2f;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            text-align: center;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
 
     <div id="loader-overlay">
         <div class="spinner"></div>
-        <div style="font-weight: bold; color: #c33112;">Procesando, por favor espere...</div>
+        <div id="loader-text" style="font-weight: bold; color: #c33112;">Cargando portal, por favor espere...</div>
     </div>
 
     <div id="ads-modal">
@@ -238,48 +252,54 @@
                 <div class="card card-registro">
                     <h2 class="text-center fw-bold mb-4 text-uppercase tracking-tight" id="comercio_nombre" style="color: #000000; font-size: 1.85rem;">wifiexprés</h2>
                     
+                    <div id="error-message"></div>
+
                     <form id="freeForm" class="px-2">
-                        <div class="mb-3">
-                            <label class="small fw-bold mb-1">Nombre Completo</label>
-                            <input type="text" id="full_name" class="form-control shadow-none" value="José Rosales" required>
+                        <div id="standard-fields">
+                            <div class="mb-3">
+                                <label class="small fw-bold mb-1">Nombre Completo</label>
+                                <input type="text" id="full_name" class="form-control shadow-none" placeholder="Nombre y Apellido" required>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-6 mb-3">
+                                    <label class="small fw-bold mb-1">Género</label>
+                                    <select id="gender" class="form-select shadow-none">
+                                        <option selected value="M">Masculino</option>
+                                        <option value="F">Femenino</option>
+                                        <option value="O">Otro</option>
+                                    </select>
+                                </div>
+                                <div class="col-6 mb-3">
+                                    <label class="small fw-bold mb-1">Nacimiento</label>
+                                    <input type="date" id="birthday" class="form-control shadow-none" required>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="small fw-bold mb-1">Correo Electrónico</label>
+                                <input type="email" id="email" class="form-control shadow-none" placeholder="usuario@correo.com" required>
+                            </div>
+
+                            <div class="row g-2">
+                                <div class="col-5 mb-3">
+                                    <label class="small fw-bold mb-1">Operadora</label>
+                                    <select id="cellphonecode" class="form-select shadow-none" required>
+                                        <option value="0412" selected>0412</option>
+                                        <option value="0414">0414</option>
+                                        <option value="0424">0424</option>
+                                        <option value="0416">0416</option>
+                                        <option value="0426">0426</option>
+                                    </select>
+                                </div>
+                                <div class="col-7 mb-3">
+                                    <label class="small fw-bold mb-1">Número</label>
+                                    <input type="tel" id="cellphone" class="form-control shadow-none" placeholder="1234567" maxlength="7" pattern="[0-9]{7}" required>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="row">
-                            <div class="col-6 mb-3">
-                                <label class="small fw-bold mb-1">Género</label>
-                                <select id="gender" class="form-select shadow-none">
-                                    <option selected value="M">Masculino</option>
-                                    <option value="F">Femenino</option>
-                                    <option value="O">Otro</option>
-                                </select>
-                            </div>
-                            <div class="col-6 mb-3">
-                                <label class="small fw-bold mb-1">Nacimiento</label>
-                                <input type="date" value="1978-07-18" id="birthday" class="form-control shadow-none" required>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="small fw-bold mb-1">Correo Electrónico</label>
-                            <input type="email" id="email" class="form-control shadow-none" value="typej2003@gmail.com" required>
-                        </div>
-
-                        <div class="row g-2">
-                            <div class="col-5 mb-3">
-                                <label class="small fw-bold mb-1">Operadora</label>
-                                <select id="cellphonecode" class="form-select shadow-none" required>
-                                    <option value="0412" selected>0412</option>
-                                    <option value="0414">0414</option>
-                                    <option value="0424">0424</option>
-                                    <option value="0416">0416</option>
-                                    <option value="0426">0426</option>
-                                </select>
-                            </div>
-                            <div class="col-7 mb-3">
-                                <label class="small fw-bold mb-1">Número</label>
-                                <input type="tel" id="cellphone" class="form-control shadow-none" value="1234567" maxlength="7" pattern="[0-9]{7}" required>
-                            </div>
-                        </div>
+                        <div id="campaign-fields" style="display: none;"></div>
 
                         <p class="text-center x-small text-muted mb-3" style="font-size: 0.75rem;">
                             Al conectar, aceptas nuestros términos y condiciones de uso.
@@ -317,6 +337,8 @@
         // Esta es la variable clave de MikroTik para el login Trial
         const LINK_TRIAL = "$(link-login-only)?dst=$(link-orig-esc)&username=T-$(mac-esc)";
 
+        let activeCampaign = null;
+
         async function initPortal() {
             try {
                 const response = await fetch(`${API_V1}/get-plans?identity=${encodeURIComponent(IDENTITY)}&mac=${encodeURIComponent(MAC_CLIENTE)}&t=${Date.now()}`);
@@ -336,13 +358,71 @@
                         document.body.style.backgroundImage = `url('${r.comercio_banner}')`;
                     }
 
+                    if (data.campaign) {
+                        // Debug: Ver en consola si el registro llega bien
+                        console.log("Campaña recibida:", data.campaign);
+                        console.log("Nombre de la campaña:", data.campaign.name);
+                        activeCampaign = data.campaign;
+                        renderCampaign(activeCampaign);
+                    }
+
                     if(r.is_promotion == 1 && r.path_imgs) { 
                         renderCarousel(r.path_imgs); 
                     }
                 }
             } catch (err) {
                 console.error("Error al cargar datos del router:", err);
+            } finally {
+                document.getElementById("loader-overlay").style.display = "none";
             }
+        }
+
+        function renderCampaign(camp) {
+            const container = document.getElementById('campaign-fields');
+            const standard = document.getElementById('standard-fields');
+            
+            if (standard) {
+                standard.style.display = 'none';
+                standard.querySelectorAll('[required]').forEach(el => el.removeAttribute('required'));
+            }
+            
+            container.style.display = 'block';
+
+            let html = '';
+            if (camp.media_path) {
+                const imgUrl = `https://wifiexpres.com/storage/${camp.media_path}`;
+                if (camp.media_type === 'video') {
+                    html += `<div class="text-center mb-3"><video src="${imgUrl}" class="rounded shadow-sm" style="max-height: 250px; width: 100%;" controls autoplay muted loop></video></div>`;
+                } else {
+                    html += `<div class="text-center mb-3"><img src="${imgUrl}" class="img-fluid rounded shadow-sm" style="max-height: 250px; width: 100%; object-fit: cover;"></div>`;
+                }
+            }
+
+            html += `<label class="input-label mb-3" style="font-size: 1.1rem;">${camp.question_text}</label>`;
+            
+            if (camp.question_type === 'simple') {
+                html += `<input type="text" id="campaign_answer" class="form-control mb-4" placeholder="Escribe tu respuesta..." required>`;
+            } else if (camp.question_type === 'single_choice') {
+                camp.options.forEach((opt, index) => {
+                    html += `
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="campaign_radio" id="opt${index}" value="${opt}" required>
+                            <label class="form-check-label text-dark fw-bold" for="opt${index}">${opt}</label>
+                        </div>`;
+                });
+            } else if (camp.question_type === 'multiple_choice') {
+                camp.options.forEach((opt, index) => {
+                    html += `
+                        <div class="form-check mb-3">
+                            <input class="form-check-input campaign-checkbox" type="checkbox" value="${opt}" id="chk${index}">
+                            <label class="form-check-label text-dark fw-bold" for="chk${index}">${opt}</label>
+                        </div>`;
+                });
+            }
+            container.innerHTML = html;
+
+            // Refrescamos la validación para activar la manito guía si los campos ya están listos
+            validateForm();
         }
 
         function renderCarousel(imgs) {
@@ -382,12 +462,20 @@
         initPortal();
 
         const freeForm = document.getElementById('freeForm');
+        const errorDiv = document.getElementById('error-message');
         const handGuide = document.getElementById('hand-guide');
         const btnSubmit = document.getElementById('btnSubmit');
 
         // Función para validar si el formulario está completo y mostrar/ocultar la manito
         function validateForm() {
-            if (freeForm.checkValidity()) {
+            let isValid = freeForm.checkValidity();
+            
+            if (activeCampaign && activeCampaign.question_type === 'multiple_choice') {
+                const checkedCount = document.querySelectorAll('.campaign-checkbox:checked').length;
+                isValid = isValid && (checkedCount > 0);
+            }
+
+            if (isValid) {
                 handGuide.style.display = 'block';
             } else {
                 handGuide.style.display = 'none';
@@ -399,22 +487,41 @@
 
         freeForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            errorDiv.style.display = 'none';
             btnSubmit.disabled = true;
+            document.getElementById("loader-text").innerText = "Procesando, por favor espere...";
             document.getElementById("loader-overlay").style.display = "flex";
 
-            const payload = {
-                identity: IDENTITY,
-                mac_cliente: MAC_CLIENTE,
-                full_name: document.getElementById('full_name').value,
-                gender: document.getElementById('gender').value,
-                birthday: document.getElementById('birthday').value,
-                email: document.getElementById('email').value,
-                cellphonecode: document.getElementById('cellphonecode').value,
-                cellphone: document.getElementById('cellphone').value
-            };
+            let payload;
+            if (activeCampaign) {
+                let answer;
+                if (activeCampaign.question_type === 'simple') {
+                    answer = document.getElementById('campaign_answer').value;
+                } else if (activeCampaign.question_type === 'single_choice') {
+                    answer = document.querySelector('input[name="campaign_radio"]:checked').value;
+                } else if (activeCampaign.question_type === 'multiple_choice') {
+                    answer = Array.from(document.querySelectorAll('.campaign-checkbox:checked')).map(cb => cb.value);
+                }
+                payload = {
+                    identity: IDENTITY, mac_cliente: MAC_CLIENTE,
+                    campaign_id: activeCampaign.id, type: activeCampaign.question_type,
+                    answer: answer, is_campaign: true
+                };
+            } else {
+                payload = {
+                    identity: IDENTITY,
+                    mac_cliente: MAC_CLIENTE,
+                    full_name: document.getElementById('full_name').value,
+                    gender: document.getElementById('gender').value,
+                    birthday: document.getElementById('birthday').value,
+                    email: document.getElementById('email').value,
+                    cellphonecode: document.getElementById('cellphonecode').value,
+                    cellphone: document.getElementById('cellphone').value
+                };
+            }
 
             try {
-                const response = await fetch(`${API_V2}/free-connection`, {
+                const response = await fetch(`${API_V2}/save-portal-data`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                     body: JSON.stringify(payload)
@@ -425,12 +532,14 @@
                 if (result.success) {
                     window.location.href = LINK_TRIAL;
                 } else {
-                    alert("Error: " + result.message);
+                    errorDiv.innerText = "Error: " + (result.message || "No se pudo procesar el registro");
+                    errorDiv.style.display = 'block';
                     document.getElementById("loader-overlay").style.display = "none";
                     document.getElementById('btnSubmit').disabled = false;
                 }
             } catch (error) {
-                alert("No se pudo conectar con el servidor central.");
+                errorDiv.innerText = "No se pudo conectar con el servidor central.";
+                errorDiv.style.display = 'block';
                 document.getElementById("loader-overlay").style.display = "none";
                 document.getElementById('btnSubmit').disabled = false;
             }
