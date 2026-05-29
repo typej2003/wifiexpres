@@ -29,6 +29,7 @@
         transition: 0.2s;
         border-left: 4px solid transparent;
         cursor: pointer;
+        text-transform: uppercase;
     }
 
     .sidebar-link:hover {
