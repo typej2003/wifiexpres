@@ -492,32 +492,30 @@
             document.getElementById("loader-text").innerText = "Procesando, por favor espere...";
             document.getElementById("loader-overlay").style.display = "flex";
 
-            let payload;
+            const payload = {
+                identity: IDENTITY,
+                mac_cliente: MAC_CLIENTE,
+                is_campaign: activeCampaign ? true : false,
+                full_name: document.getElementById('full_name')?.value || '',
+                gender: document.getElementById('gender')?.value || 'O',
+                birthday: document.getElementById('birthday')?.value || '',
+                email: document.getElementById('email')?.value || '',
+                cellphonecode: document.getElementById('cellphonecode')?.value || '',
+                cellphone: document.getElementById('cellphone')?.value || ''
+            };
+
             if (activeCampaign) {
-                let answer;
+                payload.campaign_id = activeCampaign.id;
+                payload.type = activeCampaign.question_type;
+
                 if (activeCampaign.question_type === 'simple') {
-                    answer = document.getElementById('campaign_answer').value;
+                    payload.answer = document.getElementById('campaign_answer')?.value || '';
                 } else if (activeCampaign.question_type === 'single_choice') {
-                    answer = document.querySelector('input[name="campaign_radio"]:checked').value;
+                    const selected = document.querySelector('input[name="campaign_radio"]:checked');
+                    payload.answer = selected ? selected.value : '';
                 } else if (activeCampaign.question_type === 'multiple_choice') {
-                    answer = Array.from(document.querySelectorAll('.campaign-checkbox:checked')).map(cb => cb.value);
+                    payload.answer = Array.from(document.querySelectorAll('.campaign-checkbox:checked')).map(cb => cb.value);
                 }
-                payload = {
-                    identity: IDENTITY, mac_cliente: MAC_CLIENTE,
-                    campaign_id: activeCampaign.id, type: activeCampaign.question_type,
-                    answer: answer, is_campaign: true
-                };
-            } else {
-                payload = {
-                    identity: IDENTITY,
-                    mac_cliente: MAC_CLIENTE,
-                    full_name: document.getElementById('full_name').value,
-                    gender: document.getElementById('gender').value,
-                    birthday: document.getElementById('birthday').value,
-                    email: document.getElementById('email').value,
-                    cellphonecode: document.getElementById('cellphonecode').value,
-                    cellphone: document.getElementById('cellphone').value
-                };
             }
 
             try {
@@ -532,7 +530,12 @@
                 if (result.success) {
                     window.location.href = LINK_TRIAL;
                 } else {
-                    errorDiv.innerText = "Error: " + (result.message || "No se pudo procesar el registro");
+                    let msg = result.message || "No se pudo procesar el registro";
+                    // Si Laravel devuelve errores de validación detallados, los concatenamos
+                    if (result.errors) {
+                        msg += ": " + Object.values(result.errors).flat().join(", ");
+                    }
+                    errorDiv.innerText = "Error: " + msg;
                     errorDiv.style.display = 'block';
                     document.getElementById("loader-overlay").style.display = "none";
                     document.getElementById('btnSubmit').disabled = false;

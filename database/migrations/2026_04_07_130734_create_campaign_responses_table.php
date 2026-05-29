@@ -25,6 +25,9 @@ class CreateCampaignResponsesTable extends Migration
             $table->foreignId('user_mikrotik_id')
                 ->constrained('user_mikrotiks')
                 ->onDelete('cascade');
+            
+            $table->string('mac_address')->nullable();
+            $table->string('router_identity')->nullable();
 
             // Guardamos la respuesta abierta o el ID/Texto de la opción seleccionada
             $table->text('answer'); 
