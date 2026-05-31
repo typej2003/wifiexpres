@@ -361,6 +361,11 @@
                 <span class="menu-text">ANÁLISIS DE HORAS</span>
             </a>
 
+            <a href="{{ route('mikrotik.metrica-campana') }}" class="sidebar-link {{ request()->routeIs('mikrotik.metrica-campana') ? 'active' : '' }}">
+                <i class="bi bi-pie-chart-fill"></i> 
+                <span class="menu-text">Métricas de Campañas</span>
+            </a>
+
             <a href="{{ route('mikrotik.grafico-conexiones') }}" class="sidebar-link {{ request()->routeIs('mikrotik.grafico-conexiones') ? 'active' : '' }}">
                 <i class="bi bi-bar-chart-steps"></i> 
                 <span class="menu-text">RENDIMIENTO POR ROUTER</span>
