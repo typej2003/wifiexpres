@@ -16,10 +16,21 @@ class CreateCampaignResponsesTable extends Migration
         Schema::create('campaign_responses', function (Blueprint $table) {
             $table->id();
             
-            // Referencia explícita a la tabla advertising_campaigns
-            $table->foreignId('campaign_id')
-                ->constrained('advertising_campaigns') 
-                ->onDelete('cascade');
+            // Referencia a la campaña (Nullable para persistencia al borrar origen)
+            $table->foreignId('campaign_id')->nullable()
+                ->constrained('advertising_campaigns')
+                ->onDelete('set null');
+
+            // Campos duplicados de la campaña (Denormalización para histórico)
+            $table->string('campaign_name')->nullable();
+            $table->text('campaign_description')->nullable();
+            $table->string('campaign_target_gender')->nullable();
+            $table->unsignedBigInteger('campaign_age_range_id')->nullable();
+            $table->string('campaign_media_type')->nullable();
+            $table->string('campaign_media_path')->nullable();
+            $table->string('campaign_question_text')->nullable();
+            $table->string('campaign_question_type')->nullable();
+            $table->json('campaign_options')->nullable();
 
             // Referencia al modelo UserMikrotik que definimos (tabla user_mikrotiks)
             $table->foreignId('user_mikrotik_id')

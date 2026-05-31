@@ -269,15 +269,29 @@ class ListAdvertisingCampaign extends Component
 
             // 2. Gestionar Respuesta de Campaña si aplica
             if ($isCampaign) {
-                CampaignResponse::create([
-                    'campaign_id'      => $request->input('campaign_id'),
-                    'user_mikrotik_id' => $userMikrotik->id,
-                    'mac_address'      => $mac,
-                    'router_identity'  => $identity,
-                    'answer'           => is_array($request->input('answer')) 
-                                          ? json_encode($request->input('answer')) 
-                                          : $request->input('answer'),
-                ]);
+                $campaignId = $request->input('campaign_id');
+                $campaign = AdvertisingCampaign::find($campaignId);
+
+                if ($campaign) {
+                    CampaignResponse::create([
+                        'campaign_id'      => $campaignId,
+                        'user_mikrotik_id' => $userMikrotik->id,
+                        'mac_address'      => $mac,
+                        'router_identity'  => $identity,
+                        'answer'           => is_array($request->input('answer')) 
+                                              ? json_encode($request->input('answer')) 
+                                              : $request->input('answer'),
+                        'campaign_name'           => $campaign->name,
+                        'campaign_description'    => $campaign->description,
+                        'campaign_target_gender'  => $campaign->target_gender,
+                        'campaign_age_range_id'   => $campaign->age_range_id,
+                        'campaign_media_type'     => $campaign->media_type,
+                        'campaign_media_path'     => $campaign->media_path,
+                        'campaign_question_text'  => $campaign->question_text,
+                        'campaign_question_type'  => $campaign->question_type,
+                        'campaign_options'        => $campaign->options,
+                    ]);
+                }
             }
 
             return response()->json(['success' => true]);
