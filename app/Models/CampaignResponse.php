@@ -15,6 +15,19 @@ class CampaignResponse extends Model
         'mac_address',
         'router_identity',
         'answer',
+        'campaign_name',
+        'campaign_description',
+        'campaign_target_gender',
+        'campaign_age_range_id',
+        'campaign_media_type',
+        'campaign_media_path',
+        'campaign_question_text',
+        'campaign_question_type',
+        'campaign_options',
+    ];
+
+    protected $casts = [
+        'campaign_options' => 'array',
     ];
 
     /**
