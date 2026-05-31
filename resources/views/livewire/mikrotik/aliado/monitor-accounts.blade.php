@@ -6,7 +6,7 @@
                     <i class="bi bi-geo-alt-fill text-danger"></i> Monitor de Ubicación de Clientes
                 </h4>
                 <div class="d-flex align-items-center gap-2">
-                    <a href="{{ route('aliado.antenas.config') }}" class="btn btn-outline-secondary btn-sm shadow-sm">
+                    <a href="{{ route('aliado.antenas.config', 0) }}" class="btn btn-outline-secondary btn-sm shadow-sm">
                         <i class="bi bi-gear-fill"></i> Configurar Antenas
                     </a>
                     @if($viewMode == 'realtime')

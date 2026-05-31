@@ -27,7 +27,7 @@ class AntennaMappingManager extends Component
         'location_name' => 'required|min:3',
     ];
 
-    public function mount()
+    public function mount($router_id = 0)
     {
         // Inicializamos routers como una colección vacía para evitar errores de pluck
         $this->routers = collect();
@@ -35,9 +35,22 @@ class AntennaMappingManager extends Component
         // Si es admin ve todos, si es aliado solo se ve a sí mismo
         if (Auth::user()->role === 'admin') {
             $this->aliados = User::where('role', 'aliado')->orderBy('name')->get();
+
+            // Si se pasa un router_id específico, cargamos el contexto de ese equipo
+            if ($router_id != 0) {
+                $router = Router::find($router_id);
+                if ($router) {
+                    $this->aliadoId = $router->user_id;
+                    $this->updatedAliadoId($this->aliadoId);
+                    $this->router_id = $router_id;
+                }
+            }
         } else {
             $this->aliadoId = Auth::id();
             $this->updatedAliadoId($this->aliadoId);
+            if ($router_id != 0) {
+                $this->router_id = $router_id;
+            }
         }
     }
 

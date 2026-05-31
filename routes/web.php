@@ -88,7 +88,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin/mikrotik')->group(funct
 
 Route::middleware(['role:admin,aliado'])->group(function () {
     Route::get('/planes-comerciales', PackageManagement::class)->name('packages.index');
-    Route::get('/configurar-antenas', AntennaMappingManager::class)->name('aliado.antenas.config');
+    Route::get('/configurar-antenas/{router_id}', AntennaMappingManager::class)->name('aliado.antenas.config');
     Route::get('/hour-analysis', HourAnalysis::class)->name('aliado.hour.analysis');
 });
 

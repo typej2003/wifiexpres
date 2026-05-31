@@ -83,6 +83,11 @@
                                     <i class="bi bi-ticket-perforated me-1"></i> TICKETS
                                 </a>
                             </div>
+                            <div class="col-6">
+                                <a href="{{ route('aliado.antenas.config', $r->id) }}" class="btn btn-outline-warning btn-sm w-100 rounded-pill fw-bold">
+                                    <i class="bi bi-broadcast me-1"></i> ANTENAS
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
