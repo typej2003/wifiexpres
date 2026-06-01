@@ -129,10 +129,11 @@ class SyPagoController extends Controller
             if ($response->successful() && isset($data['transaction_id'])) {
                 
                 // --- INICIO DE REGISTRO DE TRANSACCIÓN ---
-                $identity = $request->input('identity'); // Identificador del Router (ej: R001)
-                $planName = $request->input('plan') ?? 'Servicio WiFi';
+                // Capturamos identity de varias posibles fuentes para asegurar su persistencia
+                $identity = $request->input('identity') ?? $request->input('router_identity') ?? $request->input('router_mac');
+                $planName = $request->input('plan') ?? $request->input('planSelected') ?? 'Servicio WiFi';
 
-                $transaccion = Pagomovil::create([
+                $transaccion = \App\Models\Pagomovil::create([
                     'referencia'      => $data['transaction_id'],
                     'identity'        => $identity,
                     'telefono'        => $phone,
@@ -140,22 +141,26 @@ class SyPagoController extends Controller
                     'banco'           => 'SyPago',
                     'plan'            => $planName,
                     'monto'           => $amount,
-                    'externalcomment' => json_encode($data),
+                    'externalcomment' => json_encode($data) . ' / SyPago Confirm',
                     'status'          => 'PAGADO',
                     'token'           => $data['transaction_id'],
                     'active'          => false,
                 ]);
 
-                $router = Router::where('identity', $identity)->first();
-                if ($router) {
+                // Buscar el router de forma flexible (por identidad o por MAC)
+                $router = \App\Models\Router::where('identity', $identity)
+                    ->orWhere('macAddress', $identity)
+                    ->first();
+
+                if ($router && $transaccion) {
                     $currentRate = ExchangeRateService::getBcvRate();
                     $costoUsd = round($amount / $currentRate, 4);
 
-                    Sale::create([
-                        'user_id'      => $router->user_id,
+                    \App\Models\Sale::create([
+                        'user_id'      => $router->user_id, // El dueño del router (Aliado)
                         'router_id'    => $router->id,
                         'type'         => 'pasarela',
-                        'reference_id' => $transaccion->id,
+                        'reference_id' => $transaccion->id, // ID del registro en pagomovils
                         'description'  => "Pago SyPago: Plan " . $planName . " - Ref: " . $data['transaction_id'],
                         'amount_bs'    => $amount, 
                         'amount_usd'   => $costoUsd,
