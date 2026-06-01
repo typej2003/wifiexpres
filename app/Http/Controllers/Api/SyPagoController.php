@@ -6,6 +6,10 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Models\Pagomovil;
+use App\Models\Router;
+use App\Models\Sale;
+use App\Services\ExchangeRateService;
 
 class SyPagoController extends Controller
 {
@@ -123,6 +127,43 @@ class SyPagoController extends Controller
             $data = $response->json();
 
             if ($response->successful() && isset($data['transaction_id'])) {
+                
+                // --- INICIO DE REGISTRO DE TRANSACCIÓN ---
+                $identity = $request->input('identity'); // Identificador del Router (ej: R001)
+                $planName = $request->input('plan') ?? 'Servicio WiFi';
+
+                $transaccion = Pagomovil::create([
+                    'referencia'      => $data['transaction_id'],
+                    'identity'        => $identity,
+                    'telefono'        => $phone,
+                    'user'            => $phone,
+                    'banco'           => 'SyPago',
+                    'plan'            => $planName,
+                    'monto'           => $amount,
+                    'externalcomment' => json_encode($data),
+                    'status'          => 'PAGADO',
+                    'token'           => $data['transaction_id'],
+                    'active'          => false,
+                ]);
+
+                $router = Router::where('identity', $identity)->first();
+                if ($router) {
+                    $currentRate = ExchangeRateService::getBcvRate();
+                    $costoUsd = round($amount / $currentRate, 4);
+
+                    Sale::create([
+                        'user_id'      => $router->user_id,
+                        'router_id'    => $router->id,
+                        'type'         => 'pasarela',
+                        'reference_id' => $transaccion->id,
+                        'description'  => "Pago SyPago: Plan " . $planName . " - Ref: " . $data['transaction_id'],
+                        'amount_bs'    => $amount, 
+                        'amount_usd'   => $costoUsd,
+                        'rate'         => $currentRate,
+                    ]);
+                }
+                // --- FIN DE REGISTRO DE TRANSACCIÓN ---
+
                 return response()->json([
                     'success' => true,
                     'transaction_id' => $data['transaction_id'],
