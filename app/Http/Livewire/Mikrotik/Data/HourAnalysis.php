@@ -116,7 +116,7 @@ class HourAnalysis extends Component
                 if (count($ipParts) >= 3) {
                     $segmento = $ipParts[0] . '.' . $ipParts[1] . '.' . $ipParts[2] . '.';
                     $segmentsToProcess['Zona: ' . $mapping->location_name] = (clone $baseQuery)
-                        ->where($tableName . '.ip_address', 'LIKE', $segmento . '%');
+                        ->where($tableName . '.mac_address', 'LIKE', $segmento . '%');
                 }
             }
         }
