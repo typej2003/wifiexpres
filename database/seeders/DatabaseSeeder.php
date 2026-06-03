@@ -21,7 +21,7 @@ class DatabaseSeeder extends Seeder
             PlanSeeder::class,
             PackageSeeder::class,
             HabladoresSeeder::class,
-            TicketLogSeeder::class,
+            //TicketLogSeeder::class,
         ]);
     }
 }
