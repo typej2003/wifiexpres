@@ -21,67 +21,84 @@ class TicketLogSeeder extends Seeder
         // Limpiamos logs antiguos
         TicketLog::truncate();
 
-        // 1. Creamos 20 Usuarios de prueba con datos ficticios para Mayo 2026
+        // 1. Creamos un pool de 400 Usuarios de prueba
         $users = [];
         $generos = ['F', 'M'];
         $nombresF = ['Maria', 'Ana', 'Carmen', 'Elena', 'Laura', 'Rosa'];
         $nombresM = ['Jose', 'Juan', 'Pedro', 'Luis', 'Carlos', 'Miguel'];
         $prefijosVzla = ['0412', '0414', '0416', '0424', '0426'];
+        $segmentosIp = ['10.0.0.', '192.168.10.', '192.168.88.', '172.16.0.'];
 
-        $this->command->info("Creando 20 usuarios con teléfonos de Venezuela...");
+        $this->command->info("Creando pool de 400 usuarios...");
 
-        for ($i = 0; $i < 20; $i++) {
+        for ($i = 0; $i < 400; $i++) {
             $gender = $generos[array_rand($generos)];
             $firstName = ($gender == 'F') ? $nombresF[array_rand($nombresF)] : $nombresM[array_rand($nombresM)];
             
-            // Generamos número de teléfono venezolano y MAC ficticia
+            // Generamos número de teléfono venezolano
             $phoneCode = $prefijosVzla[array_rand($prefijosVzla)];
             $phoneNumber = $phoneCode . rand(1000000, 9999999);
-            $macBase = sprintf('%02X:%02X:%02X:%02X:%02X:%02X', mt_rand(0, 255), mt_rand(0, 255), mt_rand(0, 255), mt_rand(0, 255), mt_rand(0, 255), mt_rand(0, 255));
+            
+            // Importante: macaddress debe contener una IP para que funcione el filtro por Zona en HourAnalysis
+            $fakeIp = $segmentosIp[array_rand($segmentosIp)] . rand(2, 254);
 
             $users[] = UserMikrotik::create([
                 'router_id'   => $routers->random()->id,
                 'name'        => $phoneNumber, // Nombre es el teléfono
-                'full_name'   => $firstName . " " . "Prueba " . $i,
+                'full_name'   => $firstName . " " . "User " . $i,
                 'gender'      => $gender,
                 'birthday'    => Carbon::now()->subYears(rand(15, 60))->format('Y-m-d'),
-                'email'       => "usuario_mayo{$i}@wifiexpres.com",
-                'macaddress'  => "T-" . $macBase,
+                'email'       => "usuario_{$i}@wifiexpres.com",
+                'macaddress'  => $fakeIp,
                 'cellphonecode' => $phoneCode,
                 'cellphone'   => substr($phoneNumber, 4),
                 'active'      => true,
             ]);
         }
 
-        // 2. Generamos 20 logs desde el 01/05/2026 hasta el 23/05/2026 06:00 AM
-        $this->command->info("Generando 20 logs para el periodo de Mayo...");
+        // 2. Generamos logs para MAYO (80-100 usuarios por día)
+        $this->command->info("Generando logs para Mayo (Promedio 90/día)...");
+        for ($day = 1; $day <= 31; $day++) {
+            $logsPerDay = rand(80, 100);
+            for ($i = 0; $i < $logsPerDay; $i++) {
+                $this->createRandomLog($users, $routers, 2026, 5, $day);
+            }
+        }
 
-        $startDate = Carbon::create(2026, 5, 1, 0, 0, 0);
-        $endDate = Carbon::create(2026, 5, 23, 6, 0, 0);
-        $secondsDiff = $startDate->diffInSeconds($endDate);
-
-        for ($i = 0; $i < 20; $i++) {
-            $user = $users[$i]; // Usamos cada usuario creado
-            $router = Router::find($user->router_id) ?: $routers->random();
-            
-            // Fecha aleatoria dentro del rango solicitado
-            $fechaLog = $startDate->copy()->addSeconds(rand(0, $secondsDiff));
-            $fechaString = $fechaLog->toDateTimeString(); // Evita error 1292
-
-            $duracion = rand(900, 7200); // Entre 15 min y 2 horas
-            $fechaDesconexion = $fechaLog->copy()->addSeconds($duracion)->toDateTimeString();
-
-            TicketLog::create([
-                'router_id'        => $router->id,
-                'username'         => $user->name,
-                'mac_address'      => $user->macaddress,
-                'duration_seconds' => $duracion,
-                'disconnected_at'  => $fechaDesconexion,
-                'created_at'       => $fechaString,
-                'updated_at'       => $fechaString,
-            ]);
+        // 3. Generamos logs para JUNIO (50-100 usuarios por día para el 1 y 2)
+        $this->command->info("Generando logs para Junio 01 y 02 (50-100/día)...");
+        for ($day = 1; $day <= 2; $day++) {
+            $logsPerDay = rand(50, 100);
+            for ($i = 0; $i < $logsPerDay; $i++) {
+                $this->createRandomLog($users, $routers, 2026, 6, $day);
+            }
         }
 
         $this->command->info("¡Seeder completado con éxito!");
+    }
+
+    /**
+     * Helper para crear un log individual
+     */
+    private function createRandomLog($users, $routers, $year, $month, $day)
+    {
+        $user = $users[array_rand($users)];
+        $router = $routers->random();
+        
+        $fechaLog = Carbon::create($year, $month, $day, rand(0, 23), rand(0, 59), rand(0, 59));
+        $fechaString = $fechaLog->toDateTimeString();
+
+        $duracion = rand(600, 3600); // Entre 10 min y 1 hora
+        $fechaDesconexion = $fechaLog->copy()->addSeconds($duracion)->toDateTimeString();
+
+        TicketLog::create([
+            'router_id'        => $router->id,
+            'username'         => $user->name,
+            'mac_address'      => $user->macaddress,
+            'duration_seconds' => $duracion,
+            'disconnected_at'  => $fechaDesconexion,
+            'created_at'       => $fechaString,
+            'updated_at'       => $fechaString,
+        ]);
     }
 }
