@@ -23,6 +23,14 @@ class TicketLog extends Model
     }
 
     /**
+     * Relación con el usuario de MikroTik basado en el nombre de usuario.
+     */
+    public function userMikrotik(): BelongsTo
+    {
+        return $this->belongsTo(UserMikrotik::class, 'username', 'name');
+    }
+
+    /**
      * Obtiene la ubicación física basada en el segmento de IP 
      * que reside en el campo 'mac_address'.
      */
