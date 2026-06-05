@@ -101,6 +101,7 @@ class GraficoConexiones extends Component
                 'user_mikrotiks.email as client_email',
                 'user_mikrotiks.gender',
                 'user_mikrotiks.birthday',
+                'user_mikrotiks.cellphonecode',
                 'user_mikrotiks.cellphone',
                 'user_mikrotiks.address',
                 'user_mikrotiks.profile as client_profile'
