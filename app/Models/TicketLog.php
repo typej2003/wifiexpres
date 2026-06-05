@@ -27,7 +27,10 @@ class TicketLog extends Model
      */
     public function userMikrotik(): BelongsTo
     {
-        return $this->belongsTo(UserMikrotik::class, 'username', 'name');
+        // Vinculamos por username -> name
+        // Agregamos el filtro de router_id para asegurar que el log pertenezca al usuario del mismo equipo
+        return $this->belongsTo(UserMikrotik::class, 'username', 'name')
+                    ->whereColumn('user_mikrotiks.router_id', 'ticket_logs.router_id');
     }
 
     /**
