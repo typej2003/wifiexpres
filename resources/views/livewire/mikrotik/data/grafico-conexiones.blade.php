@@ -68,8 +68,11 @@
                         <thead class="bg-light small fw-bold text-uppercase">
                             <tr>
                                 <th class="px-4 py-3">Usuario / Ticket</th>
-                                <th class="py-3">Nombre Real</th>
-                                <th class="py-3">Email</th>
+                                <th class="py-3">Datos del Cliente</th>
+                                <th class="py-3 text-center">Género</th>
+                                <th class="py-3 text-center">Edad</th>
+                                <th class="py-3">Contacto / Ubicación</th>
+                                <th class="py-3 text-center">Perfil</th>
                                 <th class="py-3 text-center">Router</th>
                                 <th class="py-3 text-center">Fecha y Hora</th>
                                 <th class="py-3 text-center">Duración</th>
@@ -80,10 +83,28 @@
                             <tr>
                                 <td class="px-4 fw-bold text-primary">{{ $log->username }}</td>
                                 <td>
-                                    {{-- Accedemos al alias creado en el Join --}}
-                                    {{ $log->real_full_name ?: 'N/A' }}
+                                    <div class="fw-bold text-dark">{{ $log->userMikrotik->full_name ?: 'N/A' }}</div>
+                                    <div class="small text-muted">{{ $log->userMikrotik->email ?? '' }}</div>
                                 </td>
-                                <td>{{ $log->real_email ?: 'N/A' }}</td>
+                                <td class="text-center">
+                                    @if($log->userMikrotik && $log->userMikrotik->gender)
+                                        <span class="badge {{ $log->userMikrotik->gender == 'M' ? 'bg-primary' : 'bg-danger' }} bg-opacity-10 {{ $log->userMikrotik->gender == 'M' ? 'text-primary' : 'text-danger' }} rounded-pill px-2">
+                                            {{ $log->userMikrotik->gender }}
+                                        </span>
+                                    @else - @endif
+                                </td>
+                                <td class="text-center fw-bold">{{ $log->userMikrotik->age ?? '-' }}</td>
+                                <td class="small">
+                                    @if($log->userMikrotik)
+                                        <div><i class="bi bi-telephone me-1"></i> {{ $log->userMikrotik->cellphone ?: 'N/A' }}</div>
+                                        <div class="text-truncate" style="max-width: 150px;" title="{{ $log->userMikrotik->address }}">
+                                            <i class="bi bi-geo-alt me-1"></i> {{ $log->userMikrotik->address ?: 'N/A' }}
+                                        </div>
+                                    @else N/A @endif
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-light text-secondary border">{{ $log->userMikrotik->profile ?? 'N/A' }}</span>
+                                </td>
                                 <td class="text-center">
                                     <span class="badge bg-light text-dark border">{{ $log->router->identity ?? 'Mikrotik' }}</span>
                                 </td>
