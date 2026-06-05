@@ -55,6 +55,49 @@
             </div>
         </div>
     </div>
+
+    {{-- TABLA DE DETALLES --}}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card-header bg-white border-0 p-4">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-list-ul text-primary me-2"></i>Detalle de Registros</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light small fw-bold text-uppercase">
+                            <tr>
+                                <th class="px-4 py-3">Usuario / Ticket</th>
+                                <th class="py-3">Nombre Real</th>
+                                <th class="py-3">Email</th>
+                                <th class="py-3 text-center">Router</th>
+                                <th class="py-3 text-center">Fecha y Hora</th>
+                                <th class="py-3 text-center">Duración</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($tableData as $log)
+                            <tr>
+                                <td class="px-4 fw-bold text-primary">{{ $log->username }}</td>
+                                <td>{{ $log->user_full_name ?? 'N/A' }}</td>
+                                <td>{{ $log->user_email ?? 'N/A' }}</td>
+                                <td class="text-center">
+                                    <span class="badge bg-light text-dark border">{{ $log->router->identity ?? 'Mikrotik' }}</span>
+                                </td>
+                                <td class="text-center small">{{ $log->created_at->format('d/m/Y h:i A') }}</td>
+                                <td class="text-center">
+                                    <span class="badge bg-soft-info text-info rounded-pill px-3">{{ $log->duracion_formateada }}</span>
+                                </td>
+                            </tr>
+                            @empty
+                            <tr><td colspan="6" class="text-center py-4 text-muted">No hay registros para este periodo.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 @push('js')
