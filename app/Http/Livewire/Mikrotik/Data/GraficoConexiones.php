@@ -43,11 +43,8 @@ class GraficoConexiones extends Component
 
     public function exportExcel()
     {
-        return redirect()->route('admin.report.conexiones.excel', [
-            'router_id' => $this->router_id,
-            'desde' => $this->fecha_desde,
-            'hasta' => $this->fecha_hasta,
-        ]);
+        // Descarga el archivo directamente con el nombre especificado
+        return Excel::download(new DetalleRegistros, 'detalle_registros_' . date('Y-m-d') . '.xlsx');
     }
 
     public function render() {
