@@ -88,6 +88,11 @@
                                     <i class="bi bi-broadcast me-1"></i> ANTENAS
                                 </a>
                             </div>
+                            <div class="col-6">
+                                <a href="{{ route('mikrotik.herramientas.qr', $r->id) }}" class="btn btn-outline-dark btn-sm w-100 rounded-pill fw-bold">
+                                    <i class="bi bi-qr-code me-1"></i> QR WIFI
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>

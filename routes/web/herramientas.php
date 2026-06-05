@@ -8,6 +8,8 @@ use App\Http\Livewire\Mikrotik\Herramientas\UsersOnline;
 
 use App\Http\Livewire\Mikrotik\Herramientas\CambiarTrialUserprofile;
 
+use App\Http\Livewire\Mikrotik\Herramientas\QrRouter;
+
 use App\Http\Controllers\ApkController;
 
 Route::get('/descargar-apk', [ApkController::class, 'download'])->name('apk.download');
@@ -31,4 +33,7 @@ Route::middleware(['role:admin,aliado'])->group(function () {
    
     Route::get('/mikrotik/herramientas/users-online', UsersOnline::class)
         ->name('mikrotik.users-online');
+
+    Route::get('/mikrotik/herramientas/qr/{router_id?}', QrRouter::class)
+        ->name('mikrotik.herramientas.qr');
 });
