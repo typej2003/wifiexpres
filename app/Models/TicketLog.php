@@ -70,4 +70,29 @@ class TicketLog extends Model
     {
         return $this->router->user->name ?? 'Sistema';
     }
+
+    /**
+     * Obtiene el nombre completo del cliente (soporta datos inyectados por JOIN o relación)
+     */
+    public function getClienteNombreAttribute(): string
+    {
+        return $this->client_name ?? ($this->userMikrotik->full_name ?? 'N/A');
+    }
+
+    /**
+     * Obtiene el género del cliente (soporta datos inyectados por JOIN o relación)
+     */
+    public function getClienteGeneroAttribute(): string
+    {
+        return $this->gender ?? ($this->userMikrotik->gender ?? '-');
+    }
+
+    /**
+     * Calcula la edad del cliente basándose en la fecha de nacimiento.
+     */
+    public function getClienteEdadAttribute()
+    {
+        $birthday = $this->birthday ?? ($this->userMikrotik->birthday ?? null);
+        return $birthday ? Carbon::parse($birthday)->age : '-';
+    }
 }

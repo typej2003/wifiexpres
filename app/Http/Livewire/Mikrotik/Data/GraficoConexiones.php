@@ -47,7 +47,11 @@ class GraficoConexiones extends Component
     public function exportExcel()
     {
         // Descarga el archivo directamente con el nombre especificado
-        return Excel::download(new DetalleRegistros, 'detalle_registros_' . date('Y-m-d') . '.xlsx');
+        return Excel::download(new DetalleRegistros(
+            $this->router_id,
+            $this->fecha_desde,
+            $this->fecha_hasta
+        ), 'detalle_registros_' . date('Y-m-d') . '.xlsx');
     }
 
     public function render() {
