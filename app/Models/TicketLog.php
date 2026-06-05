@@ -27,7 +27,7 @@ class TicketLog extends Model
      */
     public function userMikrotik(): BelongsTo
     {
-        return $this->belongsTo(UserMikrotik::class, 'name', 'username');
+        return $this->belongsTo(UserMikrotik::class, 'username', 'name');
     }
 
     /**
