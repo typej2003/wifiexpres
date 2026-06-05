@@ -8,6 +8,9 @@ use App\Models\Router;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\DetalleRegistros;
+use Illuminate\Http\Request;
 
 class GraficoConexiones extends Component
 {
