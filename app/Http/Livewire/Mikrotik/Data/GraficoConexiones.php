@@ -84,14 +84,19 @@ class GraficoConexiones extends Component
             ];
         }
 
-        // 4. Consulta para la tabla de registros detallados (Usando la relación userMikrotik)
-        $tableData = TicketLog::with(['router', 'userMikrotik'])
-            ->whereIn('router_id', $routerIds)
-            ->whereBetween('created_at', [$desde, $hasta])
+        // 4. Consulta para la tabla de registros detallados con Join explícito
+        $tableData = TicketLog::whereIn('ticket_logs.router_id', $routerIds)
+            ->whereBetween('ticket_logs.created_at', [$desde, $hasta])
             ->when(!empty($this->router_id), function($q) {
-                $q->where('router_id', $this->router_id);
+                $q->where('ticket_logs.router_id', $this->router_id);
             })
-            ->latest()
+            ->leftJoin('user_mikrotiks', function($join) {
+                $join->on('user_mikrotiks.name', '=', 'ticket_logs.username')
+                     ->on('user_mikrotiks.router_id', '=', 'ticket_logs.router_id');
+            })
+            ->with('router')
+            ->select('ticket_logs.*', 'user_mikrotiks.full_name as real_full_name', 'user_mikrotiks.email as real_email')
+            ->latest('ticket_logs.created_at')
             ->get();
 
         // Emitir evento para refrescar el gráfico en el navegador

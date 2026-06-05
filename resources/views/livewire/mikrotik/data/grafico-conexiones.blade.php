@@ -80,10 +80,10 @@
                             <tr>
                                 <td class="px-4 fw-bold text-primary">{{ $log->username }}</td>
                                 <td>
-                                    {{-- Usamos ?: para que si full_name está vacío, intente mostrar el nombre de usuario o N/A --}}
-                                    {{ $log->userMikrotik->full_name ?: ($log->userMikrotik->name ?? 'N/A') }}
+                                    {{-- Accedemos al alias creado en el Join --}}
+                                    {{ $log->real_full_name ?: 'N/A' }}
                                 </td>
-                                <td>{{ $log->userMikrotik->email ?: 'N/A' }}</td>
+                                <td>{{ $log->real_email ?: 'N/A' }}</td>
                                 <td class="text-center">
                                     <span class="badge bg-light text-dark border">{{ $log->router->identity ?? 'Mikrotik' }}</span>
                                 </td>
