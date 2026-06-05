@@ -83,8 +83,8 @@
                             <tr>
                                 <td class="px-4 fw-bold text-primary">{{ $log->username }}</td>
                                 <td>
-                                    <div class="fw-bold text-dark">{{ $log->userMikrotik->full_name ?: 'N/A' }}</div>
-                                    <div class="small text-muted">{{ $log->userMikrotik->email ?? '' }}</div>
+                                    <div class="fw-bold text-dark">{{ $log->userMikrotik?->full_name ?: 'N/A' }}</div>
+                                    <div class="small text-muted">{{ $log->userMikrotik?->email ?? '' }}</div>
                                 </td>
                                 <td class="text-center">
                                     @if($log->userMikrotik && $log->userMikrotik->gender)
@@ -93,7 +93,7 @@
                                         </span>
                                     @else - @endif
                                 </td>
-                                <td class="text-center fw-bold">{{ $log->userMikrotik->age ?? '-' }}</td>
+                                <td class="text-center fw-bold">{{ $log->userMikrotik?->age ?? '-' }}</td>
                                 <td class="small">
                                     @if($log->userMikrotik)
                                         <div><i class="bi bi-telephone me-1"></i> {{ $log->userMikrotik->cellphone ?: 'N/A' }}</div>
@@ -103,7 +103,7 @@
                                     @else N/A @endif
                                 </td>
                                 <td class="text-center">
-                                    <span class="badge bg-light text-secondary border">{{ $log->userMikrotik->profile ?? 'N/A' }}</span>
+                                    <span class="badge bg-light text-secondary border">{{ $log->userMikrotik?->profile ?? 'N/A' }}</span>
                                 </td>
                                 <td class="text-center">
                                     <span class="badge bg-light text-dark border">{{ $log->router->identity ?? 'Mikrotik' }}</span>
