@@ -78,8 +78,9 @@ class GraficoConexiones extends Component
                 'data' => $dataValues,
                 'backgroundColor' => $colores[$index % count($colores)],
                 'borderRadius' => 5,
-                'barPercentage' => 0.8,
-                'categoryPercentage' => 0.8
+                'barPercentage' => 0.6,
+                'categoryPercentage' => 0.6,
+                'maxBarThickness' => 45
             ];
         }
 

@@ -93,7 +93,10 @@
                     y: { 
                         beginAtZero: true, 
                         grid: { color: '#f0f0f0', drawBorder: false },
-                        ticks: { font: { size: 11 } }
+                        ticks: { 
+                            font: { size: 11 },
+                            precision: 0
+                        }
                     },
                     x: { 
                         grid: { display: false },
