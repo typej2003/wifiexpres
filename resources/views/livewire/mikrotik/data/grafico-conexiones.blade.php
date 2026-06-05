@@ -97,7 +97,7 @@
                                     {{ $log->birthday ? \Carbon\Carbon::parse($log->birthday)->age : '-' }}
                                 </td>
                                 <td class="small">
-                                    <div><i class="bi bi-telephone me-1"></i> {{ $log->cellphone ?: 'N/A' }}</div>
+                                    <div><i class="bi bi-telephone me-1"></i> {{ $log->cellphonecode ?: 'N/A' }}{{ $log->cellphone ?: 'N/A' }}</div>
                                     <div class="text-truncate" style="max-width: 150px;" title="{{ $log->address }}">
                                         <i class="bi bi-geo-alt me-1"></i> {{ $log->address ?: 'N/A' }}
                                     </div>
