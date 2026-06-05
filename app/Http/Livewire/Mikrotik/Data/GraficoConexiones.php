@@ -84,14 +84,28 @@ class GraficoConexiones extends Component
             ];
         }
 
-        // 4. Consulta para la tabla de registros detallados usando relaciones Eloquent
-        $tableData = TicketLog::with(['router', 'userMikrotik'])
-            ->whereIn('router_id', $routerIds)
-            ->whereBetween('created_at', [$desde, $hasta])
+        // 4. Consulta para la tabla de registros detallados con Join para manejar el prefijo 'T-' y el router_id
+        $tableData = TicketLog::whereIn('ticket_logs.router_id', $routerIds)
+            ->whereBetween('ticket_logs.created_at', [$desde, $hasta])
             ->when(!empty($this->router_id), function($q) {
-                $q->where('router_id', $this->router_id);
+                $q->where('ticket_logs.router_id', $this->router_id);
             })
-            ->latest()
+            ->leftJoin('user_mikrotiks', function($join) {
+                $join->on('user_mikrotiks.router_id', '=', 'ticket_logs.router_id')
+                     ->on('user_mikrotiks.name', '=', DB::raw("REPLACE(ticket_logs.username, 'T-', '')"));
+            })
+            ->with('router')
+            ->select(
+                'ticket_logs.*',
+                'user_mikrotiks.full_name as client_name',
+                'user_mikrotiks.email as client_email',
+                'user_mikrotiks.gender',
+                'user_mikrotiks.birthday',
+                'user_mikrotiks.cellphone',
+                'user_mikrotiks.address',
+                'user_mikrotiks.profile as client_profile'
+            )
+            ->latest('ticket_logs.created_at')
             ->get();
 
         // Emitir evento para refrescar el gráfico en el navegador

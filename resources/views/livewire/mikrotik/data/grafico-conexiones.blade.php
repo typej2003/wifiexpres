@@ -83,27 +83,27 @@
                             <tr>
                                 <td class="px-4 fw-bold text-primary">{{ $log->username }}</td>
                                 <td>
-                                    <div class="fw-bold text-dark">{{ $log->userMikrotik?->full_name ?: 'N/A' }}</div>
-                                    <div class="small text-muted">{{ $log->userMikrotik?->email ?? '' }}</div>
+                                    <div class="fw-bold text-dark">{{ $log->client_name ?: 'N/A' }}</div>
+                                    <div class="small text-muted">{{ $log->client_email ?? '' }}</div>
                                 </td>
                                 <td class="text-center">
-                                    @if($log->userMikrotik && $log->userMikrotik->gender)
-                                        <span class="badge {{ $log->userMikrotik->gender == 'M' ? 'bg-primary' : 'bg-danger' }} bg-opacity-10 {{ $log->userMikrotik->gender == 'M' ? 'text-primary' : 'text-danger' }} rounded-pill px-2">
-                                            {{ $log->userMikrotik->gender }}
+                                    @if($log->gender)
+                                        <span class="badge {{ $log->gender == 'M' ? 'bg-primary' : 'bg-danger' }} bg-opacity-10 {{ $log->gender == 'M' ? 'text-primary' : 'text-danger' }} rounded-pill px-2">
+                                            {{ $log->gender }}
                                         </span>
                                     @else - @endif
                                 </td>
-                                <td class="text-center fw-bold">{{ $log->userMikrotik?->age ?? '-' }}</td>
+                                <td class="text-center fw-bold">
+                                    {{ $log->birthday ? \Carbon\Carbon::parse($log->birthday)->age : '-' }}
+                                </td>
                                 <td class="small">
-                                    @if($log->userMikrotik)
-                                        <div><i class="bi bi-telephone me-1"></i> {{ $log->userMikrotik->cellphone ?: 'N/A' }}</div>
-                                        <div class="text-truncate" style="max-width: 150px;" title="{{ $log->userMikrotik->address }}">
-                                            <i class="bi bi-geo-alt me-1"></i> {{ $log->userMikrotik->address ?: 'N/A' }}
-                                        </div>
-                                    @else N/A @endif
+                                    <div><i class="bi bi-telephone me-1"></i> {{ $log->cellphone ?: 'N/A' }}</div>
+                                    <div class="text-truncate" style="max-width: 150px;" title="{{ $log->address }}">
+                                        <i class="bi bi-geo-alt me-1"></i> {{ $log->address ?: 'N/A' }}
+                                    </div>
                                 </td>
                                 <td class="text-center">
-                                    <span class="badge bg-light text-secondary border">{{ $log->userMikrotik?->profile ?? 'N/A' }}</span>
+                                    <span class="badge bg-light text-secondary border">{{ $log->client_profile ?? 'N/A' }}</span>
                                 </td>
                                 <td class="text-center">
                                     <span class="badge bg-light text-dark border">{{ $log->router->identity ?? 'Mikrotik' }}</span>
