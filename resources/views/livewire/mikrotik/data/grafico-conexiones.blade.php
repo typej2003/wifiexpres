@@ -60,8 +60,18 @@
     <div class="row mt-4">
         <div class="col-12">
             <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-                <div class="card-header bg-white border-0 p-4">
+                <div class="card-header bg-white border-0 p-4 d-flex justify-content-between align-items-center">
                     <h5 class="fw-bold mb-0"><i class="bi bi-list-ul text-primary me-2"></i>Detalle de Registros</h5>
+                    <div class="d-flex gap-2">
+                        <button wire:click="exportPDF" wire:loading.attr="disabled" class="btn btn-outline-danger btn-sm rounded-pill px-4 fw-bold shadow-sm">
+                            <span wire:loading wire:target="exportPDF" class="spinner-border spinner-border-sm me-1"></span>
+                            <i wire:loading.remove wire:target="exportPDF" class="bi bi-filetype-pdf me-1"></i> PDF
+                        </button>
+                        <button wire:click="exportExcel" wire:loading.attr="disabled" class="btn btn-outline-success btn-sm rounded-pill px-4 fw-bold shadow-sm">
+                            <span wire:loading wire:target="exportExcel" class="spinner-border spinner-border-sm me-1"></span>
+                            <i wire:loading.remove wire:target="exportExcel" class="bi bi-file-earmark-spreadsheet me-1"></i> EXCEL
+                        </button>
+                    </div>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
@@ -97,7 +107,7 @@
                                     {{ $log->birthday ? \Carbon\Carbon::parse($log->birthday)->age : '-' }}
                                 </td>
                                 <td class="small">
-                                    <div><i class="bi bi-telephone me-1"></i> {{ $log->cellphonecode ?: 'N/A' }}{{ $log->cellphone ?: 'N/A' }}</div>
+                                    <div><i class="bi bi-telephone me-1"></i> {{ $log->cellphone ? ($log->cellphonecode . ' ' . $log->cellphone) : 'N/A' }}</div>
                                     <div class="text-truncate" style="max-width: 150px;" title="{{ $log->address }}">
                                         <i class="bi bi-geo-alt me-1"></i> {{ $log->address ?: 'N/A' }}
                                     </div>

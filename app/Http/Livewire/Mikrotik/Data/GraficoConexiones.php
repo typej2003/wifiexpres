@@ -32,6 +32,24 @@ class GraficoConexiones extends Component
         $this->fecha_hasta = now()->format('Y-m-d');
     }
 
+    public function exportPDF()
+    {
+        return redirect()->route('admin.report.conexiones.pdf', [
+            'router_id' => $this->router_id,
+            'desde' => $this->fecha_desde,
+            'hasta' => $this->fecha_hasta,
+        ]);
+    }
+
+    public function exportExcel()
+    {
+        return redirect()->route('admin.report.conexiones.excel', [
+            'router_id' => $this->router_id,
+            'desde' => $this->fecha_desde,
+            'hasta' => $this->fecha_hasta,
+        ]);
+    }
+
     public function render() {
         $user = Auth::user();
         
