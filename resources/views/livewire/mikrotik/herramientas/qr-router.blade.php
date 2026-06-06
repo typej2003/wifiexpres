@@ -1,7 +1,13 @@
 <div class="container-fluid py-4">
+    <div class="mb-4 d-print-none">
+        <button wire:click="back" class="btn btn-outline-secondary rounded-pill shadow-sm px-4">
+            <i class="bi bi-arrow-left me-1"></i> VOLVER A EQUIPOS
+        </button>
+    </div>
+
     <div class="row justify-content-center">
         <div class="col-md-8 col-lg-6">
-            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden d-print-none">
                 <div class="card-header bg-primary text-white p-4">
                     <h5 class="mb-0 fw-bold">
                         <i class="bi bi-qr-code-scan me-2"></i> Generador de Acceso WiFi
@@ -56,4 +62,45 @@
             </div>
         </div>
     </div>
+
+    @if($ssid)
+        {{-- DISEÑO PARA IMPRESIÓN --}}
+        <div class="d-none d-print-block text-center mt-5">
+            <div class="d-inline-block p-5 border border-5 border-dark rounded-4 bg-white" style="max-width: 550px;">
+                <div class="bg-white p-3 d-inline-block border border-2 border-dark mb-4">
+                    {!! QrCode::size(350)->margin(1)->generate("WIFI:S:$ssid;;") !!}
+                </div>
+                
+                <h4 class="fw-bold text-uppercase mb-1" style="letter-spacing: 1px;">Escanea para conectarte al Wifi</h4>
+                <h1 class="display-3 fw-bolder text-primary mb-5">{{ $comercio_nombre }}</h1>
+
+                <div class="text-start border-top border-2 pt-4 px-3">
+                    <h5 class="fw-bold mb-4 text-dark text-uppercase" style="font-size: 1.2rem;">Pasos para conectar:</h5>
+                    <p class="fs-3 mb-3">
+                        <span class="badge bg-dark rounded-circle me-2 px-3">1</span> 
+                        Conecta tu dispositivo a la WiFi: <strong>{{ $ssid }}</strong>
+                    </p>
+                    <p class="fs-3">
+                        <span class="badge bg-dark rounded-circle me-2 px-3">2</span> 
+                        Llena el formulario y conectate
+                    </p>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <style>
+        @media print {
+            @page { margin: 0; size: portrait; }
+            body { background: white !important; -webkit-print-color-adjust: exact; }
+            .container-fluid { padding: 0 !important; }
+            .d-print-block {
+                width: 100%;
+                height: 100vh;
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+            }
+        }
+    </style>
 </div>

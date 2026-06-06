@@ -12,6 +12,7 @@ class QrRouter extends Component
     public $selectedAliado = null;
     public $router_id = null;
     public $ssid = null;
+    public $comercio_nombre = null;
 
     public function mount($router_id = null)
     {
@@ -33,10 +34,16 @@ class QrRouter extends Component
         }
     }
 
+    public function back()
+    {
+        return redirect()->route('aliado.routers');
+    }
+
     public function updatedSelectedAliado()
     {
         $this->router_id = null;
         $this->ssid = null;
+        $this->comercio_nombre = null;
     }
 
     public function updatedRouterId($value)
@@ -45,8 +52,10 @@ class QrRouter extends Component
             $router = Router::find($value);
             // Según tu requerimiento, el campo hotspot_url contiene el SSID de la red
             $this->ssid = $router ? $router->hotspot_url : null;
+            $this->comercio_nombre = $router ? $router->comercio_nombre : null;
         } else {
             $this->ssid = null;
+            $this->comercio_nombre = null;
         }
     }
 
