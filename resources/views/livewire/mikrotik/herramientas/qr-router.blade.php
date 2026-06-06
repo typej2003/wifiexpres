@@ -72,7 +72,7 @@
         <div class="d-none d-print-block print-container">
             <div class="print-content">
                 <div class="qr-wrapper">
-                    {!! QrCode::size(450)->margin(1)->generate("WIFI:S:$ssid;;") !!}
+                    {!! QrCode::size(380)->margin(1)->generate("WIFI:S:$ssid;;") !!}
                 </div>
                 
                 <div class="print-text">
@@ -91,8 +91,8 @@
     <style>
         @media print {
             @page { size: letter; margin: 0; }
-            html, body { height: 100%; overflow: hidden; }
-            body { background: white !important; -webkit-print-color-adjust: exact; margin: 0 !important; padding: 0 !important; }
+            html, body { height: 100%; }
+            body { background: white !important; -webkit-print-color-adjust: exact; margin: 0 !important; padding: 0 !important; overflow: hidden; }
             
             /* Ocultar todo excepto el bloque de impresión */
             body * { visibility: hidden; }
@@ -115,16 +115,16 @@
             .qr-wrapper {
                 display: inline-block;
                 border: 12px solid #000;
-                padding: 20px;
-                margin-bottom: 1cm;
+                padding: 15px;
+                margin-bottom: 0.5cm;
                 background: white;
             }
 
-            .label-wifi { font-size: 22pt; font-weight: bold; margin-bottom: 0.3cm; color: #000; }
-            .comercio-title { font-size: 32pt; font-weight: 900; margin-bottom: 1cm; color: #000; text-transform: uppercase; }
+            .label-wifi { font-size: 20pt; font-weight: bold; margin-bottom: 0.2cm; color: #000; }
+            .comercio-title { font-size: 28pt; font-weight: 900; margin-bottom: 0.8cm; color: #000; text-transform: uppercase; }
             
-            .steps-box { text-align: left; display: inline-block; font-size: 22pt; line-height: 1.2; color: #000; }
-            .steps-box p { margin: 15px 0; }
+            .steps-box { text-align: left; display: inline-block; font-size: 18pt; line-height: 1.2; color: #000; }
+            .steps-box p { margin: 10px 0; }
         }
     </style>
 </div>
