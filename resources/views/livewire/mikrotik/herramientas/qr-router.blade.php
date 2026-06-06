@@ -91,26 +91,25 @@
     <style>
         @media print {
             @page { size: letter; margin: 0; }
-            body { background: white !important; -webkit-print-color-adjust: exact; }
+            html, body { height: 100%; overflow: hidden; }
+            body { background: white !important; -webkit-print-color-adjust: exact; margin: 0 !important; padding: 0 !important; }
             
             /* Ocultar todo excepto el bloque de impresión */
             body * { visibility: hidden; }
             .d-print-block, .d-print-block * { visibility: visible; }
             
             .d-print-block {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 21.59cm; /* Ancho carta */
-                height: 27.94cm; /* Alto carta */
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
                 display: flex !important;
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
-                background: white;
+                background: white !important;
+                page-break-after: avoid;
             }
 
-            .print-content { text-align: center; width: 80%; }
+            .print-content { text-align: center; width: 85%; margin: 0 auto; }
             
             /* QR enmarcado en un cuadrado */
             .qr-wrapper {
