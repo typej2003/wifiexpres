@@ -80,16 +80,12 @@
                 </div>
                 
                 <h4 class="fw-bold text-uppercase mb-1" style="letter-spacing: 1px;">Escanea para conectarte al Wifi</h4>
-                <h1 class="display-3 fw-bolder text-primary mb-5">{{ $comercio_nombre }}</h1>
+                <h1 class="display-3 fw-bolder text-primary mb-3">{{ $comercio_nombre }}</h1>
                 <div class="print-text">
                 
-                <div class="text-start border-top border-2 pt-4 px-3">
+                <div class="text-start border-top border-2 pt-3 px-3">
                     <h5 class="fw-bold mb-4 text-dark text-uppercase" style="font-size: 1.2rem;">Pasos para conectar:</h5>
                     
-                    <p class="fs-3">
-                        <span class="badge bg-dark rounded-circle me-2 px-3">2</span> 
-                        Llena el formulario y conectate
-                    </p>
                     <div class="steps-box">
                         <p>1. Conecta tu dispositivo a la WiFi: <strong>{{ $ssid }}</strong></p>
                         <p>2. Llena el formulario y conectate</p>
