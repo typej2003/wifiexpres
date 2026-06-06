@@ -90,19 +90,16 @@
 
     <style>
         @media print {
-            @page { margin: 0; size: letter; }
             @page { size: letter; margin: 0; }
-            body { background: white !important; -webkit-print-color-adjust: exact; }
-            .container-fluid { padding: 0 !important; }
-            
-            /* Ocultar todo excepto el bloque de impresión */
-            body * { visibility: hidden; }
-            .d-print-block, .d-print-block * { visibility: visible; }
-            
+            html, body { height: 100vh; overflow: hidden !important; margin: 0 !important; padding: 0 !important; background: white !important; }
+            .d-print-none, .navbar, .sidebar, footer { display: none !important; }
+            body > :not(.d-print-block) { display: none !important; }
+
             .d-print-block {
+                visibility: visible !important;
+                display: flex !important;
                 position: fixed;
                 top: 0; left: 0; right: 0; bottom: 0;
-                display: flex !important;
                 flex-direction: column;
                 align-items: center;
                 justify-content: flex-start;
@@ -117,16 +114,17 @@
             .qr-wrapper {
                 display: inline-block;
                 border: 12px solid #000;
-                padding: 15px;
-                margin-bottom: 0.5cm;
+                padding: 10px;
+                margin-bottom: 0.8cm;
                 background: white;
+                line-height: 0;
             }
 
             .label-wifi { font-size: 20pt; font-weight: bold; margin-bottom: 0.2cm; color: #000; }
-            .comercio-title { font-size: 30pt; font-weight: 900; margin-bottom: 0.8cm; color: #000; text-transform: uppercase; }
+            .comercio-title { font-size: 28pt; font-weight: 900; margin-bottom: 1cm; color: #000; text-transform: uppercase; }
             
-            .steps-box { text-align: left; display: inline-block; font-size: 18pt; line-height: 1.2; color: #000; border-top: 2px solid #000; pt: 0.5cm; }
-            .steps-box p { margin: 10px 0; }
+            .steps-box { text-align: left; display: inline-block; font-size: 17pt; line-height: 1.2; color: #000; border-top: 2px solid #000; padding-top: 0.5cm; width: 100%; max-width: 500px; }
+            .steps-box p { margin: 8px 0; }
         }
     </style>
 </div>
