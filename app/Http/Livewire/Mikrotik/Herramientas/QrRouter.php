@@ -39,6 +39,27 @@ class QrRouter extends Component
         return redirect()->route('aliado.routers');
     }
 
+    public function downloadQr()
+    {
+        if (!$this->ssid) return;
+
+        // Generamos el QR en formato PNG (máxima calidad para la conversión)
+        $pngData = \SimpleSoftwareIO\QrCode\Facades\QrCode::format('png')
+            ->size(1000)
+            ->margin(2)
+            ->generate("WIFI:S:{$this->ssid};;");
+
+        // Convertimos a JPG mediante GD para cumplir el requerimiento
+        $image = imagecreatefromstring($pngData);
+        
+        return response()->streamDownload(function () use ($image) {
+            imagejpeg($image, null, 90); // Calidad 90%
+            imagedestroy($image);
+        }, 'QR_' . str_replace(' ', '_', $this->comercio_nombre ?? $this->ssid) . '.jpg', [
+            'Content-Type' => 'image/jpeg',
+        ]);
+    }
+
     public function updatedSelectedAliado()
     {
         $this->router_id = null;

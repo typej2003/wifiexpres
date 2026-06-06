@@ -51,6 +51,10 @@
                             <button onclick="window.print()" class="btn btn-outline-primary rounded-pill px-4 mt-3">
                                 <i class="bi bi-printer me-2"></i> Imprimir Código
                             </button>
+
+                            <button wire:click="downloadQr" class="btn btn-outline-success rounded-pill px-4 mt-3 ms-2">
+                                <i class="bi bi-download me-2"></i> Descargar JPG
+                            </button>
                         </div>
                     @else
                         <div class="text-center py-5 opacity-50">
@@ -91,15 +95,17 @@
 
     <style>
         @media print {
-            @page { margin: 0; size: portrait; }
+            @page { margin: 0; size: letter; }
             body { background: white !important; -webkit-print-color-adjust: exact; }
             .container-fluid { padding: 0 !important; }
             .d-print-block {
                 width: 100%;
-                height: 100vh;
+                height: 100%;
+                min-height: 100vh;
                 display: flex !important;
-                align-items: center;
+                align-items: flex-start;
                 justify-content: center;
+                padding-top: 2.5cm;
             }
         }
     </style>
