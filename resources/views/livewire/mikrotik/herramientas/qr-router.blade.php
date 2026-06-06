@@ -69,25 +69,20 @@
 
     @if($ssid)
         {{-- DISEÑO PARA IMPRESIÓN --}}
-        <div class="d-none d-print-block text-center mt-5">
-            <div class="d-inline-block p-5 border border-5 border-dark rounded-4 bg-white" style="max-width: 550px;">
-                <div class="bg-white p-3 d-inline-block border border-2 border-dark mb-4">
-                    {!! QrCode::size(350)->margin(1)->generate("WIFI:S:$ssid;;") !!}
+        <div class="d-none d-print-block print-container">
+            <div class="print-content">
+                <div class="qr-wrapper">
+                    {!! QrCode::size(450)->margin(1)->generate("WIFI:S:$ssid;;") !!}
                 </div>
                 
-                <h4 class="fw-bold text-uppercase mb-1" style="letter-spacing: 1px;">Escanea para conectarte al Wifi</h4>
-                <h1 class="display-3 fw-bolder text-primary mb-5">{{ $comercio_nombre }}</h1>
+                <div class="print-text">
+                    <h2 class="label-wifi">Escanea para conectarte al Wifi</h2>
+                    <h1 class="comercio-title">{{ $comercio_nombre }}</h1>
 
-                <div class="text-start border-top border-2 pt-4 px-3">
-                    <h5 class="fw-bold mb-4 text-dark text-uppercase" style="font-size: 1.2rem;">Pasos para conectar:</h5>
-                    <p class="fs-3 mb-3">
-                        <span class="badge bg-dark rounded-circle me-2 px-3">1</span> 
-                        Conecta tu dispositivo a la WiFi: <strong>{{ $ssid }}</strong>
-                    </p>
-                    <p class="fs-3">
-                        <span class="badge bg-dark rounded-circle me-2 px-3">2</span> 
-                        Llena el formulario y conectate
-                    </p>
+                    <div class="steps-box">
+                        <p>1. Conecta tu dispositivo a la WiFi: <strong>{{ $ssid }}</strong></p>
+                        <p>2. Llena el formulario y conectate</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -95,18 +90,42 @@
 
     <style>
         @media print {
-            @page { margin: 0; size: letter; }
+            @page { size: letter; margin: 0; }
             body { background: white !important; -webkit-print-color-adjust: exact; }
-            .container-fluid { padding: 0 !important; }
+            
+            /* Ocultar todo excepto el bloque de impresión */
+            body * { visibility: hidden; }
+            .d-print-block, .d-print-block * { visibility: visible; }
+            
             .d-print-block {
-                width: 100%;
-                height: 100%;
-                min-height: 100vh;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 21.59cm; /* Ancho carta */
+                height: 27.94cm; /* Alto carta */
                 display: flex !important;
-                align-items: flex-start;
+                flex-direction: column;
+                align-items: center;
                 justify-content: center;
-                padding-top: 2.5cm;
+                background: white;
             }
+
+            .print-content { text-align: center; width: 80%; }
+            
+            /* QR enmarcado en un cuadrado */
+            .qr-wrapper {
+                display: inline-block;
+                border: 12px solid #000;
+                padding: 25px;
+                margin-bottom: 1.5cm;
+                background: white;
+            }
+
+            .label-wifi { font-size: 26pt; font-weight: bold; margin-bottom: 0.5cm; color: #000; }
+            .comercio-title { font-size: 44pt; font-weight: 900; margin-bottom: 2cm; color: #000; text-transform: uppercase; }
+            
+            .steps-box { text-align: left; display: inline-block; font-size: 22pt; line-height: 1.4; color: #000; }
+            .steps-box p { margin: 15px 0; }
         }
     </style>
 </div>
