@@ -91,6 +91,7 @@
     <style>
         @media print {
             @page { size: letter; margin: 0; }
+            body { background: white !important; -webkit-print-color-adjust: exact; }
             html, body { height: 100%; overflow: hidden; }
             body { background: white !important; -webkit-print-color-adjust: exact; margin: 0 !important; padding: 0 !important; }
             
@@ -99,16 +100,23 @@
             .d-print-block, .d-print-block * { visibility: visible; }
             
             .d-print-block {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 21.59cm; /* Ancho carta */
+                height: 27.94cm; /* Alto carta */
                 position: fixed;
                 top: 0; left: 0; right: 0; bottom: 0;
                 display: flex !important;
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
+                background: white;
                 background: white !important;
                 page-break-after: avoid;
             }
 
+            .print-content { text-align: center; width: 80%; }
             .print-content { text-align: center; width: 85%; margin: 0 auto; }
             
             /* QR enmarcado en un cuadrado */
@@ -117,17 +125,13 @@
                 border: 12px solid #000;
                 padding: 25px;
                 margin-bottom: 1.5cm;
-                padding: 20px;
-                margin-bottom: 1cm;
                 background: white;
             }
 
             .label-wifi { font-size: 26pt; font-weight: bold; margin-bottom: 0.5cm; color: #000; }
             .comercio-title { font-size: 44pt; font-weight: 900; margin-bottom: 2cm; color: #000; text-transform: uppercase; }
-            .label-wifi { font-size: 22pt; font-weight: bold; margin-bottom: 0.3cm; color: #000; }
-            .comercio-title { font-size: 32pt; font-weight: 900; margin-bottom: 1cm; color: #000; text-transform: uppercase; }
             
-            .steps-box { text-align: left; display: inline-block; font-size: 22pt; line-height: 1.2; color: #000; }
+            .steps-box { text-align: left; display: inline-block; font-size: 22pt; line-height: 1.4; color: #000; }
             .steps-box p { margin: 15px 0; }
         }
     </style>
