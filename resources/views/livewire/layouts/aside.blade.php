@@ -352,6 +352,12 @@
                 </a>
             </div>
 
+            <a href="{{ route('habladores.index') }}" class="sidebar-link {{ request()->routeIs('habladores.index') ? 'active' : '' }}">
+                <i class="bi bi-tv"></i> 
+                <span class="menu-text">Habladores Digitales</span>
+                <span class="badge rounded-pill bg-warning text-dark ms-auto menu-text" style="font-size: 0.6rem; font-weight: 800;">PRO</span>
+            </a>
+
             <a href="{{ route('mikrotik.grafico') }}" class="sidebar-link {{ request()->routeIs('mikrotik.grafico') ? 'active' : '' }}">
                 <i class="bi bi-speedometer2"></i> 
                 <span class="menu-text">GRÁFICO POR ROUTER</span>
