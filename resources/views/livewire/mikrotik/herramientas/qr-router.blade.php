@@ -115,15 +115,15 @@
             .qr-wrapper {
                 display: inline-block;
                 border: 12px solid #000;
-                padding: 25px;
-                margin-bottom: 1.5cm;
+                padding: 20px;
+                margin-bottom: 1cm;
                 background: white;
             }
 
-            .label-wifi { font-size: 26pt; font-weight: bold; margin-bottom: 0.5cm; color: #000; }
-            .comercio-title { font-size: 44pt; font-weight: 900; margin-bottom: 2cm; color: #000; text-transform: uppercase; }
+            .label-wifi { font-size: 22pt; font-weight: bold; margin-bottom: 0.3cm; color: #000; }
+            .comercio-title { font-size: 32pt; font-weight: 900; margin-bottom: 1cm; color: #000; text-transform: uppercase; }
             
-            .steps-box { text-align: left; display: inline-block; font-size: 22pt; line-height: 1.4; color: #000; }
+            .steps-box { text-align: left; display: inline-block; font-size: 22pt; line-height: 1.2; color: #000; }
             .steps-box p { margin: 15px 0; }
         }
     </style>
