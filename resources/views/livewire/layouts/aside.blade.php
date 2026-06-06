@@ -345,6 +345,11 @@
                 <span class="menu-text">ESCRITORIO</span>
             </a>
 
+            <a href="{{ route('aliado.routers') }}" class="sidebar-link {{ request()->routeIs('aliado.routers') ? 'active' : '' }}">
+                <i class="bi bi-router"></i>
+                <span class="menu-text">MIS ROUTERS</span>
+            </a>
+
             <a href="{{ route('mikrotik.grafico') }}" class="sidebar-link {{ request()->routeIs('mikrotik.grafico') ? 'active' : '' }}">
                 <i class="bi bi-speedometer2"></i> 
                 <span class="menu-text">GRÁFICO POR ROUTER</span>
