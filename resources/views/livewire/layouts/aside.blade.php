@@ -345,10 +345,6 @@
                 <span class="menu-text">ESCRITORIO</span>
             </a>
 
-            <div class="sidebar-dropdown {{ $aliadoConfigActive ? 'show' : '' }}">
-                    
-                </div>
-
             <a href="{{ route('habladores.index') }}" class="sidebar-link {{ request()->routeIs('habladores.index') ? 'active' : '' }}">
                 <i class="bi bi-tv"></i> 
                 <span class="menu-text">Habladores Digitales</span>
@@ -386,7 +382,9 @@
                     <span class="menu-text">Configuración</span>
                     <i class="bi bi-chevron-down menu-text"></i>
                 </a>
-                
+                <div class="sidebar-dropdown {{ $aliadoConfigActive ? 'show' : '' }}">
+                    
+                </div>
             </div>
 
             <a href="{{ route('mikrotik.history') }}" class="sidebar-link {{ request()->routeIs('mikrotik.history') ? 'active' : '' }}">
