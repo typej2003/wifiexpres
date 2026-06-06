@@ -346,11 +346,8 @@
             </a>
 
             <div class="sidebar-dropdown {{ $aliadoConfigActive ? 'show' : '' }}">
-                <a href="{{ route('aliado.routers') }}" class="sidebar-link {{ request()->routeIs('aliado.routers') ? 'active' : '' }}">
-                    <i class="bi bi-router"></i>
-                    <span class="menu-text">MIS ROUTERS</span>
-                </a>
-            </div>
+                    
+                </div>
 
             <a href="{{ route('habladores.index') }}" class="sidebar-link {{ request()->routeIs('habladores.index') ? 'active' : '' }}">
                 <i class="bi bi-tv"></i> 
