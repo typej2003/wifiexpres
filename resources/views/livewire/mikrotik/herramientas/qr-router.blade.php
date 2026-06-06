@@ -69,9 +69,9 @@
 
     @if($ssid)
         {{-- DISEÑO PARA IMPRESIÓN --}}
-        <div class="d-none d-print-block text-center mt-2">
-            <div class="d-inline-block p-2 border border-5 border-dark rounded-4 bg-white" style="max-width: 550px;">
-                <div class="bg-white p-3 d-inline-block border border-2 border-dark mb-4">
+        <div class="d-none d-print-block text-center mt-1">
+            <div class="d-inline-block p-1 border border-5 border-dark rounded-4 bg-white" style="max-width: 550px;">
+                <div class="bg-white p-1 d-inline-block border border-2 border-dark mb-1">
                     {!! QrCode::size(350)->margin(1)->generate("WIFI:S:$ssid;;") !!}
         <div class="d-none d-print-block print-container">
             <div class="print-content">
