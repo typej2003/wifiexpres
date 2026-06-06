@@ -90,41 +90,38 @@
 
     <style>
         @media print {
-            @page { size: letter; margin: 0; }
-            html, body { height: 100vh; overflow: hidden !important; margin: 0 !important; padding: 0 !important; background: white !important; }
-            .d-print-none, .navbar, .sidebar, footer { display: none !important; }
-            body > :not(.d-print-block) { display: none !important; }
+            @page { size: letter; margin: 1cm; }
+            
+            /* Ocultamos absolutamente toda la interfaz administrativa */
+            .navbar, .sidebar, .sidebar-rednet, footer, .d-print-none, #sidebar, #toggle-sidebar, .header-sidebar { 
+                display: none !important; 
+            }
+            
+            body, html { background: white !important; margin: 0 !important; padding: 0 !important; width: 100%; }
 
             .d-print-block {
-                visibility: visible !important;
-                display: flex !important;
-                position: fixed;
-                top: 0; left: 0; right: 0; bottom: 0;
-                flex-direction: column;
-                align-items: center;
-                justify-content: flex-start;
-                padding-top: 1cm;
-                background: white !important;
-                overflow: hidden;
+                display: block !important;
+                text-align: center !important;
+                width: 100% !important;
             }
 
-            .print-content { text-align: center; width: 90%; }
+            .print-content { display: inline-block; width: 100%; margin-top: 2cm; }
             
             /* QR enmarcado en un cuadrado */
             .qr-wrapper {
                 display: inline-block;
                 border: 12px solid #000;
-                padding: 10px;
-                margin-bottom: 0.8cm;
+                padding: 15px;
+                margin-bottom: 0.5cm;
                 background: white;
                 line-height: 0;
             }
 
-            .label-wifi { font-size: 20pt; font-weight: bold; margin-bottom: 0.2cm; color: #000; }
-            .comercio-title { font-size: 28pt; font-weight: 900; margin-bottom: 1cm; color: #000; text-transform: uppercase; }
+            .label-wifi { font-size: 18pt; font-weight: bold; margin-bottom: 0.2cm; color: #000; display: block; }
+            .comercio-title { font-size: 22pt; font-weight: 800; margin-bottom: 1cm; color: #000; text-transform: uppercase; display: block; }
             
-            .steps-box { text-align: left; display: inline-block; font-size: 17pt; line-height: 1.2; color: #000; border-top: 2px solid #000; padding-top: 0.5cm; width: 100%; max-width: 500px; }
-            .steps-box p { margin: 8px 0; }
+            .steps-box { text-align: left; display: inline-block; font-size: 16pt; line-height: 1.3; color: #000; border-top: 2px solid #000; padding-top: 0.5cm; width: 100%; max-width: 500px; }
+            .steps-box p { margin: 10px 0; }
         }
     </style>
 </div>
