@@ -21,7 +21,7 @@ use App\Http\Livewire\Mikrotik\Aliado\ListAdvertisingCampaign;
 // Rutas accesibles para ambos roles (Admin y Aliado)
 Route::middleware(['auth'])->group(function () {
     
-    Route::middleware(['role:admin,aliado'])->group(function () {
+    Route::middleware(['role:admin,aliado, aliadoSmartData'])->group(function () {
         // Gestión de Tickets
         Route::get('/mis-tickets/{id?}', ListTicketsAliado::class)->name('aliado.tickets');
 
