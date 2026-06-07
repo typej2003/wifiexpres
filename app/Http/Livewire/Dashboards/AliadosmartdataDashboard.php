@@ -174,7 +174,8 @@ class AliadosmartdataDashboard extends Component
             ],
             'topUsuarios' => (clone $logsQuery)
                 ->select('username', DB::raw('count(*) as total_conexiones'), DB::raw('sum(duration_seconds) as tiempo_total'))
-                ->groupBy('username')->orderBy('total_conexiones', 'desc')->take(5)->get(),
+                ->groupBy('username')->orderBy('total_conexiones', 'desc')->take(5)->get()
+                ->load('userMikrotik'),
             'ultimosLogs' => TicketLog::with('router')->whereIn('router_id', $targetRouterIds)->latest()->take(8)->get(),
             'dollarRate' => ExchangeRateService::getBcvRate(),
             'labels' => $labels,
