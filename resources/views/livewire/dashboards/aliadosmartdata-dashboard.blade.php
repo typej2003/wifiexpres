@@ -112,7 +112,7 @@
     <div class="row g-4">
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
-                <h6 class="fw-bold mb-4">Comparativa de Carga por Router</h6>
+                <h6 class="fw-bold mb-4">Concurrencia de Usuarios</h6>
                 <div style="position: relative; height:400px;" wire:ignore>
                     <canvas id="multiBarChart"></canvas>
                 </div>
