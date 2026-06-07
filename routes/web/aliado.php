@@ -46,10 +46,8 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // Rutas exclusivas del aliado
-    Route::middleware(['role:aliado'])->group(function () {
-        Route::get('/mis-routers', AliadoRouters::class)->name('aliado.routers');
-    });
-    Route::middleware(['role:aliadoSmartData'])->group(function () {
+    
+    Route::middleware(['role:aliadoSmartData, aliado'])->group(function () {
         Route::get('/mis-routers', AliadoRouters::class)->name('aliado.routers');
     });
 });
