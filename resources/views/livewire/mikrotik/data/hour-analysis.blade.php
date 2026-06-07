@@ -19,7 +19,11 @@
                         <option value="">-- Seleccionar --</option>
                         @foreach($routers as $r) 
                             <option value="{{ $r->id }}">
-                                {{ ($routerStatus[$r->id] ?? false) ? '🟢' : '🔴' }} {{ $r->identity }}
+                                {{ ($routerStatus[$r->id] ?? false) ? '🟢' : '🔴' }} 
+                                {{ $r->identity }}
+                                @if(auth()->user()->role === 'admin' || auth()->user()->role === 'root')
+                                    [{{ $r->user->name ?? 'S/A' }}]
+                                @endif
                             </option> 
                         @endforeach
                     </select>

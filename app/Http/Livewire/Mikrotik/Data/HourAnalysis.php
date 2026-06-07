@@ -40,7 +40,13 @@ class HourAnalysis extends Component
         // 1. Inicializar con el día actual
         $this->fromDate = Carbon::now()->format('Y-m-d');
         $this->toDate = Carbon::now()->format('Y-m-d');
-        $this->routers = Router::where('is_active', true)->get();
+
+        $user = auth()->user();
+        $this->routers = Router::with('user')
+            ->where('is_active', true)
+            ->when($user->role !== 'admin' && $user->role !== 'root', function($q) use ($user) {
+                return $q->where('user_id', $user->id);
+            })->get();
 
         $this->refreshStatus();
 
