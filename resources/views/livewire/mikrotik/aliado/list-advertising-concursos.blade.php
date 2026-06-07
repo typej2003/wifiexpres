@@ -25,7 +25,7 @@
                         <span class="input-group-text bg-white border-end-0 text-muted">
                             <i class="bi bi-search"></i>
                         </span>
-                        <input type="text" wire:model="search" class="form-control border-start-0" placeholder="Buscar campaña...">
+                        <input type="text" wire:model="search" class="form-control border-start-0" placeholder="Buscar concurso...">
                     </div>
                 </div>
                 
@@ -49,7 +49,8 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="bg-light text-muted small fw-bold text-uppercase">
                     <tr>
-                        <th class="px-4 py-3">Campaña</th>
+                        <th class="px-4 py-3">Concurso</th>
+                        <th class="py-3">Etapa</th>
                         <th class="py-3">Segmentación</th>
                         <th class="py-3 text-center">Contenido</th>
                         <th class="py-3 text-center">Estado</th>
@@ -62,6 +63,11 @@
                         <td class="px-4">
                             <span class="fw-bold d-block text-dark">{{ $camp->name }}</span>
                             @if($isAdmin) <small class="text-primary fw-semibold">{{ $camp->user->name }}</small> @endif
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary rounded-pill px-3">
+                                {{ $camp->etapa ?? 'Sin Etapa' }}
+                            </span>
                         </td>
                         <td>
                             <span class="badge bg-soft-info text-info rounded-pill px-3">
@@ -97,7 +103,7 @@
                         </td>
                     </tr>
                     @empty
-                    <tr><td colspan="5" class="text-center py-5 text-muted">No se encontraron campañas.</td></tr>
+                    <tr><td colspan="5" class="text-center py-5 text-muted">No se encontraron concursos.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -114,7 +120,7 @@
         <div class="modal-dialog modal-lg" style="margin-top: 6rem;">
             <div class="modal-content border-0 shadow-lg rounded-4">
                 <div class="modal-header border-0 p-4 pb-0">
-                    <h5 class="fw-bold mb-0 text-dark">{{ $selected_id ? 'Editar Campaña' : 'Nueva Campaña' }}</h5>
+                    <h5 class="fw-bold mb-0 text-dark">{{ $selected_id ? 'Editar Concurso' : 'Nuevo Concurso' }}</h5>
                     <button type="button" class="btn-close" wire:click="closeModal"></button>
                 </div>
                 
@@ -134,7 +140,7 @@
 
                         {{-- Selector de Routers --}}
                         <div class="col-md-12">
-                            <label class="form-label small fw-bold text-muted">Router de la Campaña</label>
+                            <label class="form-label small fw-bold text-muted">Router del Concurso</label>
                             <select wire:model="router_identity" class="form-select @error('router_identity') is-invalid @enderror">
                                 <option value="">Seleccione un router...</option>
                                 @foreach($routers as $router)
@@ -144,9 +150,14 @@
                             @error('router_identity') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
 
-                        <div class="col-md-8">
+                        <div class="col-md-4">
                             <label class="form-label small fw-bold text-muted">Nombre</label>
-                            <input type="text" wire:model="name" class="form-control" placeholder="Ej: Promo Verano">
+                            <input type="text" wire:model="name" class="form-control" placeholder="Ej: Comcurso Mundial">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted">Etapa del Concurso</label>
+                            <input type="text" wire:model="etapa" class="form-control" placeholder="Ej: Fase 1 / Gran Final">
                         </div>
 
                         <div class="col-md-4">
@@ -231,7 +242,7 @@
                 <div class="modal-footer border-0 p-4 pt-0">
                     <button wire:click="closeModal" class="btn btn-light rounded-pill px-4">Cerrar</button>
                     <button wire:click="save" class="btn btn-primary rounded-pill px-5 shadow-sm fw-bold">
-                        {{ $selected_id ? 'Guardar Cambios' : 'Crear Campaña' }}
+                        {{ $selected_id ? 'Guardar Cambios' : 'Crear Concurso' }}
                     </button>
                 </div>
             </div>

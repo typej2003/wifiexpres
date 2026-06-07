@@ -26,7 +26,7 @@ class ListAdvertisingConcursos extends Component
     
     // Propiedades del Formulario
     public $isModalOpen = false;
-    public $selected_id, $name, $description, $target_gender = 'todos', $router_identity;
+    public $selected_id, $name, $etapa, $description, $target_gender = 'todos', $router_identity;
     public $age_range_id;
     public $media_type = 'imagen', $media, $current_media_path;
     public $question_text, $question_type = 'simple';
@@ -54,6 +54,7 @@ class ListAdvertisingConcursos extends Component
     private function resetInputFields()
     {
         $this->name = '';
+        $this->etapa = '';
         $this->description = '';
         $this->target_gender = 'todos';
         $this->router_identity = '';
@@ -91,6 +92,7 @@ class ListAdvertisingConcursos extends Component
         $concurso = AdvertisingConcurso::findOrFail($id);
         $this->selected_id = $id;
         $this->name = $concurso->name;
+        $this->etapa = $concurso->etapa;
         $this->description = $concurso->description;
         $this->target_gender = $concurso->target_gender;
         $this->router_identity = $concurso->router_identity;
@@ -130,6 +132,7 @@ class ListAdvertisingConcursos extends Component
     {
         $this->validate([
             'name' => 'required',
+            'etapa' => 'required',
             'router_identity' => 'required',
             'user_id' => 'required',
             'age_range_id' => 'required',
@@ -140,6 +143,7 @@ class ListAdvertisingConcursos extends Component
 
         $data = [
             'name' => $this->name,
+            'etapa' => $this->etapa,
             'description' => $this->description,
             'router_identity' => $this->router_identity,
             'user_id' => $this->user_id,

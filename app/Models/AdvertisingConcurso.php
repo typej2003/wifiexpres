@@ -12,6 +12,7 @@ class AdvertisingConcurso extends Model
     protected $fillable = [
         'user_id',
         'name',
+        'etapa',
         'router_identity',
         'description',
         'target_gender',

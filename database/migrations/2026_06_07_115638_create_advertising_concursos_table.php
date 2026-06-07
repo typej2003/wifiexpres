@@ -18,6 +18,7 @@ class CreateAdvertisingConcursosTable extends Migration
             $table->foreignId('user_id')->constrained()->onDelete('cascade'); // El Aliado dueño
             $table->string('router_identity')->nullable(); // Para asociar la campaña a un router específico
             $table->string('name');
+            $table->string('etapa');
             $table->text('description')->nullable();
             
             // Segmentación
