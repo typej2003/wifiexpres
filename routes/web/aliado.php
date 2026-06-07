@@ -49,6 +49,9 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['role:admin,aliado, aliadoSmartData'])->group(function () {
         Route::get('/mis-routers', AliadoRouters::class)->name('aliado.routers');
     });
+    Route::middleware(['role:aliadoSmartData'])->group(function () {
+        Route::get('/mis-routers', AliadoRouters::class)->name('aliado.routers');
+    });
 });
 
 // DASHBOARD Y RANKING DEL ALIADO
