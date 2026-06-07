@@ -26,7 +26,7 @@ class ListRouters extends Component
 
     public function render()
     {
-        $aliados = User::where('role', 'aliadoSmartData')->get();
+        $aliados = User::where('role', 'aliado')->orwhere('role', 'aliadoSmartData')->get();
         $hotspotVersions = HotspotVersion::all();
         $setting = Setting::where('user_id', Auth::id())->first();
         $connectionMode = $setting ? (int)$setting->mikrotik_connection_mode : 0;
