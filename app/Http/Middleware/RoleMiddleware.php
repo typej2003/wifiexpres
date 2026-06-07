@@ -24,8 +24,10 @@ class RoleMiddleware
 
         $user = Auth::user();
 
-        // Verificamos si el rol del usuario está dentro de los permitidos
-        if (in_array($user->role, $roles)) {
+        $rolesCleaned = array_map('trim', $roles);
+
+        // Verificamos si el rol del usuario está dentro de los permitidos ya limpios
+        if (in_array($user->role, $rolesCleaned)) {
             return $next($request);
         }
 
