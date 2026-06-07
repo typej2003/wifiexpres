@@ -30,9 +30,11 @@
     <div class="row g-4 mb-4">
         <div class="col-md-4">
             <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white h-100">
-                <h6 class="text-muted small fw-bold text-uppercase">Routers Online</h6>
-                <h2 class="fw-bold mb-0 text-success">
-                    {{ $stats['routers_online'] }} <small class="text-muted fs-6">de {{ $stats['total_routers'] }}</small>
+                <h6 class="text-muted small fw-bold text-uppercase mb-3">
+                    <i class="bi bi-broadcast text-primary me-1"></i> Routers Online
+                </h6>
+                <h2 class="fw-bold mb-0 {{ $stats['routers_online'] > 0 ? 'text-success' : 'text-danger' }}">
+                    {{ $stats['routers_online'] }} <span class="text-muted fs-5">/ {{ $stats['total_routers'] }}</span>
                 </h2>
             </div>
         </div>
