@@ -156,7 +156,7 @@ class ListAdvertisingConcursos extends Component
             }
         }
         $concurso->delete();
-        session()->flash('message', 'Campaña eliminada correctamente.');
+        session()->flash('message', 'Concurso eliminado correctamente.');
     }
 
     public function save()
@@ -215,7 +215,7 @@ class ListAdvertisingConcursos extends Component
 
         AdvertisingConcurso::updateOrCreate(['id' => $this->selected_id], $data);
 
-        session()->flash('message', $this->selected_id ? 'Campaña actualizada.' : 'Campaña creada.');
+        session()->flash('message', $this->selected_id ? 'Concurso actualizado.' : 'Concurso creado.');
         $this->closeModal();
     }
 
@@ -234,7 +234,7 @@ class ListAdvertisingConcursos extends Component
         }
 
         // Obtener rangos de edad filtrados por el aliado seleccionado (o el logueado)
-        // Esto asegura que al crear una campaña se vean solo los rangos del dueño de la misma.
+        // Esto asegura que al crear una concurso se vean solo los rangos del dueño de la misma.
         $userIdForRanges = $this->isAdmin ? $this->user_id : Auth::id();
         $ageRanges = $userIdForRanges 
             ? AgeRange::where('user_id', $userIdForRanges)->get() 
@@ -253,7 +253,7 @@ class ListAdvertisingConcursos extends Component
     }
 
     /**
-     * Obtiene únicamente la campaña activa para un router específico.
+     * Obtiene únicamente el concurso activa para un router específico.
      * Mantiene la sintaxis de Request para consistencia operativa.
      */
     public static function getActiveConcursoByIdentity(Request $request)
@@ -282,7 +282,7 @@ class ListAdvertisingConcursos extends Component
 
     /**
      * Procesa y guarda la información del portal cautivo.
-     * Soporta tanto el registro estándar como las respuestas de campaña.
+     * Soporta tanto el registro estándar como las respuestas de concurso.
      */
     public static function savePortalDataConcurso(Request $request)
     {
@@ -305,7 +305,7 @@ class ListAdvertisingConcursos extends Component
                 'active'    => true,
             ];
 
-            // Si no es campaña, vienen los datos personales estándar
+            // Si no es concurso, vienen los datos personales estándar
             if (!$isConcurso) {
                 $userData = array_merge($userData, [
                     'full_name'     => $request->input('full_name'),
@@ -320,7 +320,7 @@ class ListAdvertisingConcursos extends Component
 
             $userMikrotik = UserMikrotik::updateOrCreate(['name' => $mac, 'router_id' => $router->id], $userData);
 
-            // 2. Gestionar Respuesta de Campaña si aplica
+            // 2. Gestionar Respuesta de concurso si aplica
             if ($isConcurso) {
                 $concursoId = $request->input('concurso_id');
                 $concurso = AdvertisingConcurso::find($concursoId);
