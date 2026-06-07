@@ -131,7 +131,7 @@
     {{-- MODAL PLANES --}}
     @if($showPlanModal)
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 2050;">
-        <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-dialog modal-xl" style="margin-top: 8rem;">
             <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
                 <div class="modal-header bg-dark text-white p-4">
                     <h5 class="fw-bold mb-0">Suscripciones WiFiExpres</h5>
