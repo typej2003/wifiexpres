@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Router;
 use App\Models\Plan;
 use App\Models\AdvertisingCampaign;
+use App\Models\AdvertisingConcurso;
 use App\Models\User;
 use App\Models\Setting;
 use App\Models\Ticket;
@@ -282,6 +283,15 @@ class HotspotController extends Controller
             $campaign->media_url = asset('storage/' . $campaign->media_path);
         }
 
+        // Consultar concurso
+        $concurso = AdvertisingConcurso::where('router_identity', $router->identity)
+            ->where('active', true)
+            ->first();
+        
+        if ($concurso && $concurso->media_path) {
+            $concurso->media_url = asset('storage/' . $concurso->media_path);
+        }
+
         try {
             $userAdmin = User::where('role', 'admin')->first();
             $setting = Setting::where('user_id', $userAdmin->id)->first();
@@ -312,7 +322,8 @@ class HotspotController extends Controller
                 'success' => true, 
                 'router' => $routerData, 
                 'plans' => $finalPlans,
-                'campaign' => $campaign
+                'campaign' => $campaign,
+                'concurso' => $concurso
             ], 200)
                              ->header('Access-Control-Allow-Origin', '*');
             
@@ -334,7 +345,8 @@ class HotspotController extends Controller
                 'router' => $routerData, 
                 'plans' => $plansBackup, 
                 'status' => 'offline_db',
-                'campaign' => $campaign
+                'campaign' => $campaign,
+                'concurso' => $concurso
             ], 200)
             ->header('Access-Control-Allow-Origin', '*');
         }
