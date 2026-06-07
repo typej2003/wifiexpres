@@ -127,7 +127,7 @@
                 <div class="modal-body p-4">
                     <div class="row g-3">
                         @if($isAdmin)
-                        <div class="col-md-12">
+                        <div class="col-md-6">
                             <label class="form-label small fw-bold text-muted">Aliado</label>
                             <select wire:model="user_id" class="form-select @error('user_id') is-invalid @enderror">
                                 <option value="">Seleccionar...</option>
@@ -136,9 +136,18 @@
                                 @endforeach
                             </select>
                         </div>
-                        @endif
-
                         {{-- Selector de Routers --}}
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Router del Concurso</label>
+                            <select wire:model="router_identity" class="form-select @error('router_identity') is-invalid @enderror">
+                                <option value="">Seleccione un router...</option>
+                                @foreach($routers as $router)
+                                    <option value="{{ $router->identity }}">{{ $router->comercio_nombre }} ({{ $router->identity }})</option>
+                                @endforeach
+                            </select>
+                            @error('router_identity') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                        @else
                         <div class="col-md-12">
                             <label class="form-label small fw-bold text-muted">Router del Concurso</label>
                             <select wire:model="router_identity" class="form-select @error('router_identity') is-invalid @enderror">
@@ -149,18 +158,19 @@
                             </select>
                             @error('router_identity') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
+                        @endif
 
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-muted">Nombre</label>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Nombre del Concurso</label>
                             <input type="text" wire:model="name" class="form-control" placeholder="Ej: Comcurso Mundial">
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label class="form-label small fw-bold text-muted">Etapa del Concurso</label>
                             <input type="text" wire:model="etapa" class="form-control" placeholder="Ej: Fase 1 / Gran Final">
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label class="form-label small fw-bold text-muted">Género</label>
                             <select wire:model="target_gender" class="form-select">
                                 <option value="todos">Todos</option>
@@ -169,7 +179,7 @@
                             </select>
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label class="form-label small fw-bold text-muted">Rango de Edad</label>
                             <select wire:model="age_range_id" class="form-select">
                                 <option value="0">Cualquier edad</option>
