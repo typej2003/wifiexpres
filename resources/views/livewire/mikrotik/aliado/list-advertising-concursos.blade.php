@@ -238,8 +238,9 @@
                             <div class="row g-2 mb-2 align-items-center">
                                 <div class="col">
                                     <div class="input-group input-group-sm">
-                                        <span class="input-group-text fw-bold text-primary">{{ $index + 1 }}</span>
-                                        <input type="text" wire:model.defer="options.{{ $index }}.text" class="form-control" placeholder="Texto de la opción">
+                                        <span class="input-group-text fw-bold text-primary">#{{ $index + 1 }}</span>
+                                        <input type="text" wire:model.defer="options.{{ $index }}.text" class="form-control" placeholder="Nombre/Respuesta" style="flex: 2;">
+                                        <input type="text" wire:model.defer="options.{{ $index }}.grupo" class="form-control" placeholder="Grupo/Equipo" style="flex: 1;">
                                         <input type="file" wire:model="temp_option_images.{{ $index }}" class="form-control" accept="image/*" style="max-width: 150px;">
                                         <button type="button" wire:click="removeOption({{ $index }})" class="btn btn-outline-danger">
                                             <i class="bi bi-trash"></i>

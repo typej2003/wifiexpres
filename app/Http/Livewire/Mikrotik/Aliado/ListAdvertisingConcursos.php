@@ -106,7 +106,14 @@ class ListAdvertisingConcursos extends Component
         // Normalizar estructura de opciones si vienen como strings simples
         $rawOptions = $concurso->options ?? [];
         $this->options = array_map(function($opt) {
-            return is_array($opt) ? $opt : ['text' => $opt, 'image' => null];
+            if (is_array($opt)) {
+                return [
+                    'text' => $opt['text'] ?? '',
+                    'image' => $opt['image'] ?? null,
+                    'grupo' => $opt['grupo'] ?? ''
+                ];
+            }
+            return ['text' => $opt, 'image' => null, 'grupo' => ''];
         }, $rawOptions);
 
         $this->user_id = $concurso->user_id;
@@ -117,7 +124,7 @@ class ListAdvertisingConcursos extends Component
 
     public function addOption()
     {
-        $this->options[] = ['text' => '', 'image' => null];
+        $this->options[] = ['text' => '', 'image' => null, 'grupo' => ''];
     }
 
     public function removeOption($index)
@@ -150,6 +157,7 @@ class ListAdvertisingConcursos extends Component
             'question_text' => 'required',
             'options' => $this->question_type != 'simple' ? 'required|array|min:2' : 'nullable',
             'options.*.text' => $this->question_type != 'simple' ? 'required' : 'nullable',
+            'options.*.grupo' => $this->question_type != 'simple' ? 'required' : 'nullable',
             'temp_option_images.*' => 'nullable|image|max:2048',
         ]);
 
