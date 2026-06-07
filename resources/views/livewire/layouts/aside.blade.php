@@ -182,6 +182,11 @@
                 <span class="menu-text">CAMPAÑAS</span>
             </a>
 
+            <a href="{{ route('mikrotik.aliado.concursos') }}" class="sidebar-link {{ request()->routeIs('mikrotik.aliado.concursos') ? 'active' : '' }}">
+                <i class="bi bi-bar-chart-steps"></i> 
+                <span class="menu-text">CONCURSOS</span>
+            </a>
+
             <a href="{{ route('aliado.age-ranges') }}" class="sidebar-link {{ request()->routeIs('aliado.age-ranges') ? 'active' : '' }}">
                 <i class="bi bi-bar-chart-steps"></i> 
                 <span class="menu-text">Rangos de Edades</span>
@@ -379,6 +384,11 @@
             <a href="{{ route('mikrotik.metrica-campana') }}" class="sidebar-link {{ request()->routeIs('mikrotik.metrica-campana') ? 'active' : '' }}">
                 <i class="bi bi-pie-chart-fill"></i> 
                 <span class="menu-text">Métricas de Campañas</span>
+            </a>
+
+            <a href="{{ route('mikrotik.metrica-campana') }}" class="sidebar-link {{ request()->routeIs('mikrotik.metrica-campana') ? 'active' : '' }}">
+                <i class="bi bi-pie-chart-fill"></i> 
+                <span class="menu-text">Métricas de Concursos</span>
             </a>
 
             <a href="{{ route('mikrotik.grafico-conexiones') }}" class="sidebar-link {{ request()->routeIs('mikrotik.grafico-conexiones') ? 'active' : '' }}">

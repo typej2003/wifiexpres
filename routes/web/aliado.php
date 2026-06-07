@@ -17,6 +17,7 @@ use App\Http\Livewire\Hablador\HabladorManager;
 use App\Models\Pantalla;
 use App\Http\Livewire\Mikrotik\Aliado\SalesReports;
 use App\Http\Livewire\Mikrotik\Aliado\ListAdvertisingCampaign;
+use App\Http\Livewire\Mikrotik\Aliado\ListAdvertisingConcursos;
 
 use App\Http\Livewire\Package\PackageManagement;
 use App\Http\Livewire\Mikrotik\Aliado\AntennaMappingManager;
@@ -91,4 +92,7 @@ Route::middleware(['auth'])->group(function () {
     
     Route::get('/mikrotik/aliado/campaigns', ListAdvertisingCampaign::class)
         ->name('mikrotik.aliado.campaigns');
+    
+    Route::get('/mikrotik/aliado/concursos', ListAdvertisingConcursos::class)
+        ->name('mikrotik.aliado.concursos');
 });

@@ -94,6 +94,13 @@ return [
             'visibility' => 'public',
         ],
 
+        'concurso' => [
+            'driver' => 'local',
+            'root' => storage_path('app/public/concurso'),
+            'url' => env('APP_URL').'/storage/concurso',
+            'visibility' => 'public',
+        ],
+
         'habladores' => [
             'driver' => 'local',
             'root' => storage_path('app/public/habladores'),
@@ -121,7 +128,8 @@ return [
         public_path('storage/logoticket') => storage_path('app/public/logoticket'),
         public_path('storage/carruselhotspot') => storage_path('app/public/carruselhotspot'),
         public_path('storage/bannerrouter') => storage_path('app/public/bannerrouter'),
-        public_path('storage/bannerrouter') => storage_path('app/public/campaign'),
+        public_path('storage/campaing') => storage_path('app/public/campaign'),
+        public_path('storage/concurso') => storage_path('app/public/concurso'),
         public_path('storage/habladores') => storage_path('app/public/habladores'),
     ],
 
