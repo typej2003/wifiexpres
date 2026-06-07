@@ -22,6 +22,7 @@ class User extends Authenticatable implements MustVerifyEmail
     const ROLE_VENDEDOR = 'vendedor';
     const ROLE_CLIENTE = 'cliente';
     const ROLE_ALIADO = 'aliado';
+    const ROLE_ALIADOSMARTDATA = 'aliadoSmartData';
     const ROLE_USER = 'user';
 
     protected $fillable = [
@@ -51,7 +52,7 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isAdmin() { return $this->role === self::ROLE_ADMIN; }
     public function isRoot() { return $this->role === self::ROLE_ROOT; }
     public function isAliado() { return $this->role === self::ROLE_ALIADO; }
-
+    public function isAliadoSmartData() { return $this->role === self::ROLE_ALIADOSMARTDATA; }
     // --- RELACIONES HOTSPOT ---
     public function routers() { return $this->hasMany(Router::class, 'user_id'); }
     
