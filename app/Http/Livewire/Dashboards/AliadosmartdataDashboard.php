@@ -162,9 +162,8 @@ class AliadosmartdataDashboard extends Component
                 'total_routers' => $misRouters->count(),
                 'routers_online' => $this->getRoutersOnlineCount($misRouters), // NUEVO: Real de Bridge
                 'limit_routers' => $activePlans->sum('pivot.allowed_routers'),
-                'total_tickets' => Ticket::whereIn('router_id', $routerIds)->count(),
-                'tickets_activos' => Ticket::whereIn('router_id', $routerIds)->where('estado', 'activo')->count(), // Tickets Online
-                'conexiones_periodo' => $logs->sum('total'),
+                'active_plan' => $activePlans->first()?->name ?? 'Sin Plan',
+                'usuarios_online' => Ticket::whereIn('router_id', $routerIds)->where('estado', 'activo')->count(),
             ],
             'topUsuarios' => (clone $logsQuery)
                 ->select('username', DB::raw('count(*) as total_conexiones'), DB::raw('sum(duration_seconds) as tiempo_total'))

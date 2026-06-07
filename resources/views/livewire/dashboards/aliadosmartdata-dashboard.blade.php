@@ -26,41 +26,30 @@
         </div>
     </div>
 
-    {{-- 1. SECCIÓN DE PLANES --}}
-    <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
-        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-            <h6 class="fw-bold mb-0"><i class="bi bi-shield-check text-primary me-2"></i>Mi Suscripción Activa</h6>
-            <button wire:click="openModal" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm">
-                <i class="bi bi-plus-circle me-1"></i> GESTIONAR PLANES
-            </button>
+    {{-- 1. STATS CARDS --}}
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white h-100">
+                <h6 class="text-muted small fw-bold text-uppercase">Routers Online</h6>
+                <h2 class="fw-bold mb-0 text-success">
+                    {{ $stats['routers_online'] }} <small class="text-muted fs-6">de {{ $stats['total_routers'] }}</small>
+                </h2>
+            </div>
         </div>
-        <div class="table-responsive">
-            <table class="table align-middle mb-0">
-                <thead class="bg-light small fw-bold">
-                    <tr>
-                        <th class="ps-4">PLAN</th>
-                        <th>TIPO</th>
-                        <th>CAPACIDAD</th>
-                        <th>VENCIMIENTO</th>
-                        <th class="text-end pe-4">ESTADO</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($activePlans as $plan)
-                    <tr>
-                        <td class="ps-4 fw-bold">{{ $plan->name }}</td>
-                        <td><span class="badge bg-primary rounded-pill">{{ strtoupper($plan->service_type) }}</span></td>
-                        <td class="fw-bold">{{ $plan->pivot->allowed_routers }} Routers</td>
-                        <td>{{ \Carbon\Carbon::parse($plan->pivot->end_date)->format('d/m/Y') }}</td>
-                        <td class="text-end pe-4"><span class="badge bg-success rounded-pill px-3">Activo</span></td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="5" class="text-center py-3 text-muted small">No posees planes activos actualmente.</td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white h-100">
+                <h6 class="text-muted small fw-bold text-uppercase">Suscripción / Plan</h6>
+                <h2 class="fw-bold mb-1 text-primary">{{ $stats['active_plan'] }}</h2>
+                <button wire:click="openModal" class="btn btn-sm btn-link text-decoration-none p-0 fw-bold">
+                    <i class="bi bi-plus-circle me-1"></i> GESTIONAR
+                </button>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white h-100">
+                <h6 class="text-muted small fw-bold text-uppercase">Usuarios Online</h6>
+                <h2 class="fw-bold mb-0 text-info">{{ $stats['usuarios_online'] }}</h2>
+            </div>
         </div>
     </div>
 
@@ -98,37 +87,7 @@
         </div>
     </div>
 
-    {{-- 3. STATS CARDS --}}
-    <div class="row g-4 mb-4">
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white h-100">
-                <h6 class="text-muted small fw-bold text-uppercase">Routers Online</h6>
-                <h2 class="fw-bold mb-0 text-success">
-                    {{ $stats['routers_online'] }} <small class="text-muted fs-6">de {{ $stats['total_routers'] }}</small>
-                </h2>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white h-100">
-                <h6 class="text-muted small fw-bold text-uppercase">Tickets Total</h6>
-                <h2 class="fw-bold mb-0 text-dark">{{ $stats['total_tickets'] }}</h2>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white h-100">
-                <h6 class="text-muted small fw-bold text-uppercase">Tickets Online</h6>
-                <h2 class="fw-bold mb-0 text-primary">{{ $stats['tickets_activos'] }}</h2>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white h-100">
-                <h6 class="text-muted small fw-bold text-uppercase">Sesiones Filtro</h6>
-                <h2 class="fw-bold mb-0 text-info">{{ number_format($stats['conexiones_periodo']) }}</h2>
-            </div>
-        </div>
-    </div>
-
-    {{-- 4. GRÁFICA Y TOP USUARIOS --}}
+    {{-- 3. GRÁFICA Y TOP USUARIOS --}}
     <div class="row g-4">
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
