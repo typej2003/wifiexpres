@@ -232,7 +232,7 @@ class ListAdvertisingConcursos extends Component
 
         return view('livewire.mikrotik.aliado.list-advertising-concursos', [
             'campaigns' => $query->latest()->paginate(10),
-            'aliados' => $this->isAdmin ? User::where('role', 'aliado')->get() : [],
+            'aliados' => $this->isAdmin ? User::where('role', 'aliado')->orwhere('role', 'aliadoSmartData')->get() : [],
             'ageRanges' => $ageRanges,
             'routers' => $routers
         ])->layout('layouts.app');
