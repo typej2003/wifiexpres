@@ -102,22 +102,41 @@
                             </div>
                         </div>
 
-                        <div class="row g-0 shadow-sm rounded-4 overflow-hidden border">
-                            <div class="col-12 d-flex border-bottom">
-                                <button wire:click="edit({{ $r->id }})" class="btn btn-white btn-sm flex-fill fw-bold border-end rounded-0 py-2" title="Editar Router">
-                                    <i class="bi bi-gear-fill text-secondary"></i>
+                        <div class="row g-2">
+                            @php $disabled = $statusReal !== true ? 'disabled opacity-50' : ''; @endphp
+                            <div class="col-6">
+                                <button wire:click="edit({{ $r->id }})" class="btn btn-outline-secondary btn-sm w-100 rounded-pill fw-bold">
+                                    <i class="bi bi-gear me-1"></i> CONFIG
                                 </button>
-                                @php $disabled = $statusReal !== true ? 'disabled opacity-50' : ''; @endphp
-                                <a href="{{ $statusReal === true ? route('admin.router.planes', $r->id) : '#' }}" class="btn btn-white btn-sm flex-fill fw-bold border-end rounded-0 py-2 {{ $disabled }}">
-                                    <i class="bi bi-tags-fill text-primary"></i> PLANES
+                            </div>
+                            <div class="col-6">
+                                <a href="{{ $statusReal === true ? route('admin.router.planes', $r->id) : '#' }}" class="btn btn-outline-primary btn-sm w-100 rounded-pill fw-bold {{ $disabled }}">
+                                    <i class="bi bi-tags me-1"></i> PLANES
                                 </a>
-                                <a href="{{ $statusReal === true ? route('admin.router.tickets', $r->id) : '#' }}" class="btn btn-white btn-sm flex-fill fw-bold rounded-0 py-2 {{ $disabled }}">
-                                    <i class="bi bi-ticket-perforated-fill text-success"></i> TICKETS
+                            </div>
+                            <div class="col-6">
+                                <a href="{{ route('mikrotik.hotspot.config', $r->id) }}" class="btn btn-outline-info btn-sm w-100 rounded-pill fw-bold">
+                                    <i class="bi bi-broadcast me-1"></i> HOTSPOT
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a href="{{ $statusReal === true ? route('admin.router.tickets', $r->id) : '#' }}" class="btn btn-primary btn-sm w-100 rounded-pill fw-bold {{ $disabled }}">
+                                    <i class="bi bi-ticket-perforated me-1"></i> TICKETS
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a href="{{ route('aliado.antenas.config', $r->id) }}" class="btn btn-outline-warning btn-sm w-100 rounded-pill fw-bold">
+                                    <i class="bi bi-broadcast me-1"></i> ANTENAS
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a href="{{ route('mikrotik.herramientas.qr', $r->id) }}" class="btn btn-outline-dark btn-sm w-100 rounded-pill fw-bold">
+                                    <i class="bi bi-qr-code me-1"></i> QR WIFI
                                 </a>
                             </div>
                             <div class="col-12">
-                                <a href="{{ $statusReal === true ? route('mikrotik.router.usuarios', $r->id) : '#' }}" class="btn btn-white btn-sm w-100 fw-bold rounded-0 py-2 {{ $disabled }}">
-                                    <i class="bi bi-people-fill text-info me-1"></i> USUARIOS HOTSPOT
+                                <a href="{{ $statusReal === true ? route('mikrotik.router.usuarios', $r->id) : '#' }}" class="btn btn-outline-dark btn-sm w-100 rounded-pill fw-bold {{ $disabled }}">
+                                    <i class="bi bi-people-fill me-1"></i> USUARIOS HOTSPOT
                                 </a>
                             </div>
                         </div>
