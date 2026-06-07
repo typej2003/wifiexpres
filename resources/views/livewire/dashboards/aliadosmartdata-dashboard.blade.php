@@ -205,8 +205,12 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: { legend: { position: 'bottom', labels: { usePointStyle: true } } },
-                scales: { 
-                    y: { beginAtZero: true, grid: { color: '#f0f0f0' } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#f0f0f0' },
+                        ticks: { precision: 0 }
+                    },
                     x: { grid: { display: false } }
                 }
             }
