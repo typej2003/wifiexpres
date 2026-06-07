@@ -351,7 +351,7 @@
 
             <a href="{{ route('aliado.hour.analysis') }}" class="sidebar-link {{ request()->routeIs('aliado.hour.analysis') ? 'active' : '' }}">
                 <i class="bi bi-speedometer2"></i> 
-                <span class="menu-text">ANÁLISIS DE HORAS</span>
+                <span class="menu-text">MÉTRICAS WiseWifi</span>
             </a>
         @endif
 
