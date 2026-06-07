@@ -129,6 +129,11 @@ class ListAdvertisingConcursos extends Component
 
     public function removeOption($index)
     {
+        // Eliminar imagen física del disco para evitar archivos huérfanos
+        if (isset($this->options[$index]['image']) && $this->options[$index]['image']) {
+            Storage::disk('public')->delete($this->options[$index]['image']);
+        }
+
         unset($this->options[$index]);
         unset($this->temp_option_images[$index]);
         $this->options = array_values($this->options);
@@ -140,6 +145,15 @@ class ListAdvertisingConcursos extends Component
         $concurso = AdvertisingConcurso::findOrFail($id);
         if ($concurso->media_path) {
             Storage::disk('public')->delete($concurso->media_path);
+        }
+
+        // Eliminar imágenes de las opciones
+        if ($concurso->options) {
+            foreach ($concurso->options as $option) {
+                if (isset($option['image']) && $option['image']) {
+                    Storage::disk('public')->delete($option['image']);
+                }
+            }
         }
         $concurso->delete();
         session()->flash('message', 'Campaña eliminada correctamente.');
@@ -183,7 +197,7 @@ class ListAdvertisingConcursos extends Component
                     if (!empty($this->options[$index]['image'])) {
                         Storage::disk('public')->delete($this->options[$index]['image']);
                     }
-                    $path = $file->store('concurso/options', 'public');
+                    $path = $file->storeAs('concurso/options', $file->getClientOriginalName(), 'public');
                     $this->options[$index]['image'] = $path;
                 }
             }
@@ -195,7 +209,7 @@ class ListAdvertisingConcursos extends Component
                 Storage::disk('public')->delete($this->current_media_path);
             }
             $originalName = $this->media->getClientOriginalName();
-        $path = $this->media->storeAs('concurso', $originalName, 'public');
+            $path = $this->media->storeAs('concurso', $originalName, 'public');
             $data['media_path'] = $path;
         }
 
