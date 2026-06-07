@@ -173,14 +173,8 @@ class AliadosmartdataDashboard extends Component
                 'usuarios_online' => Ticket::whereIn('router_id', $targetRouterIds)->where('estado', 'activo')->count(),
             ],
             'topUsuarios' => (clone $logsQuery)
-                ->leftJoin('user_mikrotiks', 'ticket_logs.username', '=', 'user_mikrotiks.name')
-                ->select(
-                    'ticket_logs.username',
-                    'user_mikrotiks.full_name',
-                    DB::raw('count(ticket_logs.id) as total_conexiones'),
-                    DB::raw('sum(ticket_logs.duration_seconds) as tiempo_total')
-                )
-                ->groupBy('ticket_logs.username', 'user_mikrotiks.full_name')->orderBy('total_conexiones', 'desc')->take(5)->get(),
+                ->select('username', DB::raw('count(*) as total_conexiones'), DB::raw('sum(duration_seconds) as tiempo_total'))
+                ->groupBy('username')->orderBy('total_conexiones', 'desc')->take(5)->get(),
             'ultimosLogs' => TicketLog::with('router')->whereIn('router_id', $targetRouterIds)->latest()->take(8)->get(),
             'dollarRate' => ExchangeRateService::getBcvRate(),
             'labels' => $labels,

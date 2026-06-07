@@ -131,13 +131,8 @@
                 @foreach($topUsuarios as $u)
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div>
-                        @if($u->full_name)
-                            <span class="fw-bold d-block text-dark">{{ $u->full_name }}</span>
-                            <small class="text-muted d-block" style="font-size: 0.75rem;">ID: {{ $u->username }}</small>
-                        @else
-                            <span class="fw-bold d-block text-dark">{{ $u->username }}</span>
-                        @endif
-                        <small class="text-primary fw-bold" style="font-size: 0.7rem;">{{ number_format($u->total_conexiones) }} conexiones</small>
+                        <span class="fw-bold d-block">{{ $u->username }}</span>
+                        <small class="text-muted">{{ number_format($u->total_conexiones) }} conexiones</small>
                     </div>
                     <span class="badge bg-light text-dark border rounded-pill">{{ round($u->tiempo_total/3600, 1) }}h</span>
                 </div>
