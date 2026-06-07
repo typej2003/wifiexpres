@@ -1,7 +1,7 @@
 <div class="container-fluid py-4" wire:poll.20s="refreshStatus">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h4 class="fw-bold mb-0 text-dark">Mis Equipos MikroTik</h4>
+            <h4 class="fw-bold mb-0 text-dark">Mis Routers</h4>
             <p class="text-muted small mb-0">Gestión de nodos para <b>{{ auth()->user()->names }}</b></p>
         </div>
         <button wire:click="create" class="btn btn-primary shadow-sm rounded-pill px-4 fw-bold">
