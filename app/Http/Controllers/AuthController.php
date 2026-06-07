@@ -59,6 +59,8 @@ class AuthController extends Controller
                 'admin'    => redirect()->route('admin.index'),
                 // 'admin'    => redirect()->intended('admin/dashboard')->with('success','Bienvenido al panel de Administración'),
                 'aliado' => redirect()->route('aliado.index'),
+                'aliados' => redirect()->route('aliado.index'),
+                'aliadoSmartData' => redirect()->route('aliadoSmartData.index'),    
                 'cliente' => redirect()->intended('dashboard-cliente')->with('success','Bienvenido al panel de Administración'),
                 default    => redirect()->route('cliente.index'),
             };

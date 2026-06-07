@@ -70,6 +70,7 @@ Route::get('/errorFound/{error}', ShowError::class)->name('errorFound');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard-aliado', AliadoDashboard::class)->name('aliado.index');
+    Route::get('/dashboard-aliadoSmartData', AliadoDashboard::class)->name('aliadoSmartData.index');
 
     Route::middleware(['auth', 'is_admin'])->group(function () {
         Route::get('/admin/panel', AdminDashboard::class)->name('admin.index');
