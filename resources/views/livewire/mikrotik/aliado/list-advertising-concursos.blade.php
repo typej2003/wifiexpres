@@ -235,12 +235,27 @@
                                 </button>
                             </div>
                             @foreach($options as $index => $option)
-                            <div class="input-group mb-2">
-                                <span class="input-group-text">{{ $index + 1 }}</span>
-                                <input type="text" wire:model.defer="options.{{ $index }}" class="form-control" placeholder="Texto de la opción">
-                                <button type="button" wire:click="removeOption({{ $index }})" class="btn btn-outline-danger">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                            <div class="row g-2 mb-2 align-items-center">
+                                <div class="col">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text fw-bold text-primary">{{ $index + 1 }}</span>
+                                        <input type="text" wire:model.defer="options.{{ $index }}.text" class="form-control" placeholder="Texto de la opción">
+                                        <input type="file" wire:model="temp_option_images.{{ $index }}" class="form-control" accept="image/*" style="max-width: 150px;">
+                                        <button type="button" wire:click="removeOption({{ $index }})" class="btn btn-outline-danger">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    {{-- Vista previa de la imagen de la opción --}}
+                                    @if(isset($temp_option_images[$index]))
+                                        <img src="{{ $temp_option_images[$index]->temporaryUrl() }}" class="rounded shadow-sm border" style="width: 38px; height: 38px; object-fit: cover;">
+                                    @elseif(isset($option['image']) && $option['image'])
+                                        <img src="{{ asset('storage/' . $option['image']) }}" class="rounded shadow-sm border" style="width: 38px; height: 38px; object-fit: cover;">
+                                    @else
+                                        <div class="rounded bg-light border d-flex align-items-center justify-content-center text-muted" style="width: 38px; height: 38px; font-size: 10px;">S/I</div>
+                                    @endif
+                                </div>
                             </div>
                             @endforeach
                             @error('options') <small class="text-danger">{{ $message }}</small> @enderror

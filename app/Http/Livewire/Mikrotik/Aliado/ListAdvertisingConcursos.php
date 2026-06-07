@@ -31,6 +31,7 @@ class ListAdvertisingConcursos extends Component
     public $media_type = 'imagen', $media, $current_media_path;
     public $question_text, $question_type = 'simple';
     public $options = []; // Array para las opciones dinámicas
+    public $temp_option_images = []; // Imágenes temporales por opción
     public $user_id;
 
     public function mount()
@@ -64,6 +65,7 @@ class ListAdvertisingConcursos extends Component
         $this->question_text = '';
         $this->question_type = 'simple';
         $this->options = [];
+        $this->temp_option_images = [];
         $this->selected_id = null;
         $this->current_media_path = null;
         if ($this->isAdmin) {
@@ -100,7 +102,13 @@ class ListAdvertisingConcursos extends Component
         $this->media_type = $concurso->media_type;
         $this->question_text = $concurso->question_text;
         $this->question_type = $concurso->question_type;
-        $this->options = $concurso->options ?? [];
+        
+        // Normalizar estructura de opciones si vienen como strings simples
+        $rawOptions = $concurso->options ?? [];
+        $this->options = array_map(function($opt) {
+            return is_array($opt) ? $opt : ['text' => $opt, 'image' => null];
+        }, $rawOptions);
+
         $this->user_id = $concurso->user_id;
         $this->current_media_path = $concurso->media_path;
 
@@ -109,13 +117,15 @@ class ListAdvertisingConcursos extends Component
 
     public function addOption()
     {
-        $this->options[] = '';
+        $this->options[] = ['text' => '', 'image' => null];
     }
 
     public function removeOption($index)
     {
         unset($this->options[$index]);
+        unset($this->temp_option_images[$index]);
         $this->options = array_values($this->options);
+        $this->temp_option_images = array_values($this->temp_option_images);
     }
 
     public function delete($id)
@@ -139,6 +149,8 @@ class ListAdvertisingConcursos extends Component
             'media' => $this->selected_id ? 'nullable|max:20480' : 'required|max:20480',
             'question_text' => 'required',
             'options' => $this->question_type != 'simple' ? 'required|array|min:2' : 'nullable',
+            'options.*.text' => $this->question_type != 'simple' ? 'required' : 'nullable',
+            'temp_option_images.*' => 'nullable|image|max:2048',
         ]);
 
         $data = [
@@ -154,6 +166,21 @@ class ListAdvertisingConcursos extends Component
             'question_type' => $this->question_type,
             'options' => $this->question_type != 'simple' ? $this->options : null,
         ];
+
+        // Procesar imágenes de las opciones
+        if ($this->question_type != 'simple') {
+            foreach ($this->temp_option_images as $index => $file) {
+                if ($file) {
+                    // Borrar imagen anterior si existe para ahorrar espacio
+                    if (!empty($this->options[$index]['image'])) {
+                        Storage::disk('public')->delete($this->options[$index]['image']);
+                    }
+                    $path = $file->store('concurso/options', 'public');
+                    $this->options[$index]['image'] = $path;
+                }
+            }
+            $data['options'] = $this->options;
+        }
 
         if ($this->media) {
             if ($this->selected_id && $this->current_media_path) {
