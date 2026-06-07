@@ -67,27 +67,31 @@
                                     <i class="bi bi-gear me-1"></i> CONFIG
                                 </button>
                             </div>
-                            <div class="col-6">
-                                <a href="{{ route('aliado.router.planes', $r->id) }}" class="btn btn-outline-primary btn-sm w-100 rounded-pill fw-bold">
-                                    <i class="bi bi-tags me-1"></i> PLANES
-                                </a>
-                            </div>
+                            @if(auth()->user()->role !== 'aliadoSmartData')
+                                <div class="col-6">
+                                    <a href="{{ route('aliado.router.planes', $r->id) }}" class="btn btn-outline-primary btn-sm w-100 rounded-pill fw-bold">
+                                        <i class="bi bi-tags me-1"></i> PLANES
+                                    </a>
+                                </div>
+                            @endif
                             <div class="col-6">
                                 <a href="{{ route('mikrotik.hotspot.config', $r->id) }}" class="btn btn-outline-info btn-sm w-100 rounded-pill fw-bold">
                                     <i class="bi bi-broadcast me-1"></i> HOTSPOT
                                 </a>
                             </div>
-                            <div class="col-6">
-                                <a href="{{ $online ? route('aliado.tickets', $r->id) : '#' }}" 
-                                class="btn btn-primary btn-sm w-100 rounded-pill fw-bold {{ !$online ? 'disabled opacity-50' : '' }}">
-                                    <i class="bi bi-ticket-perforated me-1"></i> TICKETS
-                                </a>
-                            </div>
-                            <div class="col-6">
-                                <a href="{{ route('aliado.antenas.config', $r->id) }}" class="btn btn-outline-warning btn-sm w-100 rounded-pill fw-bold">
-                                    <i class="bi bi-broadcast me-1"></i> ANTENAS
-                                </a>
-                            </div>
+                            @if(auth()->user()->role !== 'aliadoSmartData')
+                                <div class="col-6">
+                                    <a href="{{ $online ? route('aliado.tickets', $r->id) : '#' }}" 
+                                    class="btn btn-primary btn-sm w-100 rounded-pill fw-bold {{ !$online ? 'disabled opacity-50' : '' }}">
+                                        <i class="bi bi-ticket-perforated me-1"></i> TICKETS
+                                    </a>
+                                </div>
+                                <div class="col-6">
+                                    <a href="{{ route('aliado.antenas.config', $r->id) }}" class="btn btn-outline-warning btn-sm w-100 rounded-pill fw-bold">
+                                        <i class="bi bi-broadcast me-1"></i> ANTENAS
+                                    </a>
+                                </div>
+                            @endif
                             <div class="col-6">
                                 <a href="{{ route('mikrotik.herramientas.qr', $r->id) }}" class="btn btn-outline-dark btn-sm w-100 rounded-pill fw-bold">
                                     <i class="bi bi-qr-code me-1"></i> QR WIFI
