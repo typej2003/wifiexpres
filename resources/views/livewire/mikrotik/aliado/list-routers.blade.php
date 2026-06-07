@@ -4,9 +4,11 @@
             <h4 class="fw-bold mb-0 text-dark">Mis Routers</h4>
             <p class="text-muted small mb-0">Gestión de nodos para <b>{{ auth()->user()->names }}</b></p>
         </div>
-        <button wire:click="create" class="btn btn-primary shadow-sm rounded-pill px-4 fw-bold">
-            <i class="bi bi-plus-lg me-1"></i> AGREGAR ROUTER
-        </button>
+        @if($packages->sum('pivot.allowed_routers') > 1)
+            <button wire:click="create" class="btn btn-primary shadow-sm rounded-pill px-4 fw-bold">
+                <i class="bi bi-plus-lg me-1"></i> AGREGAR ROUTER
+            </button>
+        @endif
     </div>
 
     @if (session()->has('message'))
