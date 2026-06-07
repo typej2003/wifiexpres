@@ -38,9 +38,30 @@
         </div>
         <div class="col-md-4">
             <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white h-100">
-                <h6 class="text-muted small fw-bold text-uppercase">Suscripción / Plan</h6>
-                <h2 class="fw-bold mb-1 text-primary">{{ $stats['active_plan'] }}</h2>
-                <button wire:click="openModal" class="btn btn-sm btn-link text-decoration-none p-0 fw-bold">
+                <h6 class="text-muted small fw-bold text-uppercase mb-2">Suscripciones / Planes</h6>
+                <div class="mb-2" style="max-height: 120px; overflow-y: auto;">
+                    @forelse($userPackages as $pkg)
+                        <div class="d-flex justify-content-between align-items-center bg-light p-2 rounded-3 mb-1 border-start border-4 {{ $pkg->pivot->status === 'active' ? 'border-success' : ($pkg->pivot->status === 'pending' ? 'border-warning' : 'border-secondary') }} text-start">
+                            <span class="fw-bold small text-truncate" style="max-width: 140px;" title="{{ $pkg->name }}">
+                                {{ $pkg->name }}
+                            </span>
+                            @php
+                                $statusColor = match($pkg->pivot->status) {
+                                    'active' => 'bg-success',
+                                    'pending' => 'bg-warning text-dark',
+                                    'expired' => 'bg-danger',
+                                    default => 'bg-secondary'
+                                };
+                            @endphp
+                            <span class="badge {{ $statusColor }} rounded-pill" style="font-size: 0.6rem;">
+                                {{ strtoupper($pkg->pivot->status) }}
+                            </span>
+                        </div>
+                    @empty
+                        <h2 class="fw-bold mb-0 text-muted fs-4">Sin Plan</h2>
+                    @endforelse
+                </div>
+                <button wire:click="openModal" class="btn btn-sm btn-link text-decoration-none p-0 fw-bold mt-auto">
                     <i class="bi bi-plus-circle me-1"></i> GESTIONAR
                 </button>
             </div>

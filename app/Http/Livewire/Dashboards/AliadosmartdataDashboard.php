@@ -152,17 +152,16 @@ class AliadosmartdataDashboard extends Component
         $this->dispatchBrowserEvent('updateMultiChart', ['labels' => $labels, 'datasets' => $datasets]);
 
         $activePlans = $user->packages()->wherePivot('status', 'active')->wherePivot('end_date', '>=', now())->get();
+        $userPackages = $user->packages()->orderBy('package_user.created_at', 'desc')->get();
 
         return view('livewire.dashboards.aliadosmartdata-dashboard', [
             'availablePackages' => Package::where('is_active', true)->where('is_visible', true)->get(),
-            'activePlans' => $activePlans,
-            'pendingPlans' => $user->packages()->wherePivot('status', 'pending')->get(),
+            'userPackages' => $userPackages,
             'routers' => $misRouters,
             'stats' => [
                 'total_routers' => $misRouters->count(),
                 'routers_online' => $this->getRoutersOnlineCount($misRouters), // NUEVO: Real de Bridge
                 'limit_routers' => $activePlans->sum('pivot.allowed_routers'),
-                'active_plan' => $activePlans->first()?->name ?? 'Sin Plan',
                 'usuarios_online' => Ticket::whereIn('router_id', $routerIds)->where('estado', 'activo')->count(),
             ],
             'topUsuarios' => (clone $logsQuery)
