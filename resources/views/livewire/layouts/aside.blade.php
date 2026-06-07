@@ -338,7 +338,7 @@
 
             
         @endif
-        @if(auth()->user()->role === 'aliado')
+        @if(auth()->user()->role === 'aliadoSmartData')
             <a href="{{ route('aliadoSmartData.index') }}" class="sidebar-link {{ request()->routeIs('aliadoSmartData.index') ? 'active' : '' }}">
                 <i class="bi bi-speedometer2"></i> 
                 <span class="menu-text">ESCRITORIO</span>
