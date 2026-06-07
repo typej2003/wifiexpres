@@ -11,6 +11,9 @@ class ConcursoResponse extends Model
 
     protected $fillable = [
         'concurso_id',
+        'cellphone',
+        'cellphonecode',
+        'full_name',
         'user_mikrotik_id',
         'mac_address',
         'router_identity',

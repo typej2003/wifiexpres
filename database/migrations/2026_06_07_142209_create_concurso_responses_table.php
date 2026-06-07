@@ -19,7 +19,9 @@ class CreateConcursoResponsesTable extends Migration
             $table->foreignId('concurso_id')->nullable()
                 ->constrained('advertising_concursos')
                 ->onDelete('set null');
-
+            $table->string('full_name')->nullable();
+            $table->string('cellphonecode')->nullable();
+            $table->string('cellphone')->nullable();
             // Campos duplicados de la concurso (Denormalización para histórico)
             $table->string('concurso_name')->nullable();
             $table->string('concurso_etapa')->nullable();
