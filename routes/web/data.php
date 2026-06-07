@@ -21,7 +21,7 @@ Route::get('/mikrotik/grafico-uso', GraficoRouters::class)->name('mikrotik.grafi
 Route::get('/mikrotik/data/rendimiento-aliado', \App\Http\Livewire\Mikrotik\Data\GraficoConexiones::class)->name('mikrotik.grafico-conexiones');
 
 // Usamos una coma para indicar que CUALQUIERA de los dos roles tiene acceso
-Route::middleware(['auth', 'role:admin,aliado'])->prefix('admin/mikrotik')->group(function () {
+Route::middleware(['auth', 'role:admin,aliado,aliadoSmartData'])->prefix('admin/mikrotik')->group(function () {
     
     // La URL final será: /admin/mikrotik/history
     Route::get('/history', \App\Http\Livewire\Mikrotik\Data\TicketsHistory::class)->name('mikrotik.history');

@@ -88,12 +88,6 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin/mikrotik')->group(funct
     Route::get('/bridge-auditor', RouterAuditor::class)->name('admin.bridge.auditor');
 });
 
-Route::middleware(['role:admin,aliado'])->group(function () {
-    Route::get('/planes-comerciales', PackageManagement::class)->name('packages.index');
-    Route::get('/configurar-antenas/{router_id}', AntennaMappingManager::class)->name('aliado.antenas.config');
-    Route::get('/hour-analysis', HourAnalysis::class)->name('aliado.hour.analysis');
-});
-
 Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/admin/subscriptions', SubscriptionManager::class)->name('admin.subscriptions');
     Route::get('/hotspot-versions', HotspotVersions::class)->name('hotspot.versions');

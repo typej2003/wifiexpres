@@ -50,6 +50,12 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['role:aliadoSmartData,aliado'])->group(function () {
         Route::get('/mis-routers', AliadoRouters::class)->name('aliado.routers');
     });
+
+    Route::middleware(['role:admin,aliado,aliadoSmartData'])->group(function () {
+        Route::get('/planes-comerciales', PackageManagement::class)->name('packages.index');
+        Route::get('/configurar-antenas/{router_id}', AntennaMappingManager::class)->name('aliado.antenas.config');
+        Route::get('/hour-analysis', HourAnalysis::class)->name('aliado.hour.analysis');
+    });
 });
 
 // DASHBOARD Y RANKING DEL ALIADO
