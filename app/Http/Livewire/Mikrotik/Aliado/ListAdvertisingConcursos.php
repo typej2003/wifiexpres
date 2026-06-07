@@ -8,7 +8,7 @@ use Livewire\WithFileUploads;
 use App\Models\AdvertisingConcurso;
 use App\Models\Router;
 use App\Models\UserMikrotik;
-use App\Models\CampaignResponse;
+use App\Models\ConcursoResponse;
 use App\Models\AgeRange;
 use App\Models\User;
 use Exception;
@@ -284,7 +284,7 @@ class ListAdvertisingConcursos extends Component
      * Procesa y guarda la información del portal cautivo.
      * Soporta tanto el registro estándar como las respuestas de campaña.
      */
-    public static function savePortalData(Request $request)
+    public static function savePortalDataConcurso(Request $request)
     {
         try {
             $mac = strtoupper($request->input('mac_cliente'));
@@ -326,8 +326,8 @@ class ListAdvertisingConcursos extends Component
                 $concurso = AdvertisingConcurso::find($concursoId);
 
                 if ($concurso) {
-                    CampaignResponse::create([
-                        'campaign_id'      => $concursoId,
+                    ConcursoResponse::create([
+                        'concurso_id'      => $concursoId,
                         'user_mikrotik_id' => $userMikrotik->id,
                         'mac_address'      => $mac,
                         'router_identity'  => $identity,

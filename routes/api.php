@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\MikrotikController;
 use App\Http\Controllers\Api\HotspotController;
 use App\Http\Controllers\Api\MikrotikSocket;
 use App\Http\Livewire\Mikrotik\Aliado\ListAdvertisingCampaign;
+use App\Http\Livewire\Mikrotik\Aliado\ListAdvertisingConcursos;
 use App\Http\Controllers\Api\V2\UserController;
 use App\Models\NotificationApp;
 use App\Models\HotspotVersion;
@@ -114,6 +115,9 @@ Route::prefix('v2')->group(function () {
 
     // Guardar datos del portal (Standard o Campaña)
     Route::post('/save-portal-data', [ListAdvertisingCampaign::class, 'savePortalData']);
+
+    // Guardar datos del portal para Concursos
+    Route::post('/save-portal-data-concurso', [ListAdvertisingConcursos::class, 'savePortalDataConcurso']);
 });
 
 /** * RUTAS V3 - MARKETING
