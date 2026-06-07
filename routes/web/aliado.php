@@ -18,6 +18,10 @@ use App\Models\Pantalla;
 use App\Http\Livewire\Mikrotik\Aliado\SalesReports;
 use App\Http\Livewire\Mikrotik\Aliado\ListAdvertisingCampaign;
 
+use App\Http\Livewire\Package\PackageManagement;
+use App\Http\Livewire\Mikrotik\Aliado\AntennaMappingManager;
+use App\Http\Livewire\Mikrotik\Data\HourAnalysis;
+
 // Rutas accesibles para ambos roles (Admin y Aliado)
 Route::middleware(['auth'])->group(function () {
     

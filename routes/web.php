@@ -17,16 +17,15 @@ use App\Http\Livewire\Layouts\Components\ListCarrusel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
 use App\Http\Controllers\Auth\ForgotPasswordController;
-use App\Http\Livewire\Package\PackageManagement;
 use App\Http\Livewire\Package\SubscriptionManager;
 use App\Http\Livewire\Mikrotik\Router\HotspotVersions;
 use App\Http\Livewire\Mikrotik\Router\AllSales;
 use App\Http\Livewire\Mikrotik\Router\ListUsersRouter;
-use App\Http\Livewire\Mikrotik\Aliado\AntennaMappingManager;
+
 // NUEVO IMPORT
 use App\Http\Livewire\Mikrotik\Herramientas\RouterAuditor;
 
-use App\Http\Livewire\Mikrotik\Data\HourAnalysis;
+
 
 Route::get('/', Welcome::class)->name('welcome'); 
 Route::get('/home', [RedirectController::class, 'dashboard'])->middleware('auth');
