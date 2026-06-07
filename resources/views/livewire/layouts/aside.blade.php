@@ -348,6 +348,11 @@
                 <i class="bi bi-router"></i>
                 <span class="menu-text">MIS ROUTERS</span>
             </a>
+
+            <a href="{{ route('aliado.hour.analysis') }}" class="sidebar-link {{ request()->routeIs('aliado.hour.analysis') ? 'active' : '' }}">
+                <i class="bi bi-speedometer2"></i> 
+                <span class="menu-text">ANÁLISIS DE HORAS</span>
+            </a>
         @endif
 
         @if(auth()->user()->role === 'aliado')
