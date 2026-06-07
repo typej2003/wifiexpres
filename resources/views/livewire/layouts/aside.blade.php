@@ -338,6 +338,17 @@
 
             
         @endif
+        @if(auth()->user()->role === 'aliado')
+            <a href="{{ route('aliadoSmartData.index') }}" class="sidebar-link {{ request()->routeIs('aliadoSmartData.index') ? 'active' : '' }}">
+                <i class="bi bi-speedometer2"></i> 
+                <span class="menu-text">ESCRITORIO</span>
+            </a>
+
+            <a href="{{ route('aliado.routers') }}" class="sidebar-link {{ request()->routeIs('aliado.routers') ? 'active' : '' }}">
+                <i class="bi bi-router"></i>
+                <span class="menu-text">MIS ROUTERS</span>
+            </a>
+        @endif
 
         @if(auth()->user()->role === 'aliado')
             <a href="{{ route('aliado.index') }}" class="sidebar-link {{ request()->routeIs('aliado.index') ? 'active' : '' }}">
