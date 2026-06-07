@@ -9,6 +9,7 @@ use App\Http\Controllers\Auth\RedirectController;
 use App\Http\Controllers\AuthController;
 use App\Http\Livewire\Dashboards\AdminDashboard;
 use App\Http\Livewire\Dashboards\AliadoDashboard;
+use App\Http\Livewire\Dashboards\AliadosmartdataDashboard;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use App\Http\Livewire\Error\ShowError;
 use App\Http\Livewire\Welcome;
@@ -70,7 +71,7 @@ Route::get('/errorFound/{error}', ShowError::class)->name('errorFound');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard-aliado', AliadoDashboard::class)->name('aliado.index');
-    Route::get('/dashboard-aliadoSmartData', AliadoDashboard::class)->name('aliadoSmartData.index');
+    Route::get('/dashboard-aliadoSmartData', AliadosmartdataDashboard::class)->name('aliadoSmartData.index');
 
     Route::middleware(['auth', 'is_admin'])->group(function () {
         Route::get('/admin/panel', AdminDashboard::class)->name('admin.index');
