@@ -156,7 +156,7 @@ class ListAdvertisingConcursos extends Component
                 Storage::disk('public')->delete($this->current_media_path);
             }
             $originalName = $this->media->getClientOriginalName();
-            $path = $this->media->storeAs('concursos, $originalName, 'public');
+        $path = $this->media->storeAs('concurso', $originalName, 'public');
             $data['media_path'] = $path;
         }
 
@@ -191,8 +191,8 @@ class ListAdvertisingConcursos extends Component
             ? Router::where('user_id', $userIdForRanges)->get()
             : collect();
 
-        return view('livewire.mikrotik.aliado.list-advertising-concurso', [
-            'concursos' => $query->latest()->paginate(10),
+        return view('livewire.mikrotik.aliado.list-advertising-concursos', [
+            'campaigns' => $query->latest()->paginate(10),
             'aliados' => $this->isAdmin ? User::where('role', 'aliado')->get() : [],
             'ageRanges' => $ageRanges,
             'routers' => $routers
