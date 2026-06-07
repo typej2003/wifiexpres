@@ -16,14 +16,21 @@ use Carbon\Carbon;
 class AliadosmartdataDashboard extends Component
 {
     public $showPlanModal = false;
-    public $periodo = 'semana'; 
+    public $periodo = 'dia'; 
     public $fecha_desde, $fecha_hasta;
     public $router_id = ''; 
 
     public function mount()
     {
-        $this->fecha_desde = now()->subDays(7)->format('Y-m-d');
+        $this->fecha_desde = now()->format('Y-m-d');
         $this->fecha_hasta = now()->format('Y-m-d');
+
+        $user = Auth::user();
+        $misRouters = Router::where('user_id', $user->id)->get();
+        if ($misRouters->count() === 1) {
+            $this->router_id = $misRouters->first()->id;
+        }
+
         $this->checkInitialPlan();
     }
 
@@ -121,7 +128,8 @@ class AliadosmartdataDashboard extends Component
         }
 
         // 2. Datos
-        $logsQuery = TicketLog::whereIn('router_id', $routerIds)
+        $targetRouterIds = $this->router_id ? [$this->router_id] : $routerIds;
+        $logsQuery = TicketLog::whereIn('router_id', $targetRouterIds)
             ->whereBetween('created_at', [$desde, $hasta]);
         
         $logs = (clone $logsQuery)
@@ -162,12 +170,12 @@ class AliadosmartdataDashboard extends Component
                 'total_routers' => $misRouters->count(),
                 'routers_online' => $this->getRoutersOnlineCount($misRouters), // NUEVO: Real de Bridge
                 'limit_routers' => $activePlans->sum('pivot.allowed_routers'),
-                'usuarios_online' => Ticket::whereIn('router_id', $routerIds)->where('estado', 'activo')->count(),
+                'usuarios_online' => Ticket::whereIn('router_id', $targetRouterIds)->where('estado', 'activo')->count(),
             ],
             'topUsuarios' => (clone $logsQuery)
                 ->select('username', DB::raw('count(*) as total_conexiones'), DB::raw('sum(duration_seconds) as tiempo_total'))
                 ->groupBy('username')->orderBy('total_conexiones', 'desc')->take(5)->get(),
-            'ultimosLogs' => TicketLog::with('router')->whereIn('router_id', $routerIds)->latest()->take(8)->get(),
+            'ultimosLogs' => TicketLog::with('router')->whereIn('router_id', $targetRouterIds)->latest()->take(8)->get(),
             'dollarRate' => ExchangeRateService::getBcvRate(),
             'labels' => $labels,
             'datasets' => $datasets

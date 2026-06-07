@@ -83,7 +83,11 @@
                 <div class="col-md-4">
                     <label class="small fw-bold text-muted mb-1 text-uppercase">Equipo / Router</label>
                     <select wire:model="router_id" class="form-select border-0 bg-light rounded-3 shadow-none">
-                        <option value="">📊 Todos los Routers</option>
+                        @if(count($routers) > 1)
+                            <option value="">📊 Todos los Routers</option>
+                        @elseif(count($routers) == 0)
+                            <option value="">Sin routers configurados</option>
+                        @endif
                         @foreach($routers as $r)
                             <option value="{{ $r->id }}">{{ $r->identity }}</option>
                         @endforeach
