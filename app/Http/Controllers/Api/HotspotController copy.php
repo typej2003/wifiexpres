@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Router;
 use App\Models\Plan;
 use App\Models\AdvertisingCampaign;
+use App\Models\AdvertisingConcurso;
 use App\Models\User;
 use App\Models\Setting;
 use App\Models\Ticket;
@@ -283,7 +284,7 @@ class HotspotController extends Controller
         }
 
         // Consultar concurso
-        $concurso = Contest::where('router_identity', $router->identity)
+        $concurso = AdvertisingConcurso::where('router_identity', $router->identity)
             ->where('active', true)
             ->first();
         
