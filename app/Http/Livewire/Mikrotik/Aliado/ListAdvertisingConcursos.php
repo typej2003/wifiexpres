@@ -335,6 +335,7 @@ class ListAdvertisingConcursos extends Component
                                               ? json_encode($request->input('answer')) 
                                               : $request->input('answer'),
                         'concurso_name'           => $concurso->name,
+                        'concurso_etapa'           => $concurso->etapa,
                         'concurso_description'    => $concurso->description,
                         'concurso_target_gender'  => $concurso->target_gender,
                         'concurso_age_range_id'   => $concurso->age_range_id,
