@@ -122,6 +122,7 @@
                                 <option value="">Seleccione un rol...</option>
                                 <option value="admin">Administrador</option>
                                 <option value="aliado">Aliado (Gestor de Routers)</option>
+                                <option value="aliadoSmartData">Aliado (SmartData)</option>
                                 <option value="cliente">Cliente</option>
                                 <option value="vendedor">Vendedor</option>
                             </select>
