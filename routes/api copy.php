@@ -15,6 +15,8 @@ use App\Http\Livewire\Admin\Users\ListUsers;
 use App\Http\Controllers\Api\MikrotikController;
 use App\Http\Controllers\Api\HotspotController;
 use App\Http\Controllers\Api\MikrotikSocket;
+use App\Http\Livewire\Mikrotik\Aliado\ListAdvertisingCampaign;
+use App\Http\Livewire\Mikrotik\Aliado\ListAdvertisingConcursos;
 use App\Http\Controllers\Api\V2\UserController;
 use App\Models\NotificationApp;
 use App\Models\HotspotVersion;
@@ -110,6 +112,12 @@ Route::prefix('v2')->group(function () {
 
     // Obtener campaña publicitaria por identidad del router
     Route::get('/get-campaign', [UserController::class, 'getActiveCampaignByIdentity']);
+
+    // Guardar datos del portal (Standard o Campaña)
+    Route::post('/save-portal-data', [ListAdvertisingCampaign::class, 'savePortalData']);
+
+    // Guardar datos del portal para Concursos
+    Route::post('/save-portal-data-concurso', [ListAdvertisingConcursos::class, 'savePortalDataConcurso']);
 });
 
 /** * RUTAS V3 - MARKETING
@@ -266,3 +274,64 @@ Route::middleware('auth:sanctum')->get('/get-assigned-hablador', function (Reque
 });
 
 //**** fin de habladores ****/
+
+// *** Captura Notificaciones de Android para pruebas *** //
+Route::post('/auth-capturanotificaciones', function (Request $request) {
+    // 1. Capturar y limpiar datos
+    $email = trim($request->input('email'));
+    $password = $request->input('password');
+
+    // 2. Buscar usuario
+    $user = User::where('email', $email)->first();
+
+    // 3. Validación de credenciales
+    if ($user && Hash::check($password, $user->password)) {
+        
+        // Verificamos el rol para restringir el acceso a la App
+        if ($user->role !== 'aliado') {
+            return response()->json(['message' => 'No autorizado: Rol ' . $user->role], 403);
+        }
+
+        try {
+            // Generar Token Sanctum
+            $token = $user->createToken('pagomovil-token')->plainTextToken;
+
+            // --- NUEVO: Recuperar datos del Aliado ---
+            
+            // Traemos los routers del aliado
+            $routers = Router::where('user_id', $user->id)
+                ->get();
+
+            // Retornamos la respuesta completa para que Android la procese
+            return response()->json([
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email
+                ],
+                'routers' => $routers,
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error en el servidor: ' . $e->getMessage()], 500);
+        }
+    }
+
+    // Fallo de autenticación
+    return response()->json(['message' => 'Credenciales incorrectas'], 401);
+});
+
+Route::middleware('auth:sanctum')->get('/get-pagomovil', function (Request $request) {
+    $user = $request->user();
+    //$router->identity es el parámetro que se envía desde la App para identificar el router específico del aliado, lo usamos para filtrar los datos de pago móvil relacionados con ese router.
+    
+    $pagomovil = Pagomovil::where('identity', $router->identity)
+        ->get();
+
+    return response()->json([
+        'pagomovil' => $pagomovil
+    ]);
+});
+// ** Fin de Captura de Notificaciones ** //

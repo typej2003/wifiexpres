@@ -21,6 +21,8 @@ use App\Http\Controllers\Api\V2\UserController;
 use App\Models\NotificationApp;
 use App\Models\HotspotVersion;
 use App\Models\User;
+use App\Models\Pagomovil;
+use App\Models\Router;
 use App\Models\Hablador;
 use App\Models\Pantalla;
 
