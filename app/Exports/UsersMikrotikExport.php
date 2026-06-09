@@ -6,11 +6,14 @@ use App\Models\UserMikrotik;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Maatwebsite\Excel\Concerns\Exportable;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
-class UsersMikrotikExport implements FromQuery, WithMapping, WithHeadings
+class UsersMikrotikExport implements FromQuery, WithMapping, WithHeadings, ShouldAutoSize, WithStyles
 {
     use Exportable;
 
@@ -95,6 +98,23 @@ class UsersMikrotikExport implements FromQuery, WithMapping, WithHeadings
             $user->router->identity ?? 'N/A',
             $user->router->user->name ?? 'Sistema',
             $user->email ?? '-'
+        ];
+    }
+
+    /**
+     * Aplica estilos a la hoja de cálculo.
+     */
+    public function styles(Worksheet $sheet)
+    {
+        return [
+            // Estilo para la primera fila (los encabezados)
+            1 => [
+                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                'fill' => [
+                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => '4F46E5'] // Color índigo
+                ]
+            ],
         ];
     }
 }
