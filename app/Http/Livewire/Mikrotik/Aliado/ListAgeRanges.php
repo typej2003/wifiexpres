@@ -108,7 +108,7 @@ class ListAgeRanges extends Component
 
         return view('livewire.mikrotik.aliado.list-age-ranges', [
             'ageRanges' => $query->latest()->paginate(10),
-            'aliados' => $this->isAdmin ? User::where('role', 'aliado')->get() : []
+            'aliados' => $this->isAdmin ? User::where('role', 'aliado')->where('role', 'aliadoSmartData')->get() : []
         ])->layout('layouts.app');
     }
 }
