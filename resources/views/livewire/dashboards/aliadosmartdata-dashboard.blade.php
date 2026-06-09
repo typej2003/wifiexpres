@@ -127,19 +127,36 @@
 
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
-                <h6 class="fw-bold mb-3">Top Usuarios</h6>
+                <h6 class="fw-bold mb-3"><i class="bi bi-award text-warning me-2"></i>Top Usuarios</h6>
                 @foreach($topUsuarios as $u)
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div>
-                        @if($u->userMikrotik && $u->userMikrotik->full_name)
-                            <span class="fw-bold d-block text-dark">{{ $u->userMikrotik->full_name }}</span>
-                            <small class="text-muted d-block" style="font-size: 0.75rem;">Usuario: {{ $u->username }}</small>
-                        @else
-                            <span class="fw-bold d-block text-dark">{{ $u->username }}</span>
-                        @endif
-                        <small class="text-muted">{{ number_format($u->total_conexiones) }} conexiones</small>
+                <div class="d-flex justify-content-between align-items-start mb-3 pb-2 border-bottom border-light">
+                    <div class="d-flex">
+                        <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 38px; height: 38px;">
+                            <i class="bi bi-person-badge text-secondary"></i>
+                        </div>
+                        <div>
+                            @if($u->userMikrotik)
+                                <strong class="text-dark d-block">{{ $u->userMikrotik->full_name ?? 'N/A' }}</strong>
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <small class="text-muted" style="font-size: 0.7rem;"><i class="bi bi-card-text me-1"></i>{{ $u->userMikrotik->name }}</small>
+                                    <small class="text-info" style="font-size: 0.65rem;" title="Tiempo desde registro">
+                                        <i class="bi bi-clock-history me-1"></i>{{ $u->userMikrotik->created_at->diffForHumans() }}
+                                    </small>
+                                </div>
+                            @else
+                                <strong class="text-dark d-block">{{ $u->username }}</strong>
+                                <small class="text-muted" style="font-size: 0.7rem;">Sin registro detallado</small>
+                            @endif
+                            <div class="mt-1">
+                                <small class="text-muted" style="font-size: 0.7rem;">
+                                    <i class="bi bi-arrow-repeat me-1"></i>{{ number_format($u->total_conexiones) }} conex.
+                                </small>
+                            </div>
+                        </div>
                     </div>
-                    <span class="badge bg-light text-dark border rounded-pill">{{ round($u->tiempo_total/3600, 1) }}h</span>
+                    <span class="badge bg-primary-soft text-primary border border-primary rounded-pill small">
+                        {{ round($u->tiempo_total/3600, 1) }}h
+                    </span>
                 </div>
                 @endforeach
             </div>
