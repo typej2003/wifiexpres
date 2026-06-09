@@ -49,22 +49,30 @@
     </div>
 
     <div class="row g-4">
-        <div class="col-lg-8">
+        <div class="col-lg-4">
             <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h6 class="fw-bold mb-0">Concurrencia de Conexiones</h6>
+                    <h6 class="fw-bold mb-0 text-uppercase small">Sesiones por Router</h6>
                     <span class="badge bg-primary-soft text-primary px-3 rounded-pill">Total: {{ number_format($totalConexiones ?? 0) }}</span>
                 </div>
-                <div style="position: relative; height:400px;" wire:ignore>
+                <div style="position: relative; height:300px;" wire:ignore>
                     <canvas id="mainChart"></canvas>
                 </div>
             </div>
         </div>
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
-                <h6 class="fw-bold mb-4">Distribución por Género</h6>
+                <h6 class="fw-bold mb-4 text-uppercase small">Distribución por Género</h6>
                 <div style="position: relative; height:300px;" wire:ignore>
                     <canvas id="genderChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
+                <h6 class="fw-bold mb-4 text-uppercase small">Rangos de Edad</h6>
+                <div style="position: relative; height:300px;" wire:ignore>
+                    <canvas id="ageChart"></canvas>
                 </div>
             </div>
         </div>
@@ -78,21 +86,27 @@
 @push('js')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    let mainChart, genderChart;
+    let mainChart, genderChart, ageChart;
 
     function initCharts(data) {
         const ctxMain = document.getElementById('mainChart').getContext('2d');
         if (mainChart) mainChart.destroy();
         mainChart = new Chart(ctxMain, {
-            type: 'bar',
-            data: { labels: data.labels, datasets: data.datasets },
+            type: 'pie',
+            data: { 
+                labels: data.routerLabels, 
+                datasets: [{
+                    data: data.routerValues,
+                    backgroundColor: ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }] 
+            },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom', labels: { usePointStyle: true } } },
-                scales: {
-                    y: { beginAtZero: true, grid: { color: '#f3f4f6' }, ticks: { precision: 0 } },
-                    x: { grid: { display: false } }
+                plugins: { 
+                    legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } 
                 }
             }
         });
@@ -114,7 +128,29 @@
                 maintainAspectRatio: false,
                 cutout: '70%',
                 plugins: {
-                    legend: { position: 'bottom', labels: { usePointStyle: true } }
+                    legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }
+                }
+            }
+        });
+
+        const ctxAge = document.getElementById('ageChart').getContext('2d');
+        if (ageChart) ageChart.destroy();
+        ageChart = new Chart(ctxAge, {
+            type: 'pie',
+            data: {
+                labels: data.ageLabels,
+                datasets: [{
+                    data: data.ageValues,
+                    backgroundColor: ['#6366F1', '#8B5CF6', '#D946EF', '#F43F5E'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }
                 }
             }
         });
