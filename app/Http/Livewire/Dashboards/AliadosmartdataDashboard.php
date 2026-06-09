@@ -129,12 +129,12 @@ class AliadosmartdataDashboard extends Component
 
         // 2. Datos
         $targetRouterIds = $this->router_id ? [$this->router_id] : $routerIds;
-        $logsQuery = TicketLog::whereIn('router_id', $targetRouterIds)
-            ->whereBetween('created_at', [$desde, $hasta]);
+        $logsQuery = TicketLog::whereIn('ticket_logs.router_id', $targetRouterIds)
+            ->whereBetween('ticket_logs.created_at', [$desde, $hasta]);
         
         $logs = (clone $logsQuery)
-            ->select(DB::raw('DATE(created_at) as fecha'), 'router_id', DB::raw('count(*) as total'))
-            ->groupBy('fecha', 'router_id')
+            ->select(DB::raw('DATE(ticket_logs.created_at) as fecha'), 'ticket_logs.router_id', DB::raw('count(*) as total'))
+            ->groupBy('fecha', 'ticket_logs.router_id')
             ->get();
 
         // 3. Datasets para Gráfica
