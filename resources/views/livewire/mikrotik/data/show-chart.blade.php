@@ -2,7 +2,7 @@
     <div class="card border-0 shadow-sm rounded-4 mb-4">
         <div class="card-body p-4">
             <div class="row g-3 align-items-end">
-                @if($isAdmin)
+                @if(auth()->user()->role === 'admin' || auth()->user()->role === 'root')
                 <div class="col-md-3">
                     <label class="small fw-bold text-muted mb-1 text-uppercase">Aliado</label>
                     <select wire:model="selectedAliado" class="form-select border-0 bg-light rounded-3 shadow-none">
@@ -53,7 +53,7 @@
             <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h6 class="fw-bold mb-0">Concurrencia de Conexiones</h6>
-                    <span class="badge bg-primary-soft text-primary px-3 rounded-pill">Total: {{ number_format($totalConexiones) }}</span>
+                    <span class="badge bg-primary-soft text-primary px-3 rounded-pill">Total: {{ number_format($totalConexiones ?? 0) }}</span>
                 </div>
                 <div style="position: relative; height:400px;" wire:ignore>
                     <canvas id="mainChart"></canvas>
