@@ -16,6 +16,8 @@ use App\Http\Livewire\Mikrotik\Data\MetricaCampaign;
 
 use App\Http\Livewire\Mikrotik\Data\ListUsersMikrotik;
 
+use App\Http\Livewire\Mikrotik\Data\ShowChart;
+
 Route::get('/mikrotik/user-history/{username?}', UserHistory::class)->name('mikrotik.user-history');
 
 Route::get('/mikrotik/grafico-uso', GraficoRouters::class)->name('mikrotik.grafico');
@@ -37,4 +39,7 @@ Route::middleware(['auth', 'role:admin,aliado,aliadoSmartData'])->prefix('admin/
 
     // Ruta para el listado de nuevos usuarios registrados
     Route::get('/list-users-mikrotik', ListUsersMikrotik::class)->name('mikrotik.data.list-users');
+
+    // Ruta para visualización de gráficas analíticas
+    Route::get('/show-charts', ShowChart::class)->name('mikrotik.data.show-charts');
 });
