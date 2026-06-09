@@ -1,7 +1,4 @@
-<div>
-    {{-- The Master doesn't talk, he acts. --}}
 <div class="container-fluid py-4">
-    {{-- FILTROS SUPERIORES --}}
     <div class="card border-0 shadow-sm rounded-4 mb-4">
         <div class="card-body p-4">
             <div class="row g-3 align-items-end">
@@ -51,7 +48,6 @@
         </div>
     </div>
 
-    {{-- GRÁFICAS --}}
     <div class="row g-4">
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
@@ -74,6 +70,10 @@
         </div>
     </div>
 </div>
+
+<style>
+    .bg-primary-soft { background-color: rgba(79, 70, 229, 0.1); }
+</style>
 
 @push('js')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -103,13 +103,32 @@
             type: 'doughnut',
             data: {
                 labels: data.genderLabels,
-                datasets: [{ data: data.genderValues, backgroundColor: ['#4F46E5', '#EC4899', '#94A3B8'], borderWidth: 0 }]
+                datasets: [{
+                    data: data.genderValues,
+                    backgroundColor: ['#4F46E5', '#EC4899', '#94A3B8'],
+                    borderWidth: 0
+                }]
             },
-            options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom' } } }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: { position: 'bottom', labels: { usePointStyle: true } }
+                }
+            }
         });
     }
 
-    window.addEventListener('updateCharts', event => initCharts(event.detail));
-    document.addEventListener('livewire:load', () => initCharts(@json(['labels' => [], 'datasets' => [], 'genderLabels' => [], 'genderValues' => []])));
+    window.addEventListener('updateCharts', event => {
+        initCharts(event.detail);
+    });
+
+    document.addEventListener('livewire:load', () => {
+        // Pequeño delay para asegurar que el DOM esté listo
+        setTimeout(() => {
+            window.livewire.emit('render');
+        }, 100);
+    });
 </script>
 @endpush
