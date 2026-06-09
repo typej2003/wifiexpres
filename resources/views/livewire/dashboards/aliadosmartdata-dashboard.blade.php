@@ -167,9 +167,26 @@
                 </div>
                 <div class="list-group list-group-flush" style="max-height: 250px; overflow-y: auto;">
                     @foreach($ultimosLogs as $log)
-                        <div class="list-group-item border-0 px-4 py-2 small d-flex justify-content-between border-bottom">
-                            <span>{{ $log->username }}</span>
-                            <span class="text-muted" style="font-size: 0.7rem;">{{ $log->created_at->diffForHumans() }}</span>
+                        <div class="list-group-item border-0 px-4 py-3 small d-flex justify-content-between align-items-center border-bottom">
+                            <div>
+                                @if($log->userMikrotik)
+                                    <strong class="text-dark d-block mb-0">{{ $log->userMikrotik->full_name ?? 'N/A' }}</strong>
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">
+                                        <i class="bi bi-person me-1"></i>{{ $log->userMikrotik->name }}
+                                    </small>
+                                @else
+                                    <strong class="text-dark d-block mb-0">{{ $log->username }}</strong>
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Sin perfil registrado</small>
+                                @endif
+                                <small class="text-primary" style="font-size: 0.65rem;">
+                                    <i class="bi bi-router me-1"></i>{{ $log->router->identity ?? 'N/A' }}
+                                </small>
+                            </div>
+                            <div class="text-end">
+                                <span class="text-muted d-block" style="font-size: 0.7rem;">
+                                    <i class="bi bi-clock-history me-1"></i>{{ $log->created_at->diffForHumans() }}
+                                </span>
+                            </div>
                         </div>
                     @endforeach
                 </div>
