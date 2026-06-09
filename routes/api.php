@@ -326,9 +326,7 @@ Route::post('/auth-capturanotificaciones', function (Request $request) {
 });
 
 Route::middleware('auth:sanctum')->get('/get-pagomovil', function (Request $request) {
-    $user = $request->user();
-    //$router->identity es el parámetro que se envía desde la App para identificar el router específico del aliado, lo usamos para filtrar los datos de pago móvil relacionados con ese router.
-    
+     
     $identity = $request->input('identity');
     $pagomovil = Pagomovil::where('identity', $identity)
         ->get();
