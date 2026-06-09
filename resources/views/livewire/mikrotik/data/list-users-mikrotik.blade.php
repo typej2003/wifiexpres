@@ -1,7 +1,13 @@
 <div>
     <div class="card card-outline card-primary">
-        <div class="card-header bg-white">
-            <h5 class="mb-0"><i class="fas fa-users mr-2"></i> Usuarios Hotspot (Nuevos Registros)</h5>
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-users mr-2 text-primary"></i> Usuarios Hotspot (Nuevos Registros)</h5>
+            <div>
+                <button wire:click="exportExcel" wire:loading.attr="disabled" class="btn btn-outline-success btn-sm rounded-pill px-4 fw-bold shadow-sm">
+                    <span wire:loading wire:target="exportExcel" class="spinner-border spinner-border-sm me-1"></span>
+                    <i wire:loading.remove wire:target="exportExcel" class="bi bi-file-earmark-spreadsheet me-1"></i> EXCEL
+                </button>
+            </div>
         </div>
         <div class="card-body">
             <div class="row mb-4">

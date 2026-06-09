@@ -8,6 +8,8 @@ use App\Models\UserMikrotik;
 use App\Models\Router;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\UsersMikrotikExport;
 
 class ListUsersMikrotik extends Component
 {
@@ -41,6 +43,16 @@ class ListUsersMikrotik extends Component
     public function updatingSelectedRouter()
     {
         $this->resetPage();
+    }
+
+    public function exportExcel()
+    {
+        return Excel::download(new UsersMikrotikExport(
+            $this->search,
+            $this->selectedAliado,
+            $this->selectedRouter,
+            $this->isAdmin
+        ), 'usuarios_hotspot_' . now()->format('Y-m-d') . '.xlsx');
     }
 
     public function render()
