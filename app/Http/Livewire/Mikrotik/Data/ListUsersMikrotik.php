@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\UsersMikrotikExport;
+use Carbon\Carbon;
 
 class ListUsersMikrotik extends Component
 {
@@ -19,6 +20,9 @@ class ListUsersMikrotik extends Component
     public $selectedAliado = '';
     public $selectedRouter = '';
     public $isAdmin = false;
+    public $periodo = 'hoy';
+    public $fecha_desde;
+    public $fecha_hasta;
 
     protected $paginationTheme = 'bootstrap';
 
@@ -27,6 +31,8 @@ class ListUsersMikrotik extends Component
         $user = Auth::user();
         // Verificamos si es admin o root para habilitar filtros globales
         $this->isAdmin = in_array($user->role, [User::ROLE_ADMIN, User::ROLE_ROOT]);
+        $this->fecha_desde = now()->format('Y-m-d');
+        $this->fecha_hasta = now()->format('Y-m-d');
     }
 
     public function updatingSearch()
@@ -45,13 +51,34 @@ class ListUsersMikrotik extends Component
         $this->resetPage();
     }
 
+    public function updatedPeriodo($value)
+    {
+        if ($value === 'hoy') {
+            $this->fecha_desde = now()->format('Y-m-d');
+            $this->fecha_hasta = now()->format('Y-m-d');
+        } elseif ($value === 'semana') {
+            $this->fecha_desde = now()->startOfWeek()->format('Y-m-d');
+            $this->fecha_hasta = now()->format('Y-m-d');
+        } elseif ($value === 'mes') {
+            $this->fecha_desde = now()->startOfMonth()->format('Y-m-d');
+            $this->fecha_hasta = now()->format('Y-m-d');
+        } elseif ($value === 'ultimos_50') {
+            $this->fecha_desde = null;
+            $this->fecha_hasta = null;
+        }
+        $this->resetPage();
+    }
+
     public function exportExcel()
     {
         return Excel::download(new UsersMikrotikExport(
             $this->search,
             $this->selectedAliado,
             $this->selectedRouter,
-            $this->isAdmin
+            $this->isAdmin,
+            $this->periodo,
+            $this->fecha_desde,
+            $this->fecha_hasta
         ), 'usuarios_hotspot_' . now()->format('Y-m-d') . '.xlsx');
     }
 
@@ -76,9 +103,20 @@ class ListUsersMikrotik extends Component
             });
         }
 
-        // 3. Filtros de búsqueda y router
+        // 3. Filtros adicionales de Router, Periodo y Búsqueda
         if ($this->selectedRouter) {
             $query->where('router_id', $this->selectedRouter);
+        }
+
+        if ($this->periodo === 'ultimos_50') {
+            $query->limit(50);
+        } else {
+            if ($this->fecha_desde) {
+                $query->whereDate('created_at', '>=', $this->fecha_desde);
+            }
+            if ($this->fecha_hasta) {
+                $query->whereDate('created_at', '<=', $this->fecha_hasta);
+            }
         }
 
         if ($this->search) {

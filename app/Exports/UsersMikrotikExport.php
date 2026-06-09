@@ -8,19 +8,23 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\Exportable;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class UsersMikrotikExport implements FromQuery, WithMapping, WithHeadings
 {
     use Exportable;
 
-    protected $search, $selectedAliado, $selectedRouter, $isAdmin;
+    protected $search, $selectedAliado, $selectedRouter, $isAdmin, $periodo, $fecha_desde, $fecha_hasta;
 
-    public function __construct($search, $selectedAliado, $selectedRouter, $isAdmin)
+    public function __construct($search, $selectedAliado, $selectedRouter, $isAdmin, $periodo, $fecha_desde, $fecha_hasta)
     {
         $this->search = $search;
         $this->selectedAliado = $selectedAliado;
         $this->selectedRouter = $selectedRouter;
         $this->isAdmin = $isAdmin;
+        $this->periodo = $periodo;
+        $this->fecha_desde = $fecha_desde;
+        $this->fecha_hasta = $fecha_hasta;
     }
 
     public function query()
@@ -42,6 +46,17 @@ class UsersMikrotikExport implements FromQuery, WithMapping, WithHeadings
 
         if ($this->selectedRouter) {
             $query->where('router_id', $this->selectedRouter);
+        }
+
+        if ($this->periodo === 'ultimos_50') {
+            $query->limit(50);
+        } else {
+            if ($this->fecha_desde) {
+                $query->whereDate('created_at', '>=', $this->fecha_desde);
+            }
+            if ($this->fecha_hasta) {
+                $query->whereDate('created_at', '<=', $this->fecha_hasta);
+            }
         }
 
         if ($this->search) {

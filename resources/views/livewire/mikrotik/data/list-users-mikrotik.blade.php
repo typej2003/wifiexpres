@@ -11,12 +11,33 @@
         </div>
         <div class="card-body">
             <div class="row mb-4">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label>Buscar</label>
                     <input type="text" class="form-control" placeholder="Nombre, teléfono o email..." wire:model="search">
                 </div>
+                <div class="col-md-2">
+                    <label>Filtro Tiempo</label>
+                    <select class="form-control" wire:model="periodo">
+                        <option value="ultimos_50">Últimos 50</option>
+                        <option value="hoy">Hoy</option>
+                        <option value="semana">Semana</option>
+                        <option value="mes">Mes</option>
+                        <option value="personalizado">Personalizado</option>
+                    </select>
+                </div>
+                @if($periodo == 'personalizado')
+                <div class="col-md-2">
+                    <label>Desde</label>
+                    <input type="date" class="form-control" wire:model="fecha_desde">
+                </div>
+                <div class="col-md-2">
+                    <label>Hasta</label>
+                    <input type="date" class="form-control" wire:model="fecha_hasta">
+                </div>
+                @endif
+
                 @if($isAdmin)
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label>Aliado</label>
                     <select class="form-control" wire:model="selectedAliado">
                         <option value="">Todos los Aliados</option>
@@ -26,7 +47,7 @@
                     </select>
                 </div>
                 @endif
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label>Router</label>
                     <select class="form-control" wire:model="selectedRouter">
                         <option value="">Todos los Routers</option>
