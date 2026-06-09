@@ -14,6 +14,8 @@ use App\Http\Livewire\Mikrotik\Data\ListNotificacionesApp;
 
 use App\Http\Livewire\Mikrotik\Data\MetricaCampaign;
 
+use App\Http\Livewire\Mikrotik\Data\ListUsersMikrotik;
+
 Route::get('/mikrotik/user-history/{username?}', UserHistory::class)->name('mikrotik.user-history');
 
 Route::get('/mikrotik/grafico-uso', GraficoRouters::class)->name('mikrotik.grafico');
@@ -32,4 +34,7 @@ Route::middleware(['auth', 'role:admin,aliado,aliadoSmartData'])->prefix('admin/
     Route::get('/mikrotik/data/notificaciones-app', ListNotificacionesApp::class)->name('mikrotik.data.notificaciones');
 
     Route::get('/metrica-campana', MetricaCampaign::class)->name('mikrotik.metrica-campana');
+
+    // Ruta para el listado de nuevos usuarios registrados
+    Route::get('/list-users-mikrotik', ListUsersMikrotik::class)->name('mikrotik.data.list-users');
 });

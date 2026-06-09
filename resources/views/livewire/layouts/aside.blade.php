@@ -260,6 +260,11 @@
                 <span class="menu-text">Monitor de usuarios</span>
             </a>
 
+            <a href="{{ route('mikrotik.data.list-users') }}" class="sidebar-link {{ request()->routeIs('mikrotik.data.list-users') ? 'active' : '' }}">
+                <i class="bi bi-people"></i> 
+                <span class="menu-text">Clientes Portal Cautivo</span>
+            </a>
+
             <a class="sidebar-link {{ request()->routeIs('mikrotik.users-online') ? 'active bg-gradient-primary' : '' }}" 
             href="{{ route('mikrotik.users-online') }}">
                 <div class="icon icon-shape icon-sm border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
@@ -358,6 +363,12 @@
                 <i class="bi bi-speedometer2"></i> 
                 <span class="menu-text">MÉTRICAS WiseWifi</span>
             </a>
+
+            <a href="{{ route('mikrotik.data.list-users') }}" class="sidebar-link {{ request()->routeIs('mikrotik.data.list-users') ? 'active' : '' }}">
+                <i class="bi bi-people"></i> 
+                <span class="menu-text">Clientes Portal Cautivo</span>
+            </a>
+            
         @endif
 
         @if(auth()->user()->role === 'aliado')
@@ -439,6 +450,11 @@
             <a href="{{ route('aliado.ranking') }}" class="sidebar-link {{ request()->routeIs('aliado.ranking') ? 'active' : '' }}">
                 <i class="bi bi-trophy"></i> 
                 <span class="menu-text">RANKING DE USUARIOS</span>
+            </a>
+
+            <a href="{{ route('mikrotik.data.list-users') }}" class="sidebar-link {{ request()->routeIs('mikrotik.data.list-users') ? 'active' : '' }}">
+                <i class="bi bi-people"></i> 
+                <span class="menu-text">Clientes Portal Cautivo</span>
             </a>
 
             <a class="sidebar-link {{ request()->routeIs('mikrotik.users-online') ? 'active bg-gradient-primary' : '' }}" 
