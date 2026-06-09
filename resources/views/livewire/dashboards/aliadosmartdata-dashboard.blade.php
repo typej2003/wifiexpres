@@ -135,12 +135,12 @@
                             <i class="bi bi-person-badge text-secondary"></i>
                         </div>
                         <div>
-                            @if($u->userMikrotik)
-                                <strong class="text-dark d-block">{{ $u->userMikrotik->full_name ?? 'N/A' }}</strong>
+                            @if($u->full_name)
+                                <strong class="text-dark d-block">{{ $u->full_name }}</strong>
                                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                                    <small class="text-muted" style="font-size: 0.7rem;"><i class="bi bi-card-text me-1"></i>{{ $u->userMikrotik->name }}</small>
+                                    <small class="text-muted" style="font-size: 0.7rem;"><i class="bi bi-card-text me-1"></i>{{ $u->profile_name }}</small>
                                     <small class="text-info" style="font-size: 0.65rem;" title="Tiempo desde registro">
-                                        <i class="bi bi-clock-history me-1"></i>{{ $u->userMikrotik->created_at->diffForHumans() }}
+                                        <i class="bi bi-clock-history me-1"></i>{{ \Carbon\Carbon::parse($u->registered_at)->diffForHumans() }}
                                     </small>
                                 </div>
                             @else
@@ -169,10 +169,10 @@
                     @foreach($ultimosLogs as $log)
                         <div class="list-group-item border-0 px-4 py-3 small d-flex justify-content-between align-items-center border-bottom">
                             <div>
-                                @if($log->userMikrotik)
-                                    <strong class="text-dark d-block mb-0">{{ $log->userMikrotik->full_name ?? 'N/A' }}</strong>
+                                @if($log->full_name)
+                                    <strong class="text-dark d-block mb-0">{{ $log->full_name }}</strong>
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">
-                                        <i class="bi bi-person me-1"></i>{{ $log->userMikrotik->name }}
+                                        <i class="bi bi-person me-1"></i>{{ $log->profile_name }}
                                     </small>
                                 @else
                                     <strong class="text-dark d-block mb-0">{{ $log->username }}</strong>

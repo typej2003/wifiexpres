@@ -173,17 +173,35 @@ class AliadosmartdataDashboard extends Component
                 'usuarios_online' => Ticket::whereIn('router_id', $targetRouterIds)->where('estado', 'activo')->count(),
             ],
             'topUsuarios' => (clone $logsQuery)
+                ->leftJoin('user_mikrotiks', function($join) {
+                    $join->on('user_mikrotiks.router_id', '=', 'ticket_logs.router_id')
+                         ->on('user_mikrotiks.name', '=', DB::raw("REPLACE(ticket_logs.username, 'T-', '')"));
+                })
                 ->select(
-                    'username', 
-                    DB::raw('MAX(router_id) as router_id'), 
-                    DB::raw('count(*) as total_conexiones'), 
-                    DB::raw('sum(duration_seconds) as tiempo_total')
+                    'ticket_logs.username', 
+                    DB::raw('MAX(ticket_logs.router_id) as router_id'), 
+                    DB::raw('count(ticket_logs.id) as total_conexiones'), 
+                    DB::raw('sum(ticket_logs.duration_seconds) as tiempo_total'),
+                    'user_mikrotiks.full_name',
+                    'user_mikrotiks.name as profile_name',
+                    'user_mikrotiks.created_at as registered_at'
                 )
-                ->groupBy('username')
+                ->groupBy('ticket_logs.username', 'user_mikrotiks.full_name', 'user_mikrotiks.name', 'user_mikrotiks.created_at')
                 ->orderBy('total_conexiones', 'desc')
-                ->take(5)->get()
-                ->load('userMikrotik'),
-            'ultimosLogs' => TicketLog::with(['router', 'userMikrotik'])->whereIn('router_id', $targetRouterIds)->latest()->take(10)->get(),
+                ->take(5)->get(),
+            'ultimosLogs' => TicketLog::whereIn('ticket_logs.router_id', $targetRouterIds)
+                ->leftJoin('user_mikrotiks', function($join) {
+                    $join->on('user_mikrotiks.router_id', '=', 'ticket_logs.router_id')
+                         ->on('user_mikrotiks.name', '=', DB::raw("REPLACE(ticket_logs.username, 'T-', '')"));
+                })
+                ->with('router')
+                ->select(
+                    'ticket_logs.*',
+                    'user_mikrotiks.full_name',
+                    'user_mikrotiks.name as profile_name'
+                )
+                ->latest('ticket_logs.created_at')
+                ->take(10)->get(),
             'dollarRate' => ExchangeRateService::getBcvRate(),
             'labels' => $labels,
             'datasets' => $datasets
