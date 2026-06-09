@@ -83,7 +83,7 @@ class ShowChart extends Component
             ->groupBy('gender')
             ->get();
 
-        $genderLabels = $genders->map(fn($g) => $g->gender == 'M' ? 'Masculino' : ($g->gender == 'F' ? 'Femenino' : 'Otro'));
+        $genderLabels = $genders->map(fn($g) => $g->gender == 'F' ? 'Femenino' : ($g->gender == 'M' ? 'Masculino' : 'Otro'));
 
         // 3. Datos: Edades (Buckets)
         $ages = UserMikrotik::whereIn('router_id', $routerIds)
@@ -91,10 +91,10 @@ class ShowChart extends Component
             ->when($this->selectedRouter, fn($q) => $q->where('router_id', $this->selectedRouter))
             ->select(DB::raw("
                 CASE 
-                    WHEN TIMESTAMPDIFF(YEAR, birthday, CURDATE()) < 18 THEN 'Menor 18'
-                    WHEN TIMESTAMPDIFF(YEAR, birthday, CURDATE()) BETWEEN 18 AND 24 THEN '18-24'
-                    WHEN TIMESTAMPDIFF(YEAR, birthday, CURDATE()) BETWEEN 25 AND 35 THEN '25-35'
-                    ELSE 'Mayor 35'
+                    WHEN TIMESTAMPDIFF(YEAR, birthday, CURDATE()) < 18 THEN 'Menores de 18'
+                    WHEN TIMESTAMPDIFF(YEAR, birthday, CURDATE()) BETWEEN 18 AND 24 THEN '18-24 años'
+                    WHEN TIMESTAMPDIFF(YEAR, birthday, CURDATE()) BETWEEN 25 AND 35 THEN '25-35 años'
+                    ELSE 'Mayores de 35'
                 END as label
             "), DB::raw('count(*) as total'))
             ->groupBy('label')
