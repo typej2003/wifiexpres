@@ -402,7 +402,7 @@
                 <span class="menu-text">Métricas de Campañas</span>
             </a>
 
-            <a href="{{ route('mikrotik.metrica-campana') }}" class="sidebar-link {{ request()->routeIs('mikrotik.metrica-campana') ? 'active' : '' }}">
+            <a href="{{ route('mikrotik.metrica-concurso') }}" class="sidebar-link {{ request()->routeIs('mikrotik.metrica-concurso') ? 'active' : '' }}">
                 <i class="bi bi-pie-chart-fill"></i> 
                 <span class="menu-text">Métricas de Concursos</span>
             </a>
