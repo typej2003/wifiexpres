@@ -366,12 +366,12 @@
 
             <a href="{{ route('aliado.hour.analysis') }}" class="sidebar-link {{ request()->routeIs('aliado.hour.analysis') ? 'active' : '' }}">
                 <i class="bi bi-speedometer2"></i> 
-                <span class="menu-text">MÉTRICAS WiseWifi</span>
+                <span class="menu-text">Métricas de conexiones</span>
             </a>
 
             <a href="{{ route('mikrotik.data.list-users') }}" class="sidebar-link {{ request()->routeIs('mikrotik.data.list-users') ? 'active' : '' }}">
                 <i class="bi bi-people"></i> 
-                <span class="menu-text">Clientes Portal Cautivo</span>
+                <span class="menu-text">Métricas de Usuarios</span>
             </a>
 
             <a href="{{ route('mikrotik.metrica-concurso') }}" class="sidebar-link {{ request()->routeIs('mikrotik.metrica-concurso') ? 'active' : '' }}">
