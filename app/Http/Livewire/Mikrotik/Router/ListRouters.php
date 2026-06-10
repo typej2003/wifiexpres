@@ -34,12 +34,13 @@ class ListRouters extends Component
         $packages = collect();
         $ownerId = $this->user_id ?: $this->selectedAliado;
         if ($ownerId) {
-            $packages = Package::whereIn('id', function($query) use ($ownerId) {
-                $query->select('package_id')
-                    ->from('package_user')
-                    ->where('user_id', $ownerId)
-                    ->where('status', 'active');
-            })->get();
+            $userOwner = User::find($ownerId);
+            if ($userOwner) {
+                $packages = $userOwner->packages()
+                    ->wherePivot('status', 'active')
+                    ->wherePivot('end_date', '>=', now())
+                    ->get();
+            }
         }
 
         $routers = Router::query()
@@ -107,12 +108,11 @@ class ListRouters extends Component
         $this->status = $router->status ?? 'Habilitado';
         $this->hotspot_version_id = $router->hotspot_version_id;
 
-        $planesAliado = Package::whereIn('id', function($query) {
-            $query->select('package_id')
-                ->from('package_user')
-                ->where('user_id', $this->user_id)
-                ->where('status', 'active');
-        })->get();
+        $userOwner = User::find($this->user_id);
+        $planesAliado = $userOwner ? $userOwner->packages()
+            ->wherePivot('status', 'active')
+            ->wherePivot('end_date', '>=', now())
+            ->get() : collect();
 
         $this->emit('updatePackageList', [
             'packages' => $planesAliado,
@@ -152,12 +152,11 @@ class ListRouters extends Component
         $this->status = 'Habilitado';
 
         if($this->user_id) {
-            $planesAliado = Package::whereIn('id', function($query) {
-                $query->select('package_id')
-                    ->from('package_user')
-                    ->where('user_id', $this->user_id)
-                    ->where('status', 'active');
-            })->get();
+            $userOwner = User::find($this->user_id);
+            $planesAliado = $userOwner ? $userOwner->packages()
+                ->wherePivot('status', 'active')
+                ->wherePivot('end_date', '>=', now())
+                ->get() : collect();
 
             $this->emit('updatePackageList', [
                 'packages' => $planesAliado,
@@ -188,6 +187,7 @@ class ListRouters extends Component
             $newPackagePivot = PackageUser::where('user_id', $this->user_id)
                                         ->where('package_id', $this->package_id)
                                         ->where('status', 'active')
+                                        ->where('end_date', '>=', now())
                                         ->first();
 
             if (!$newPackagePivot) {

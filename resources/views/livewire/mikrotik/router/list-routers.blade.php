@@ -38,9 +38,11 @@
                         <span wire:loading wire:target="refreshStatus" class="spinner-border spinner-border-sm me-1"></span>
                         <i wire:loading.remove wire:target="refreshStatus" class="bi bi-arrow-clockwise me-1"></i> REFRESCAR ESTADOS
                     </button>
-                    <button wire:click="create" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" {{ !$selectedAliado ? 'disabled' : '' }}>
-                        <i class="bi bi-plus-lg me-1"></i> NUEVO ROUTER
-                    </button>
+                    @if($selectedAliado && ($routers->count() < $packages->sum('pivot.allowed_routers')))
+                        <button wire:click="create" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">
+                            <i class="bi bi-plus-lg me-1"></i> NUEVO ROUTER
+                        </button>
+                    @endif
                 </div>
             </div>
         </div>
