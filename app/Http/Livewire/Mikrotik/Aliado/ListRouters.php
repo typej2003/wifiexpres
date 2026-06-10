@@ -31,6 +31,7 @@ class ListRouters extends Component
         // IMPORTANTE: Ajustado a 'active' según el estándar de tu modelo User
         $packages = $user->packages()
                         ->wherePivot('status', 'active')
+                        ->wherePivot('end_date', '>=', now())
                         ->get();
 
         $this->refreshStatus();
