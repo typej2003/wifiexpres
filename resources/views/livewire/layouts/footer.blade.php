@@ -36,8 +36,8 @@
                 </div>
                 <div class="col-md-3 text-center text-md-end">
                     <div class="social-icons footer-social-wrapper">
-                        <a href="https://www.instagram.com/wifiexpres.ve/" class="social-circle"><i class="bi bi-instagram"></i></a>
-                        <a href="https://www.facebook.com/profile.php?id=61586553973081" class="social-circle"><i class="bi bi-facebook"></i></a>
+                        <a href="https://www.instagram.com/wifiexpres.ve/" class="social-circle" target="_blank" rel="noopener noreferrer"><i class="bi bi-instagram"></i></a>
+                        <a href="https://www.facebook.com/profile.php?id=61586553973081" class="social-circle" target="_blank" rel="noopener noreferrer"><i class="bi bi-facebook"></i></a>
                     </div>
                 </div>
             </div>
