@@ -51,6 +51,14 @@
                                 </li>
                             @endif
 
+                            @if(auth()->user()->role == 'aliado' || auth()->user()->role == 'aliadoSmartData')
+                                <li>
+                                    <a class="dropdown-item" href="/dashboard-aliadoSmartData">
+                                        <i class="bi bi-speedometer2 me-2"></i> Escritorio
+                                    </a>
+                                </li>
+                            @endif
+
                             <li><hr class="dropdown-divider"></li>
                             
                             <li>

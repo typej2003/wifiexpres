@@ -76,6 +76,13 @@ class AliadosmartdataDashboard extends Component
         session()->flash('message', '¡Solicitud enviada! Tu plan se activará pronto.');
     }
 
+    public function cancelSubscription($packageId)
+    {
+        $user = Auth::user();
+        $user->packages()->wherePivot('status', 'pending')->detach($packageId);
+        session()->flash('message', 'Solicitud cancelada correctamente.');
+    }
+
     public function openModal() { $this->showPlanModal = true; }
     public function closeModal() { $this->showPlanModal = false; }
 

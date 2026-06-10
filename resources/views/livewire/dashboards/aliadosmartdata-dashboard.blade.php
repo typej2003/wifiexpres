@@ -55,9 +55,16 @@
                                     default => 'bg-secondary'
                                 };
                             @endphp
-                            <span class="badge {{ $statusColor }} rounded-pill" style="font-size: 0.6rem;">
-                                {{ strtoupper($pkg->pivot->status) }}
-                            </span>
+                            <div class="d-flex align-items-center">
+                                <span class="badge {{ $statusColor }} rounded-pill" style="font-size: 0.6rem;">
+                                    {{ strtoupper($pkg->pivot->status) }}
+                                </span>
+                                @if($pkg->pivot->status === 'pending')
+                                    <button wire:click="cancelSubscription({{ $pkg->id }})" class="btn btn-link text-danger p-0 ms-2" title="Eliminar solicitud" onclick="confirm('¿Estás seguro de que deseas cancelar esta solicitud?') || event.stopImmediatePropagation()">
+                                        <i class="bi bi-trash-fill" style="font-size: 0.8rem;"></i>
+                                    </button>
+                                @endif
+                            </div>
                         </div>
                     @empty
                         <h2 class="fw-bold mb-0 text-muted fs-4">Sin Plan</h2>
