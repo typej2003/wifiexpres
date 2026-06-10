@@ -25,6 +25,11 @@
                                         <i class="bi bi-speedometer2 me-2"></i> Escritorio
                                     </a>
                                 @endif
+                                @if(auth()->user()->role == 'aliadoSmartData')
+                                    <a class="dropdown-item" href="/dashboard-aliadoSmartData">
+                                        <i class="bi bi-speedometer2 me-2"></i> Escritorio
+                                    </a>
+                                @endif
                                 <li><form method="POST" action="{{ route('logout') }}" id="logout-form">@csrf <button type="submit" class="dropdown-item text-danger">Salir</button></form></li>
                             </ul>
                         </div>
