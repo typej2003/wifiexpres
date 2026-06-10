@@ -29,7 +29,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
 
 });
 
-Route::middleware(['role:admin,aliado'])->group(function () {
+Route::middleware(['role:admin,aliado,aliadoSmartData'])->group(function () {
    
     Route::get('/mikrotik/herramientas/users-online', UsersOnline::class)
         ->name('mikrotik.users-online');
