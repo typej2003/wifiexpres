@@ -116,6 +116,17 @@ class ListRouters extends Component
         $this->openModal();
     }
 
+    public function destroy($id)
+    {
+        try {
+            $router = Router::where('user_id', Auth::id())->findOrFail($id);
+            $router->delete();
+            session()->flash('message', 'Router eliminado correctamente.');
+        } catch (\Exception $e) {
+            session()->flash('error', 'Error al eliminar el router: ' . $e->getMessage());
+        }
+    }
+
     public function create() {
         $this->reset(['router_id', 'identity', 'package_id', 'macAddress', 'location', 'comercio_nombre', 'hotspot_url']);
         $this->status = 'Habilitado';

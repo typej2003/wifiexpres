@@ -31,6 +31,15 @@
             <div class="col-md-6 col-lg-4 mb-4">
                 <div class="card border-0 shadow-sm h-100 rounded-4 overflow-hidden position-relative border-top border-4 {{ $online ? 'border-success' : 'border-danger' }}">
                     
+                    {{-- Botón Eliminar --}}
+                    <div class="position-absolute top-0 start-0 m-3" style="z-index: 10;">
+                        <button wire:click="destroy({{ $r->id }})" 
+                                onclick="confirm('¡ADVERTENCIA! ¿Estás seguro de eliminar este Router? Al eliminar este router se perderán datos o quedarán datos huérfanos asociados a este equipo.') || event.stopImmediatePropagation()"
+                                class="btn btn-link text-danger p-0 shadow-none" title="Eliminar Router">
+                            <i class="bi bi-trash-fill"></i>
+                        </button>
+                    </div>
+
                     <div class="position-absolute top-0 end-0 m-3 text-end">
                         <span class="badge {{ $online ? 'bg-success' : 'bg-danger' }} rounded-pill" style="font-size: 0.65rem;">
                             <i class="bi bi-{{ $online ? 'cloud-check' : 'cloud-slash' }} me-1"></i>

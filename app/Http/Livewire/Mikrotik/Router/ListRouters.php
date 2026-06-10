@@ -242,6 +242,17 @@ class ListRouters extends Component
         }
     }
 
+    public function destroy($id)
+    {
+        try {
+            $router = Router::findOrFail($id);
+            $router->delete();
+            session()->flash('message', 'Router eliminado correctamente.');
+        } catch (\Exception $e) {
+            session()->flash('error', 'Error al eliminar el router: ' . $e->getMessage());
+        }
+    }
+
     public function openModal() { $this->isModalOpen = true; }
     public function closeModal() { $this->isModalOpen = false; $this->showPassword = false; }
     public function togglePassword() { $this->showPassword = !$this->showPassword; }
