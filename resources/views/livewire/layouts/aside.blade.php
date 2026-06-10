@@ -373,6 +373,11 @@
                 <i class="bi bi-people"></i> 
                 <span class="menu-text">Clientes Portal Cautivo</span>
             </a>
+
+            <a href="{{ route('mikrotik.metrica-concurso') }}" class="sidebar-link {{ request()->routeIs('mikrotik.metrica-concurso') ? 'active' : '' }}">
+                <i class="bi bi-pie-chart-fill"></i> 
+                <span class="menu-text">Métricas de Concursos</span>
+            </a>
             
         @endif
 
