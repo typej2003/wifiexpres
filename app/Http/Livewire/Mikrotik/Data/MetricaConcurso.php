@@ -194,7 +194,7 @@ class MetricaConcurso extends Component
         // 2. Distribución de Respuestas Agrupadas por "Grupo"
         // Lógica para calcular usuarios_acertaron_etapa
         if ($this->eventResult && $this->eventResult->results) {
-            $correctWinnersMap = $this->eventResult->results; // e.g., ['A' => 'Alemania', 'B' => 'Mexico']
+            $correctWinnersMap = $this->eventResult->results; // e.g., ['A' => ['Alemania', 'EEUU'], 'B' => [...]]
 
             foreach ($responses as $response) {
                 $userAnswersArray = json_decode($response->answer, true); // e.g., ["Alemania", "Mexico"]
@@ -217,9 +217,17 @@ class MetricaConcurso extends Component
 
                 $userAcerto = true;
                 foreach ($correctWinnersMap as $grupo => $correctWinner) {
-                    if (!isset($userWinnersMap[$grupo]) || $userWinnersMap[$grupo] !== $correctWinner) {
-                        $userAcerto = false;
-                        break;
+                    // Si el resultado real es un array (2 clasificados), verificamos que la opción del usuario esté incluida
+                    if (is_array($correctWinner)) {
+                        if (!isset($userWinnersMap[$grupo]) || !in_array($userWinnersMap[$grupo], $correctWinner)) {
+                            $userAcerto = false;
+                            break;
+                        }
+                    } else {
+                        if (!isset($userWinnersMap[$grupo]) || $userWinnersMap[$grupo] !== $correctWinner) {
+                            $userAcerto = false;
+                            break;
+                        }
                     }
                 }
                 if ($userAcerto) $acertaronEtapa++;
@@ -286,6 +294,7 @@ class MetricaConcurso extends Component
         $concurso = AdvertisingConcurso::findOrFail($concursoId);
         $this->eventResultConcursoId = $concurso->id;
         $this->eventResultEtapa = $concurso->etapa;
+        $this->name = $concurso->name;
 
         // Group options by 'grupo'
         $groupedOptions = [];
@@ -309,7 +318,7 @@ class MetricaConcurso extends Component
         } else {
             // Initialize selectedWinners with empty values for each group
             foreach ($this->eventResultGroups as $grupo => $options) {
-                $this->selectedWinners[$grupo] = '';
+                $this->selectedWinners[$grupo] = [];
             }
         }
         $this->isModalOpen = true;
@@ -403,12 +412,11 @@ class MetricaConcurso extends Component
             'eventResultConcursoId' => 'required|exists:advertising_concursos,id',
             'eventResultEtapa' => 'required|string',
             'selectedWinners' => 'required|array',
-            'selectedWinners.*' => 'required|string', // Each selected winner must be a string
         ]);
 
         foreach ($this->eventResultGroups as $grupo => $options) {
-            if (empty($this->selectedWinners[$grupo])) {
-                $this->addError("selectedWinners.{$grupo}", "Debe seleccionar un ganador para el grupo {$grupo}.");
+            if (count($this->selectedWinners[$grupo] ?? []) !== 2) {
+                $this->addError("selectedWinners.{$grupo}", "Debe seleccionar exactamente 2 clasificados para el grupo {$grupo}.");
                 return;
             }
         }
