@@ -5,11 +5,13 @@ namespace App\Http\Livewire\Mikrotik\Data;
 
 use Livewire\Component;
 use App\Models\Router;
+use App\Models\User;
 use App\Models\AdvertisingConcurso;
 use App\Models\ConcursoResponse;
 use App\Models\EventResult;
 use App\Models\AgeRange;
 use App\Models\UserMikrotik;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
@@ -313,13 +315,13 @@ class MetricaConcurso extends Component
         $this->isModalOpen = true;
     }
 
-    public function closeModal()
+    public function closeEditModal()
     {
         $this->isModalOpen = false;
         $this->resetModalFields();
     }
 
-    private function resetEditModalFields()
+    private function resetModalFields()
     {
         $this->editingConcursoId = null;
         $this->name = '';
@@ -390,8 +392,8 @@ class MetricaConcurso extends Component
 
         AdvertisingConcurso::updateOrCreate(['id' => $this->editingConcursoId], $data);
         session()->flash('message', $this->editingConcursoId ? 'Concurso actualizado correctamente.' : 'Concurso creado correctamente.');
-        $this->closeModal();
-        $this->loadRoutersAndConcursos(); // Recargar concursos para actualizar la lista
+        $this->closeEditModal();
+        $this->loadConcursos(); // Recargar concursos para actualizar la lista
         $this->consultar(); // Volver a consultar las métricas
     }
 
@@ -416,8 +418,8 @@ class MetricaConcurso extends Component
             ['results' => $this->selectedWinners]
         );
         session()->flash('message', 'Resultados del concurso guardados correctamente.');
-        $this->closeModal();
-        $this->loadRoutersAndConcursos(); // Recargar concursos para actualizar la lista
+        $this->closeEditModal();
+        $this->loadConcursos(); // Recargar concursos para actualizar la lista
         $this->consultar(); // Volver a consultar las métricas
     }
 
