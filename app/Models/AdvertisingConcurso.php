@@ -51,6 +51,11 @@ class AdvertisingConcurso extends Model
      */
     public function responses()
     {
-        return $this->hasMany(CampaignResponse::class, 'campaign_id');
+        return $this->hasMany(ConcursoResponse::class, 'concurso_id');
+    }
+
+    public function eventResults()
+    {
+        return $this->hasMany(EventResult::class, 'concurso_id');
     }
 }

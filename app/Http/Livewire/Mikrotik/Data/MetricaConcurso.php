@@ -29,7 +29,8 @@ class MetricaConcurso extends Component
     public $ageRanges = []; // Para el modal de edición
 
     // Resultados
-    public $stats = [];
+    public $stats = []; // Estadísticas generales
+    public $eventResult = null; // Para mostrar si ya hay resultados reales
     public $chartData = [];
     public $tableData = [];
     
@@ -43,6 +44,14 @@ class MetricaConcurso extends Component
     public $options = []; // Array para las opciones dinámicas
     public $temp_option_images = []; // Imágenes temporales por opción
     public $concurso_user_id; // user_id del concurso
+
+    // Propiedades para el modal de resultados reales
+    public $isModalOpen = false; // Unifica el control del modal
+    public $modalMode = ''; // 'editConcurso' o 'setEventResult'
+    public $eventResultConcursoId;
+    public $eventResultEtapa;
+    public $eventResultGroups = []; // Opciones agrupadas por grupo para la selección
+    public $selectedWinners = []; // Ganadores seleccionados por grupo
 
     public function mount()
     {
@@ -168,11 +177,11 @@ class MetricaConcurso extends Component
         $concurso = AdvertisingConcurso::find($this->selectedConcurso);
         $responses = $query->get();
 
-        $acertaronEtapa = 0;
-        if ($concurso && isset($concurso->correct_answer)) { 
-            $acertaronEtapa = (clone $query)->where('answer', $concurso->correct_answer)->count();
-        }
+        $this->eventResult = EventResult::where('concurso_id', $this->selectedConcurso)
+                                ->where('etapa', $concurso->etapa)
+                                ->first();
 
+        $acertaronEtapa = 0;
         $this->stats = [
             'total_participantes' => $responses->count(),
             'usuarios_unicos' => $responses->unique('cellphone')->count(),
@@ -180,6 +189,41 @@ class MetricaConcurso extends Component
         ];
 
         // 2. Distribución de Respuestas Agrupadas por "Grupo"
+        // Lógica para calcular usuarios_acertaron_etapa
+        if ($this->eventResult && $this->eventResult->results) {
+            $correctWinnersMap = $this->eventResult->results; // e.g., ['A' => 'Alemania', 'B' => 'Mexico']
+
+            foreach ($responses as $response) {
+                $userAnswersArray = json_decode($response->answer, true); // e.g., ["Alemania", "Mexico"]
+                if (!is_array($userAnswersArray)) {
+                    continue; // Skip if answer is not in expected format
+                }
+
+                $userWinnersMap = [];
+                if (is_array($concurso->options)) {
+                    foreach ($userAnswersArray as $userAnswerText) {
+                        foreach ($concurso->options as $option) {
+                            if (($option['text'] ?? null) === $userAnswerText) {
+                                $grupo = $option['grupo'] ?? 'Sin Grupo';
+                                $userWinnersMap[$grupo] = $userAnswerText;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                $userAcerto = true;
+                foreach ($correctWinnersMap as $grupo => $correctWinner) {
+                    if (!isset($userWinnersMap[$grupo]) || $userWinnersMap[$grupo] !== $correctWinner) {
+                        $userAcerto = false;
+                        break;
+                    }
+                }
+                if ($userAcerto) $acertaronEtapa++;
+            }
+        }
+        $this->stats['usuarios_acertaron_etapa'] = $acertaronEtapa;
+
         $optionToGroup = [];
         if ($concurso && is_array($concurso->options)) {
             foreach ($concurso->options as $opt) {
@@ -205,7 +249,8 @@ class MetricaConcurso extends Component
     // Métodos para el modal de edición de concurso
     public function openEditModal($concursoId = null)
     {
-        $this->resetEditModalFields();
+        $this->resetModalFields();
+        $this->modalMode = 'editConcurso';
         $this->loadAgeRanges(); // Asegurarse de que los rangos de edad estén cargados
 
         if ($concursoId) {
@@ -225,14 +270,52 @@ class MetricaConcurso extends Component
             $this->current_media_path = $concurso->media_path;
         } else {
             $this->concurso_user_id = $this->selectedAliado; // Asignar al aliado actual
+            // Default options for new concurso
+            $this->options = [['text' => '', 'image' => null, 'grupo' => '']];
         }
-        $this->isEditModalOpen = true;
+        $this->isModalOpen = true;
     }
 
-    public function closeEditModal()
+    public function openSetEventResultModal($concursoId)
     {
-        $this->isEditModalOpen = false;
-        $this->resetEditModalFields();
+        $this->resetModalFields();
+        $this->modalMode = 'setEventResult';
+        $concurso = AdvertisingConcurso::findOrFail($concursoId);
+        $this->eventResultConcursoId = $concurso->id;
+        $this->eventResultEtapa = $concurso->etapa;
+
+        // Group options by 'grupo'
+        $groupedOptions = [];
+        if (is_array($concurso->options)) {
+            foreach ($concurso->options as $option) {
+                $grupo = $option['grupo'] ?? 'Sin Grupo';
+                if (!isset($groupedOptions[$grupo])) {
+                    $groupedOptions[$grupo] = [];
+                }
+                $groupedOptions[$grupo][] = $option['text'];
+            }
+        }
+        $this->eventResultGroups = $groupedOptions;
+
+        // Check if EventResult already exists for this concurso and etapa
+        $existingResult = EventResult::where('concurso_id', $concurso->id)
+                                    ->where('etapa', $concurso->etapa)
+                                    ->first();
+        if ($existingResult) {
+            $this->selectedWinners = $existingResult->results;
+        } else {
+            // Initialize selectedWinners with empty values for each group
+            foreach ($this->eventResultGroups as $grupo => $options) {
+                $this->selectedWinners[$grupo] = '';
+            }
+        }
+        $this->isModalOpen = true;
+    }
+
+    public function closeModal()
+    {
+        $this->isModalOpen = false;
+        $this->resetModalFields();
     }
 
     private function resetEditModalFields()
@@ -252,6 +335,13 @@ class MetricaConcurso extends Component
         $this->temp_option_images = [];
         $this->current_media_path = null;
         $this->concurso_user_id = null;
+
+        // Reset EventResult specific fields
+        $this->eventResultConcursoId = null;
+        $this->eventResultEtapa = null;
+        $this->eventResultGroups = [];
+        $this->selectedWinners = [];
+        $this->modalMode = '';
     }
 
     public function addOption()
@@ -275,7 +365,7 @@ class MetricaConcurso extends Component
         $this->validate([
             'name' => 'required',
             'etapa' => 'required',
-            'router_identity_modal' => 'required',
+            'router_identity_modal' => 'required|string',
             'concurso_user_id' => 'required',
             'age_range_id' => 'required',
             'media' => $this->editingConcursoId ? 'nullable|max:20480' : 'required|max:20480',
@@ -298,8 +388,34 @@ class MetricaConcurso extends Component
         // ... (omito el código de subida de archivos para mantener el diff conciso, pero debería ir aquí)
 
         AdvertisingConcurso::updateOrCreate(['id' => $this->editingConcursoId], $data);
-        session()->flash('message', $this->editingConcursoId ? 'Concurso actualizado.' : 'Concurso creado.');
-        $this->closeEditModal();
+        session()->flash('message', $this->editingConcursoId ? 'Concurso actualizado correctamente.' : 'Concurso creado correctamente.');
+        $this->closeModal();
+        $this->loadRoutersAndConcursos(); // Recargar concursos para actualizar la lista
+        $this->consultar(); // Volver a consultar las métricas
+    }
+
+    public function saveEventResult()
+    {
+        $this->validate([
+            'eventResultConcursoId' => 'required|exists:advertising_concursos,id',
+            'eventResultEtapa' => 'required|string',
+            'selectedWinners' => 'required|array',
+            'selectedWinners.*' => 'required|string', // Each selected winner must be a string
+        ]);
+
+        foreach ($this->eventResultGroups as $grupo => $options) {
+            if (empty($this->selectedWinners[$grupo])) {
+                $this->addError("selectedWinners.{$grupo}", "Debe seleccionar un ganador para el grupo {$grupo}.");
+                return;
+            }
+        }
+
+        EventResult::updateOrCreate(
+            ['concurso_id' => $this->eventResultConcursoId, 'etapa' => $this->eventResultEtapa],
+            ['results' => $this->selectedWinners]
+        );
+        session()->flash('message', 'Resultados del concurso guardados correctamente.');
+        $this->closeModal();
         $this->loadRoutersAndConcursos(); // Recargar concursos para actualizar la lista
         $this->consultar(); // Volver a consultar las métricas
     }

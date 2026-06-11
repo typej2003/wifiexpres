@@ -39,7 +39,7 @@
                             <button wire:click="openEditModal({{ $selectedConcurso }})" class="btn btn-link btn-sm p-0 mt-1 text-decoration-none" title="Editar Concurso">
                                 <i class="bi bi-pencil-square me-1"></i> Configurar
                             </button>
-                            <button class="btn btn-link btn-sm p-0 mt-1 text-success text-decoration-none" title="Resultados Reales">
+                            <button wire:click="openSetEventResultModal({{ $selectedConcurso }})" class="btn btn-link btn-sm p-0 mt-1 text-success text-decoration-none" title="Resultados Reales">
                                 <i class="bi bi-check-all me-1"></i> Resultados Reales
                             </button>
                         </div>
@@ -83,6 +83,11 @@
                 <h2 class="fw-bold mb-0 text-success">{{ number_format($stats['usuarios_acertaron_etapa']) }}</h2>
             </div>
         </div>
+        @if($eventResult)
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-4 text-center h-100 border-start border-4 border-primary"><h6 class="text-muted small fw-bold text-uppercase">Resultados Reales</h6><h2 class="fw-bold mb-0 text-primary">Configurados</h2></div>
+        </div>
+        @endif
     </div>
 
     <div class="row g-4">
@@ -170,16 +175,16 @@
     </script>
     @endpush
 </div>
-
 {{-- MODAL DE EDICIÓN/CREACIÓN DE CONCURSO --}}
-@if($isEditModalOpen)
+@if($isModalOpen)
 <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5); z-index: 1050; backdrop-filter: blur(4px);">
     <div class="modal-dialog modal-lg" style="margin-top: 5rem;">
         <div class="modal-content shadow-lg border-0 rounded-4">
             <div class="modal-header bg-dark text-white p-4">
                 <h5 class="modal-title fw-bold">
                     <i class="bi bi-trophy me-2"></i>
-                    {{ $editingConcursoId ? 'Editar Concurso' : 'Crear Nuevo Concurso' }}
+                    @if($modalMode === 'editConcurso') {{ $editingConcursoId ? 'Editar Concurso' : 'Crear Nuevo Concurso' }}
+                    @elseif($modalMode === 'setEventResult') Resultados Reales del Concurso: {{ $eventResultEtapa }} @endif
                 </h5>
                 <button wire:click="closeEditModal" class="btn-close btn-close-white"></button>
             </div>
