@@ -185,6 +185,11 @@
                     <i class="bi bi-trophy me-2"></i>
                     @if($modalMode === 'editConcurso') {{ $editingConcursoId ? 'Editar Concurso' : 'Crear Nuevo Concurso' }}
                     @elseif($modalMode === 'setEventResult') Resultados Reales del Concurso: {{ $eventResultEtapa }} @endif
+                    @if($modalMode === 'editConcurso') 
+                        {{ $editingConcursoId ? 'Editar Concurso' : 'Crear Nuevo Concurso' }}
+                    @elseif($modalMode === 'setEventResult') 
+                        Resultados Reales: {{ $name }}
+                    @endif
                 </h5>
                 <button wire:click="closeEditModal" class="btn-close btn-close-white"></button>
             </div>
@@ -211,6 +216,99 @@
                             <option value="">-- Seleccionar Router --</option>
                             @foreach($routers as $r)
                                 <option value="{{ $r->identity }}">{{ $r->identity }}</option>
+                @if($modalMode === 'editConcurso')
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Nombre del Concurso</label>
+                            <input type="text" wire:model.defer="name" class="form-control bg-light border-0">
+                            @error('name') <span class="text-danger small">{{ $message }}</span> @enderror
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Etapa / Fase</label>
+                            <input type="text" wire:model.defer="etapa" class="form-control bg-light border-0">
+                            @error('etapa') <span class="text-danger small">{{ $message }}</span> @enderror
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold text-muted">Descripción</label>
+                            <textarea wire:model.defer="description" class="form-control bg-light border-0" rows="2"></textarea>
+                            @error('description') <span class="text-danger small">{{ $message }}</span> @enderror
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Router Asociado</label>
+                            <select wire:model.defer="router_identity_modal" class="form-select bg-light border-0">
+                                <option value="">-- Seleccionar Router --</option>
+                                @foreach($routers as $r)
+                                    <option value="{{ $r->identity }}">{{ $r->identity }}</option>
+                                @endforeach
+                            </select>
+                            @error('router_identity_modal') <span class="text-danger small">{{ $message }}</span> @enderror
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Público Objetivo (Género)</label>
+                            <select wire:model.defer="target_gender" class="form-select bg-light border-0">
+                                <option value="todos">Todos</option>
+                                <option value="M">Masculino</option>
+                                <option value="F">Femenino</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Rango de Edad</label>
+                            <select wire:model.defer="age_range_id" class="form-select bg-light border-0">
+                                <option value="0">Todos los rangos</option>
+                                @foreach($ageRanges as $range)
+                                    <option value="{{ $range->id }}">{{ $range->name }} ({{ $range->min_age }}-{{ $range->max_age }})</option>
+                                @endforeach
+                            </select>
+                            @error('age_range_id') <span class="text-danger small">{{ $message }}</span> @enderror
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Tipo de Contenido Multimedia</label>
+                            <select wire:model.defer="media_type" class="form-select bg-light border-0">
+                                <option value="imagen">Imagen</option>
+                                <option value="video">Video</option>
+                            </select>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold text-muted">Contenido Multimedia (Imagen/Video)</label>
+                            <input type="file" wire:model="media" class="form-control bg-light border-0">
+                            @if($current_media_path && !$media)
+                                <small class="text-muted">Archivo actual: {{ basename($current_media_path) }}</small>
+                            @endif
+                            @error('media') <span class="text-danger small">{{ $message }}</span> @enderror
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold text-muted">Pregunta del Concurso</label>
+                            <input type="text" wire:model.defer="question_text" class="form-control bg-light border-0">
+                            @error('question_text') <span class="text-danger small">{{ $message }}</span> @enderror
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold text-muted">Tipo de Pregunta</label>
+                            <select wire:model="question_type" class="form-select bg-light border-0">
+                                <option value="simple">Respuesta Abierta</option>
+                                <option value="multiple">Selección Múltiple (Texto)</option>
+                                <option value="multiple_image">Selección Múltiple (Imágenes)</option>
+                            </select>
+                        </div>
+
+                        @if($question_type != 'simple')
+                        <div class="col-md-12 mt-3">
+                            <h6 class="fw-bold text-muted">Opciones de Respuesta</h6>
+                            @foreach($options as $index => $option)
+                                <div class="input-group mb-2">
+                                    <input type="text" wire:model.defer="options.{{ $index }}.text" class="form-control bg-light border-0" placeholder="Texto de la opción">
+                                    @if($question_type == 'multiple_image')
+                                        <input type="file" wire:model="temp_option_images.{{ $index }}" class="form-control bg-light border-0">
+                                        @if(isset($option['image']) && $option['image'] && !isset($temp_option_images[$index]))
+                                            <span class="input-group-text bg-light border-0">Actual: {{ basename($option['image']) }}</span>
+                                        @endif
+                                    @endif
+                                    <input type="text" wire:model.defer="options.{{ $index }}.grupo" class="form-control bg-light border-0" placeholder="Grupo (opcional)">
+                                    <button type="button" wire:click="removeOption({{ $index }})" class="btn btn-outline-danger">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                                @error('options.'.$index.'.text') <span class="text-danger small">{{ $message }}</span> @enderror
+                                @error('temp_option_images.'.$index) <span class="text-danger small">{{ $message }}</span> @enderror
                             @endforeach
                         </select>
                         @error('router_identity_modal') <span class="text-danger small">{{ $message }}</span> @enderror
@@ -245,6 +343,11 @@
                         <input type="file" wire:model="media" class="form-control bg-light border-0">
                         @if($current_media_path && !$media)
                             <small class="text-muted">Archivo actual: {{ basename($current_media_path) }}</small>
+                            <button type="button" wire:click="addOption" class="btn btn-outline-primary btn-sm mt-2">
+                                <i class="bi bi-plus-lg me-1"></i> Añadir Opción
+                            </button>
+                            @error('options') <span class="text-danger small">{{ $message }}</span> @enderror
+                        </div>
                         @endif
                         @error('media') <span class="text-danger small">{{ $message }}</span> @enderror
                     </div>
@@ -278,6 +381,45 @@
                                 <button type="button" wire:click="removeOption({{ $index }})" class="btn btn-outline-danger">
                                     <i class="bi bi-x-lg"></i>
                                 </button>
+                @elseif($modalMode === 'setEventResult')
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Concurso</label>
+                            <div class="p-2 bg-light rounded border-0 fw-bold">{{ $name }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Etapa Actual</label>
+                            <div class="p-2 bg-light rounded border-0 fw-bold">{{ $eventResultEtapa }}</div>
+                        </div>
+                        
+                        <div class="col-md-12 mt-4">
+                            <p class="text-muted small">Seleccione exactamente <strong>2 equipos</strong> clasificados por cada grupo.</p>
+                            
+                            <div class="row g-4">
+                                @foreach($eventResultGroups as $grupo => $optionsInGroup)
+                                    <div class="col-md-6">
+                                        <div class="card border-0 shadow-sm bg-light">
+                                            <div class="card-header bg-secondary text-white small fw-bold">GRUPO {{ $grupo }}</div>
+                                            <div class="card-body">
+                                                @foreach($optionsInGroup as $opt)
+                                                    <div class="form-check d-flex align-items-center mb-2">
+                                                        <input class="form-check-input" type="checkbox" 
+                                                               value="{{ $opt['text'] }}" 
+                                                               wire:model="selectedWinners.{{ $grupo }}"
+                                                               id="winner-{{ $loop->parent->index }}-{{ $loop->index }}">
+                                                        <label class="form-check-label d-flex align-items-center cursor-pointer ms-2" for="winner-{{ $loop->parent->index }}-{{ $loop->index }}">
+                                                            @if(!empty($opt['image']))
+                                                                <img src="{{ Storage::disk('public')->url($opt['image']) }}" class="rounded me-2" style="width: 30px; height: 30px; object-fit: cover;">
+                                                            @endif
+                                                            <span>{{ $opt['text'] }}</span>
+                                                        </label>
+                                                    </div>
+                                                @endforeach
+                                                @error("selectedWinners.$grupo") <div class="text-danger x-small mt-1" style="font-size: 0.7rem;">{{ $message }}</div> @enderror
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
                             </div>
                             @error('options.'.$index.'.text') <span class="text-danger small">{{ $message }}</span> @enderror
                             @error('temp_option_images.'.$index) <span class="text-danger small">{{ $message }}</span> @enderror
@@ -286,13 +428,20 @@
                             <i class="bi bi-plus-lg me-1"></i> Añadir Opción
                         </button>
                         @error('options') <span class="text-danger small">{{ $message }}</span> @enderror
+                        </div>
                     </div>
                     @endif
                 </div>
+                @endif
             </div>
             <div class="modal-footer bg-light border-0 p-4">
                 <button wire:click="closeEditModal" class="btn btn-secondary rounded-pill px-4">Cancelar</button>
                 <button wire:click.prevent="saveConcurso" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">GUARDAR CAMBIOS</button>
+                @if($modalMode === 'editConcurso')
+                    <button wire:click.prevent="saveConcurso" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">GUARDAR CAMBIOS</button>
+                @elseif($modalMode === 'setEventResult')
+                    <button wire:click.prevent="saveEventResult" class="btn btn-success rounded-pill px-4 shadow-sm fw-bold">GUARDAR RESULTADOS</button>
+                @endif
             </div>
         </div>
     </div>
