@@ -7,6 +7,7 @@ use Livewire\Component;
 use App\Models\Router;
 use App\Models\AdvertisingConcurso;
 use App\Models\ConcursoResponse;
+use App\Models\AgeRange;
 use App\Models\UserMikrotik;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
