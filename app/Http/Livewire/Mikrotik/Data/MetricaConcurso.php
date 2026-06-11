@@ -62,38 +62,52 @@ class MetricaConcurso extends Component
             $this->selectedAliado = $user->id;
         }
 
-        $this->loadRoutersAndConcursos();
+        $this->loadRouters();
         $this->loadAgeRanges();
-
-        if ($this->selectedConcurso) {
-            $this->consultar();
-        }
     }
 
     public function updatedSelectedAliado($value)
     {
         $this->selectedRouter = null;
         $this->selectedConcurso = null;
-        $this->loadRoutersAndConcursos();
+        $this->loadRouters();
         $this->loadAgeRanges();
-        $this->stats = []; // Reset stats
-        $this->chartData = [];
-        $this->tableData = [];
+        $this->resetResults();
     }
 
-    public function loadRoutersAndConcursos()
+    public function loadRouters()
     {
         $this->routers = collect();
-        $this->concursos = collect();
-
         if ($this->selectedAliado) {
             $this->routers = Router::where('user_id', $this->selectedAliado)->get();
-            $this->concursos = AdvertisingConcurso::where('user_id', $this->selectedAliado)->get();
+            if ($this->routers->count() === 1) {
+                $this->selectedRouter = $this->routers->first()->id;
+                $this->loadConcursos();
+            }
+        }
+    }
 
-            if ($this->concursos->isNotEmpty()) {
-                $this->selectedConcurso = $this->concursos->first()->id;
-            } else {
-                $this->selectedConcurso = null;
+    public function updatedSelectedRouter($value)
+    {
+        $this->selectedConcurso = null;
+        $this->loadConcursos();
+        $this->resetResults();
+    }
+
+    public function loadConcursos()
+    {
+        $this->concursos = collect();
+        if ($this->selectedRouter) {
+            $router = Router::find($this->selectedRouter);
+            if ($router) {
+                $this->concursos = AdvertisingConcurso::where('router_identity', $router->identity)
+                    ->where('user_id', $this->selectedAliado)
+                    ->get();
+                
+                if ($this->concursos->count() === 1) {
+                    $this->selectedConcurso = $this->concursos->first()->id;
+                    $this->consultar();
+                }
             }
         }
     }
@@ -104,6 +118,14 @@ class MetricaConcurso extends Component
         if ($this->selectedAliado) {
             $this->ageRanges = AgeRange::where('user_id', $this->selectedAliado)->get();
         }
+    }
+
+    private function resetResults()
+    {
+        $this->stats = [];
+        $this->chartData = [];
+        $this->tableData = [];
+        $this->dispatchBrowserEvent('updateConcursoChart', ['labels' => [], 'values' => []]);
     }
 
     public function updatedSelectedConcurso($value)
@@ -144,24 +166,30 @@ class MetricaConcurso extends Component
         }
 
         $concurso = AdvertisingConcurso::find($this->selectedConcurso);
+        $responses = $query->get();
+
         $acertaronEtapa = 0;
-        if ($concurso && $concurso->correct_answer) { // Asumiendo que existe un campo 'correct_answer' en AdvertisingConcurso
+        if ($concurso && isset($concurso->correct_answer)) { 
             $acertaronEtapa = (clone $query)->where('answer', $concurso->correct_answer)->count();
         }
 
-        // 1. Estadísticas Generales
-        $responses = $query->get();
         $this->stats = [
             'total_participantes' => $responses->count(),
             'usuarios_unicos' => $responses->unique('cellphone')->count(),
             'usuarios_acertaron_etapa' => $acertaronEtapa,
-            // 'hombres' => $responses->where('concurso_target_gender', 'M')->count(), // Basado en campo denormalizado
-            // 'mujeres' => $responses->where('concurso_target_gender', 'F')->count(),
         ];
 
-        // 2. Distribución de Respuestas (para el gráfico)
-        $distribution = $responses->groupBy('answer')
-            ->map(fn($group) => $group->count());
+        // 2. Distribución de Respuestas Agrupadas por "Grupo"
+        $optionToGroup = [];
+        if ($concurso && is_array($concurso->options)) {
+            foreach ($concurso->options as $opt) {
+                $optionToGroup[$opt['text']] = $opt['grupo'] ?? 'Sin Grupo';
+            }
+        }
+
+        $distribution = $responses->groupBy(function($item) use ($optionToGroup) {
+            return $optionToGroup[$item->answer] ?? 'Otros';
+        })->map(fn($group) => $group->count());
 
         $this->chartData = [
             'labels' => $distribution->keys()->toArray(),
@@ -169,7 +197,7 @@ class MetricaConcurso extends Component
         ];
 
         // 3. Datos de la tabla
-        $this->tableData = $responses->take(50); // Limitamos para rendimiento
+        $this->tableData = $responses->take(50);
 
         $this->dispatchBrowserEvent('updateConcursoChart', $this->chartData);
     }

@@ -18,27 +18,32 @@
                 </div>
                 @endif
                 <div class="col-md-3">
+                    <label class="small fw-bold text-muted mb-1 text-uppercase">Router</label>
+                    <select wire:model="selectedRouter" class="form-select border-0 bg-light rounded-3 shadow-none">
+                        <option value="">📍 Seleccionar Router</option>
+                        @foreach($routers as $r)
+                            <option value="{{ $r->id }}">{{ $r->identity }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3">
                     <label class="small fw-bold text-muted mb-1 text-uppercase">Concurso</label>
-                    <select wire:model="selectedConcurso" class="form-select border-0 bg-light rounded-3 shadow-none">
+                    <select wire:model="selectedConcurso" class="form-select border-0 bg-light rounded-3 shadow-none" {{ !$selectedRouter ? 'disabled' : '' }}>
                         <option value="">-- Seleccionar Concurso --</option>
                         @foreach($concursos as $c)
                             <option value="{{ $c->id }}">{{ $c->name }}</option>
                         @endforeach
                     </select>
                     @if($selectedConcurso)
-                        <button wire:click="openEditModal({{ $selectedConcurso }})" class="btn btn-link btn-sm p-0 mt-1" title="Editar Concurso">
-                            <i class="bi bi-pencil-square me-1"></i> Editar Concurso
-                        </button>
+                        <div class="d-flex gap-2">
+                            <button wire:click="openEditModal({{ $selectedConcurso }})" class="btn btn-link btn-sm p-0 mt-1 text-decoration-none" title="Editar Concurso">
+                                <i class="bi bi-pencil-square me-1"></i> Configurar
+                            </button>
+                            <button class="btn btn-link btn-sm p-0 mt-1 text-success text-decoration-none" title="Resultados Reales">
+                                <i class="bi bi-check-all me-1"></i> Resultados Reales
+                            </button>
+                        </div>
                     @endif
-                </div>
-                <div class="col-md-3">
-                    <label class="small fw-bold text-muted mb-1 text-uppercase">Router</label>
-                    <select wire:model="selectedRouter" class="form-select border-0 bg-light rounded-3 shadow-none">
-                        <option value="">📍 Todos los Routers</option>
-                        @foreach($routers as $r)
-                            <option value="{{ $r->id }}">{{ $r->identity }}</option>
-                        @endforeach
-                    </select>
                 </div>
                 <div class="col-md-2">
                     <label class="small fw-bold text-muted mb-1 text-uppercase">Desde</label>
