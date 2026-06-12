@@ -316,6 +316,12 @@ class ListAdvertisingConcursos extends Component
                     'cellphone'     => $request->input('cellphone'),
                     'profile'       => 'conexion_estandar'
                 ]);
+            } else {
+                $userData = array_merge($userData, [
+                    'full_name'     => $request->input('full_name'),
+                    'cellphonecode' => $request->input('cellphonecode'),
+                    'cellphone'     => $request->input('cellphone'),
+                ]);
             }
 
             $userMikrotik = UserMikrotik::updateOrCreate(['name' => $mac, 'router_id' => $router->id], $userData);
