@@ -36,7 +36,6 @@
                     </select>
                     @if($selectedConcurso)
                         <div class="d-flex gap-2">
-                            
                             <button wire:click="openSetEventResultModal({{ $selectedConcurso }})" class="btn btn-link btn-sm p-0 mt-1 text-success text-decoration-none" title="Resultados Reales">
                                 <i class="bi bi-check-all me-1"></i> Resultados Reales
                             </button>
@@ -63,25 +62,24 @@
     @if($stats)
     {{-- STATS --}}
     <div class="row g-4 mb-4">
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card border-0 shadow-sm rounded-4 p-4 text-center h-100">
                 <h6 class="text-muted small fw-bold text-uppercase">Total Participaciones</h6>
                 <h2 class="fw-bold mb-0 text-primary">{{ number_format($stats['total_participantes']) }}</h2>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card border-0 shadow-sm rounded-4 p-4 text-center h-100">
                 <h6 class="text-muted small fw-bold text-uppercase">Usuarios Únicos</h6>
                 <h2 class="fw-bold mb-0 text-dark">{{ number_format($stats['usuarios_unicos']) }}</h2>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card border-0 shadow-sm rounded-4 p-4 text-center h-100 border-start border-4 border-success">
                 <h6 class="text-muted small fw-bold text-uppercase">Usuarios Acertaron Etapa</h6>
                 <h2 class="fw-bold mb-0 text-success">{{ number_format($stats['usuarios_acertaron_etapa']) }}</h2>
             </div>
         </div>
-        
     </div>
 
     <div class="row g-4">
