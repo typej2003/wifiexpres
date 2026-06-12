@@ -15,6 +15,11 @@ class CreatePuntuacionConcursosTable extends Migration
     {
         Schema::create('puntuacion_concursos', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('concurso_id')->constrained('advertising_concursos')->onDelete('cascade');
+            $table->string('full_name')->nullable();
+            $table->string('cellphonecode')->nullable();
+            $table->string('cellphone')->nullable();
+            $table->integer('puntaje')->default(0);
             $table->timestamps();
         });
     }

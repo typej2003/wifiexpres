@@ -12,4 +12,12 @@ class PuntuacionConcurso extends Model
     protected $fillable = [
         'concurso_id', 'full_name', 'cellphonecode', 'cellphone', 'puntaje'
     ];
+
+    /**
+     * Relación con el concurso al que pertenece esta puntuación.
+     */
+    public function concurso()
+    {
+        return $this->belongsTo(AdvertisingConcurso::class, 'concurso_id');
+    }
 }
