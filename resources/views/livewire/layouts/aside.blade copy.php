@@ -182,6 +182,11 @@
                 <span class="menu-text">CAMPAÑAS</span>
             </a>
 
+            <a href="{{ route('mikrotik.aliado.concursos') }}" class="sidebar-link {{ request()->routeIs('mikrotik.aliado.concursos') ? 'active' : '' }}">
+                <i class="bi bi-bar-chart-steps"></i> 
+                <span class="menu-text">CONCURSOS</span>
+            </a>
+
             <a href="{{ route('aliado.age-ranges') }}" class="sidebar-link {{ request()->routeIs('aliado.age-ranges') ? 'active' : '' }}">
                 <i class="bi bi-bar-chart-steps"></i> 
                 <span class="menu-text">Rangos de Edades</span>
@@ -253,6 +258,11 @@
             <a href="{{ route('aliado.monitor') }}" class="sidebar-link">
                 <i class="bi bi-calendar-event"></i> 
                 <span class="menu-text">Monitor de usuarios</span>
+            </a>
+
+            <a href="{{ route('mikrotik.data.list-users') }}" class="sidebar-link {{ request()->routeIs('mikrotik.data.list-users') ? 'active' : '' }}">
+                <i class="bi bi-people"></i> 
+                <span class="menu-text">Clientes Portal Cautivo</span>
             </a>
 
             <a class="sidebar-link {{ request()->routeIs('mikrotik.users-online') ? 'active bg-gradient-primary' : '' }}" 
@@ -338,6 +348,38 @@
 
             
         @endif
+        @if(auth()->user()->role === 'aliadoSmartData')
+            <a href="{{ route('aliadoSmartData.index') }}" class="sidebar-link {{ request()->routeIs('aliadoSmartData.index') ? 'active' : '' }}">
+                <i class="bi bi-speedometer2"></i> 
+                <span class="menu-text">ESCRITORIO</span>
+            </a>
+
+            <a href="{{ route('aliado.routers') }}" class="sidebar-link {{ request()->routeIs('aliado.routers') ? 'active' : '' }}">
+                <i class="bi bi-router"></i>
+                <span class="menu-text">MIS ROUTERS</span>
+            </a>
+
+            <a href="{{ route('mikrotik.data.show-charts') }}" class="sidebar-link {{ request()->routeIs('mikrotik.data.show-charts') ? 'active' : '' }}">
+                <i class="bi bi-speedometer2"></i> 
+                <span class="menu-text">RESUMEN MÉTRICAS</span>
+            </a>
+
+            <a href="{{ route('aliado.hour.analysis') }}" class="sidebar-link {{ request()->routeIs('aliado.hour.analysis') ? 'active' : '' }}">
+                <i class="bi bi-speedometer2"></i> 
+                <span class="menu-text">Métricas de conexiones</span>
+            </a>
+
+            <a href="{{ route('mikrotik.data.list-users') }}" class="sidebar-link {{ request()->routeIs('mikrotik.data.list-users') ? 'active' : '' }}">
+                <i class="bi bi-people"></i> 
+                <span class="menu-text">Métricas de Usuarios</span>
+            </a>
+
+            <a href="{{ route('mikrotik.metrica-concurso') }}" class="sidebar-link {{ request()->routeIs('mikrotik.metrica-concurso') ? 'active' : '' }}">
+                <i class="bi bi-pie-chart-fill"></i> 
+                <span class="menu-text">Métricas de Concursos</span>
+            </a>
+            
+        @endif
 
         @if(auth()->user()->role === 'aliado')
             <a href="{{ route('aliado.index') }}" class="sidebar-link {{ request()->routeIs('aliado.index') ? 'active' : '' }}">
@@ -345,11 +387,10 @@
                 <span class="menu-text">ESCRITORIO</span>
             </a>
 
-            <!-- <a href="{{ route('habladores.index') }}" class="sidebar-link {{ request()->routeIs('habladores.index') ? 'active' : '' }}">
-                <i class="bi bi-tv"></i> 
-                <span class="menu-text">Habladores Digitales</span>
-                <span class="badge rounded-pill bg-warning text-dark ms-auto menu-text" style="font-size: 0.6rem; font-weight: 800;">PRO</span>
-            </a> -->
+            <a href="{{ route('aliado.routers') }}" class="sidebar-link {{ request()->routeIs('aliado.routers') ? 'active' : '' }}">
+                <i class="bi bi-router"></i>
+                <span class="menu-text">MIS ROUTERS</span>
+            </a>
 
             <a href="{{ route('mikrotik.grafico') }}" class="sidebar-link {{ request()->routeIs('mikrotik.grafico') ? 'active' : '' }}">
                 <i class="bi bi-speedometer2"></i> 
@@ -359,6 +400,16 @@
             <a href="{{ route('aliado.hour.analysis') }}" class="sidebar-link {{ request()->routeIs('aliado.hour.analysis') ? 'active' : '' }}">
                 <i class="bi bi-speedometer2"></i> 
                 <span class="menu-text">ANÁLISIS DE HORAS</span>
+            </a>
+
+            <a href="{{ route('mikrotik.metrica-campana') }}" class="sidebar-link {{ request()->routeIs('mikrotik.metrica-campana') ? 'active' : '' }}">
+                <i class="bi bi-pie-chart-fill"></i> 
+                <span class="menu-text">Métricas de Campañas</span>
+            </a>
+
+            <a href="{{ route('mikrotik.metrica-concurso') }}" class="sidebar-link {{ request()->routeIs('mikrotik.metrica-concurso') ? 'active' : '' }}">
+                <i class="bi bi-pie-chart-fill"></i> 
+                <span class="menu-text">Métricas de Concursos</span>
             </a>
 
             <a href="{{ route('mikrotik.grafico-conexiones') }}" class="sidebar-link {{ request()->routeIs('mikrotik.grafico-conexiones') ? 'active' : '' }}">
@@ -378,10 +429,7 @@
                     <i class="bi bi-chevron-down menu-text"></i>
                 </a>
                 <div class="sidebar-dropdown {{ $aliadoConfigActive ? 'show' : '' }}">
-                    <a href="{{ route('aliado.routers') }}" class="sidebar-link {{ request()->routeIs('aliado.routers') ? 'active' : '' }}">
-                        <i class="bi bi-router"></i>
-                        <span class="menu-text">MIS ROUTERS</span>
-                    </a>
+                    
                 </div>
             </div>
 
@@ -412,6 +460,11 @@
             <a href="{{ route('aliado.ranking') }}" class="sidebar-link {{ request()->routeIs('aliado.ranking') ? 'active' : '' }}">
                 <i class="bi bi-trophy"></i> 
                 <span class="menu-text">RANKING DE USUARIOS</span>
+            </a>
+
+            <a href="{{ route('mikrotik.data.list-users') }}" class="sidebar-link {{ request()->routeIs('mikrotik.data.list-users') ? 'active' : '' }}">
+                <i class="bi bi-people"></i> 
+                <span class="menu-text">Clientes Portal Cautivo</span>
             </a>
 
             <a class="sidebar-link {{ request()->routeIs('mikrotik.users-online') ? 'active bg-gradient-primary' : '' }}" 

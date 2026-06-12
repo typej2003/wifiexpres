@@ -7,7 +7,6 @@
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         border-right: 1px solid #eee;
         overflow-x: hidden;
-        white-space: nowrap;
         position: sticky;
         top: 0;
         z-index: 1000;
@@ -30,6 +29,8 @@
         border-left: 4px solid transparent;
         cursor: pointer;
         text-transform: uppercase;
+        white-space: normal;
+        line-height: 1.2;
     }
 
     .sidebar-link:hover {
