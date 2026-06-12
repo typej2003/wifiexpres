@@ -91,7 +91,7 @@
                             </td>
                             <td>
                                 @if($userMikrotik->cellphone)
-                                    +{{ $userMikrotik->cellphonecode }} {{ $userMikrotik->cellphone }}
+                                    {{ $userMikrotik->cellphonecode }} {{ $userMikrotik->cellphone }}
                                 @else
                                     <span class="text-muted">N/A</span>
                                 @endif

@@ -9,7 +9,7 @@
     {{-- HEADER --}}
     <div class="row mb-4 align-items-center">
         <div class="col-md-6">
-            <h2 class="fw-bold text-dark mb-0">Dashboard Aliado</h2>
+            <h2 class="fw-bold text-dark mb-0"></h2>
             <div class="d-flex align-items-center gap-2 mt-1">
                 <span class="badge bg-primary-soft text-primary border border-primary rounded-pill px-3">
                     <i class="bi bi-currency-exchange me-1"></i> BCV: <strong>Bs. {{ number_format($dollarRate, 2, ',', '.') }}</strong>
@@ -17,12 +17,7 @@
             </div>
         </div>
         <div class="col-md-6 text-end">
-            <div class="bg-white p-2 px-3 rounded-4 shadow-sm border d-inline-block text-start">
-                <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.6rem;">Cupacidad Routers</small>
-                <span class="fw-bold {{ $stats['total_routers'] >= $stats['limit_routers'] ? 'text-danger' : 'text-primary' }}">
-                    {{ $stats['total_routers'] }} / {{ $stats['limit_routers'] }}
-                </span>
-            </div>
+            
         </div>
     </div>
 
