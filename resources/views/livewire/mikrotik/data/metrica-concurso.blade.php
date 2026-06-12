@@ -125,9 +125,28 @@
                                     <small class="text-muted">{{ $data->cellphonecode }}{{ $data->cellphone }}</small>
                                 </td>
                                 <td>
-                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill">
-                                        {{ $data->answer }}
-                                    </span>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        @php
+                                            $userAnswers = json_decode($data->answer, true);
+                                            if (!is_array($userAnswers)) $userAnswers = [$data->answer];
+                                            $concursoOptions = is_array($data->concurso_options) ? $data->concurso_options : [];
+                                        @endphp
+                                        @foreach($userAnswers as $ans)
+                                            @php
+                                                $matchedOption = collect($concursoOptions)->firstWhere('text', $ans);
+                                            @endphp
+                                            @if($matchedOption && !empty($matchedOption['image']))
+                                                <img src="{{ Storage::disk('public')->url($matchedOption['image']) }}" 
+                                                     class="rounded shadow-sm border border-2 border-white" 
+                                                     style="width: 35px; height: 35px; object-fit: cover;" 
+                                                     title="{{ $ans }}">
+                                            @else
+                                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill">
+                                                    {{ $ans }}
+                                                </span>
+                                            @endif
+                                        @endforeach
+                                    </div>
                                 </td>
                                 <td><small class="fw-bold">{{ $data->router_identity }}</small></td>
                                 <td class="pe-4 text-end small text-muted">{{ $data->created_at->format('d/m/y h:i A') }}</td>
