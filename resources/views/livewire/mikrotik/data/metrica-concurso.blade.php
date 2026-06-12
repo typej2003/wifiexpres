@@ -125,26 +125,35 @@
                                     <small class="text-muted">{{ $data->cellphonecode }}{{ $data->cellphone }}</small>
                                 </td>
                                 <td>
-                                    <div class="d-flex flex-wrap gap-1">
+                                    <div class="d-flex flex-column gap-2">
                                         @php
                                             $userAnswers = json_decode($data->answer, true);
                                             if (!is_array($userAnswers)) $userAnswers = [$data->answer];
                                             $concursoOptions = is_array($data->concurso_options) ? $data->concurso_options : [];
+
+                                            $groupedAnswers = [];
+                                            foreach($userAnswers as $ans) {
+                                                $match = collect($concursoOptions)->firstWhere('text', $ans);
+                                                $gName = $match['grupo'] ?? 'Sin Grupo';
+                                                $groupedAnswers[$gName][] = ['text' => $ans, 'image' => $match['image'] ?? null];
+                                            }
                                         @endphp
-                                        @foreach($userAnswers as $ans)
-                                            @php
-                                                $matchedOption = collect($concursoOptions)->firstWhere('text', $ans);
-                                            @endphp
-                                            @if($matchedOption && !empty($matchedOption['image']))
-                                                <img src="{{ Storage::disk('public')->url($matchedOption['image']) }}" 
-                                                     class="rounded shadow-sm border border-2 border-white" 
-                                                     style="width: 35px; height: 35px; object-fit: cover;" 
-                                                     title="{{ $ans }}">
-                                            @else
-                                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill">
-                                                    {{ $ans }}
-                                                </span>
-                                            @endif
+                                        @foreach($groupedAnswers as $grupo => $resps)
+                                            <div class="d-flex align-items-center gap-2">
+                                                <small class="text-muted fw-bold border-end pe-2" style="font-size: 0.7rem; min-width: 60px;">GRUPO {{ $grupo }}:</small>
+                                                <div class="d-flex gap-1">
+                                                    @foreach($resps as $r)
+                                                        @if(!empty($r['image']))
+                                                            <img src="{{ Storage::disk('public')->url($r['image']) }}" 
+                                                                 class="rounded shadow-sm border border-1 border-white" 
+                                                                 style="width: 28px; height: 28px; object-fit: cover;" 
+                                                                 title="{{ $r['text'] }}">
+                                                        @else
+                                                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill" style="font-size: 0.75rem;">{{ $r['text'] }}</span>
+                                                        @endif
+                                                    @endforeach
+                                                </div>
+                                            </div>
                                         @endforeach
                                     </div>
                                 </td>
