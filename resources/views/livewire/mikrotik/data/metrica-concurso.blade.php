@@ -99,7 +99,7 @@
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <h6 class="fw-bold mb-0 text-uppercase small">Últimos Participantes</h6>
                 </div>
-                <div class="table-responsive">
+                <div class="table-responsive" style="max-height: 450px; overflow-y: auto;">
                     <table class="table align-middle mb-0">
                         <thead class="bg-light small fw-bold text-muted text-uppercase">
                             <tr>
@@ -150,9 +150,14 @@
                                         @endforeach
                                     </div>
                                 </td>
+                                @php
+                                    $puntuacion = \App\Models\PuntuacionConcurso::where('concurso_id', $this->selectedConcurso)
+                                        ->where('cellphone', $data->cellphone)
+                                        ->first();
+                                @endphp
                                 <td class="text-center">
-                                    <span class="badge {{ ($data->points ?? 0) > 0 ? 'bg-success' : 'bg-light text-muted' }} rounded-pill px-3">
-                                        {{ $data->points ?? 0 }} pts
+                                    <span class="badge {{ ($puntuacion->puntaje ?? 0) > 0 ? 'bg-success' : 'bg-light text-muted' }} rounded-pill px-3">
+                                        {{ $puntuacion->puntaje ?? 0 }} pts
                                     </span>
                                 </td>
                                 <td><small class="fw-bold">{{ $data->router_identity }}</small></td>
@@ -271,6 +276,7 @@
             <div class="modal-footer bg-light border-0 p-4">
                 <button wire:click="closeEditModal" class="btn btn-secondary rounded-pill px-4">Cancelar</button>
                 @if($modalMode === 'setEventResult')
+                    <button wire:click="procesarResultados" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">PROCESAR RESULTADOS</button>
                     <button wire:click.prevent="saveEventResult" class="btn btn-success rounded-pill px-4 shadow-sm fw-bold">GUARDAR RESULTADOS</button>
                 @endif
             </div>

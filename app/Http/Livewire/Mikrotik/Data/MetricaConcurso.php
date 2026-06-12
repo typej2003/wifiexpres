@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\AdvertisingConcurso;
 use App\Models\ConcursoResponse;
 use App\Models\EventResult;
+use App\Models\PuntuacionConcurso;
 use App\Models\AgeRange;
 use App\Models\UserMikrotik;
 use Illuminate\Support\Facades\Storage;
@@ -179,82 +180,76 @@ class MetricaConcurso extends Component
 
         $concurso = AdvertisingConcurso::find($this->selectedConcurso);
         $responses = $query->get();
+        
+        // Obtener el ranking histórico del concurso seleccionado
+        $ranking = PuntuacionConcurso::where('concurso_id', $this->selectedConcurso)
+            ->orderByDesc('puntaje')
+            ->take(10)
+            ->get();
 
         $this->eventResult = EventResult::where('concurso_id', $this->selectedConcurso)
                                 ->where('etapa', $concurso->etapa)
                                 ->first();
 
-        $acertaronEtapa = 0;
         $this->stats = [
             'total_participantes' => $responses->count(),
             'usuarios_unicos' => $responses->unique('cellphone')->count(),
-            'usuarios_acertaron_etapa' => $acertaronEtapa,
+            'usuarios_acertaron_etapa' => PuntuacionConcurso::where('concurso_id', $this->selectedConcurso)->where('puntaje', '>', 0)->count(),
         ];
-
-        // 2. Distribución de Respuestas Agrupadas por "Grupo"
-        // Lógica para calcular usuarios_acertaron_etapa
-        if ($this->eventResult && $this->eventResult->results) {
-            $correctWinnersMap = $this->eventResult->results; // e.g., ['A' => ['Alemania', 'EEUU'], 'B' => [...]]
-
-            foreach ($responses as $response) {
-                $userAnswersArray = json_decode($response->answer, true); // e.g., ["Alemania", "Mexico"]
-                if (!is_array($userAnswersArray)) {
-                    continue; // Skip if answer is not in expected format
-                }
-
-                $userWinnersMap = [];
-                if (is_array($concurso->options)) {
-                    foreach ($userAnswersArray as $userAnswerText) {
-                        foreach ($concurso->options as $option) {
-                            if (($option['text'] ?? null) === $userAnswerText) {
-                                $grupo = $option['grupo'] ?? 'Sin Grupo';
-                                $userWinnersMap[$grupo] = $userAnswerText;
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                $userAcerto = true;
-                foreach ($correctWinnersMap as $grupo => $correctWinner) {
-                    // Si el resultado real es un array (2 clasificados), verificamos que la opción del usuario esté incluida
-                    if (is_array($correctWinner)) {
-                        if (!isset($userWinnersMap[$grupo]) || !in_array($userWinnersMap[$grupo], $correctWinner)) {
-                            $userAcerto = false;
-                            break;
-                        }
-                    } else {
-                        if (!isset($userWinnersMap[$grupo]) || $userWinnersMap[$grupo] !== $correctWinner) {
-                            $userAcerto = false;
-                            break;
-                        }
-                    }
-                }
-                if ($userAcerto) $acertaronEtapa++;
-            }
-        }
-        $this->stats['usuarios_acertaron_etapa'] = $acertaronEtapa;
-
-        $optionToGroup = [];
-        if ($concurso && is_array($concurso->options)) {
-            foreach ($concurso->options as $opt) {
-                $optionToGroup[$opt['text']] = $opt['grupo'] ?? 'Sin Grupo';
-            }
-        }
-
-        $distribution = $responses->groupBy(function($item) use ($optionToGroup) {
-            return $optionToGroup[$item->answer] ?? 'Otros';
-        })->map(fn($group) => $group->count());
 
         $this->chartData = [
-            'labels' => $distribution->keys()->toArray(),
-            'values' => $distribution->values()->toArray(),
+            'labels' => $ranking->pluck('full_name')->toArray(),
+            'values' => $ranking->pluck('puntaje')->toArray(),
         ];
 
-        // 3. Datos de la tabla
-        $this->tableData = $responses->take(50);
-
+        // 3. Datos de la tabla (Últimos participantes ordenados por fecha descendente)
+        $this->tableData = $responses->sortByDesc('created_at')->take(50);
         $this->dispatchBrowserEvent('updateConcursoChart', $this->chartData);
+    }
+
+    public function procesarResultados()
+    {
+        $concurso = AdvertisingConcurso::find($this->selectedConcurso);
+        $eventResult = EventResult::where('concurso_id', $this->selectedConcurso)
+            ->where('etapa', $concurso->etapa)
+            ->first();
+
+        if (!$eventResult) {
+            session()->flash('error', 'No hay resultados reales configurados para esta etapa.');
+            return;
+        }
+
+        $responses = ConcursoResponse::where('concurso_id', $this->selectedConcurso)->get();
+        $correctResults = $eventResult->results; // ['Grupo A' => ['Equi1', 'Equi2'], ...]
+
+        foreach ($responses->groupBy('cellphone') as $cellphone => $userResponses) {
+            $maxPoints = 0;
+            
+            foreach ($userResponses as $resp) {
+                $currentPoints = 0;
+                $answers = json_decode($resp->answer, true) ?: [$resp->answer];
+                
+                foreach ($correctResults as $grupo => $winners) {
+                    // Contamos cuántos de los ganadores de este grupo eligió el usuario
+                    foreach ($answers as $ans) {
+                        $opt = collect($resp->concurso_options)->firstWhere('text', $ans);
+                        if ($opt && ($opt['grupo'] ?? '') === $grupo && in_array($ans, $winners)) {
+                            $currentPoints++;
+                        }
+                    }
+                }
+                $maxPoints = max($maxPoints, $currentPoints);
+            }
+
+            $first = $userResponses->first();
+            PuntuacionConcurso::updateOrCreate(
+                ['concurso_id' => $this->selectedConcurso, 'cellphone' => $cellphone],
+                ['full_name' => $first->full_name, 'cellphonecode' => $first->cellphonecode, 'puntaje' => $maxPoints]
+            );
+        }
+
+        session()->flash('message', 'Puntajes procesados y actualizados con éxito.');
+        $this->consultar();
     }
 
     // Métodos para el modal de edición de concurso
