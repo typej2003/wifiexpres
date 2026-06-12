@@ -36,9 +36,7 @@
                     </select>
                     @if($selectedConcurso)
                         <div class="d-flex gap-2">
-                            <button wire:click="openEditModal({{ $selectedConcurso }})" class="btn btn-link btn-sm p-0 mt-1 text-decoration-none" title="Editar Concurso">
-                                <i class="bi bi-pencil-square me-1"></i> Configurar
-                            </button>
+                            
                             <button wire:click="openSetEventResultModal({{ $selectedConcurso }})" class="btn btn-link btn-sm p-0 mt-1 text-success text-decoration-none" title="Resultados Reales">
                                 <i class="bi bi-check-all me-1"></i> Resultados Reales
                             </button>
@@ -83,11 +81,7 @@
                 <h2 class="fw-bold mb-0 text-success">{{ number_format($stats['usuarios_acertaron_etapa']) }}</h2>
             </div>
         </div>
-        @if($eventResult)
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-4 text-center h-100 border-start border-4 border-primary"><h6 class="text-muted small fw-bold text-uppercase">Resultados Reales</h6><h2 class="fw-bold mb-0 text-primary">Configurados</h2></div>
-        </div>
-        @endif
+        
     </div>
 
     <div class="row g-4">
