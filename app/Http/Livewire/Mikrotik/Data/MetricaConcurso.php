@@ -304,7 +304,7 @@ class MetricaConcurso extends Component
                 if (!isset($groupedOptions[$grupo])) {
                     $groupedOptions[$grupo] = [];
                 }
-                $groupedOptions[$grupo][] = $option['text'];
+                $groupedOptions[$grupo][] = $option;
             }
         }
         $this->eventResultGroups = $groupedOptions;

@@ -178,7 +178,7 @@
 {{-- MODAL DE EDICIÓN/CREACIÓN DE CONCURSO --}}
 @if($isModalOpen)
 <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5); z-index: 1050; backdrop-filter: blur(4px);">
-    <div class="modal-dialog modal-lg" style="margin-top: 5rem;">
+    <div class="modal-dialog modal-lg" style="margin-top: 8rem;">
         <div class="modal-content shadow-lg border-0 rounded-4">
             <div class="modal-header bg-dark text-white p-4">
                 <h5 class="modal-title fw-bold">
@@ -192,16 +192,24 @@
             <div class="modal-body p-4">
                 @if($modalMode === 'setEventResult')
                     <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted">Concurso</label>
-                            <div class="p-2 bg-light rounded border-0 fw-bold">{{ $name }}</div>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted">Etapa Actual</label>
-                            <div class="p-2 bg-light rounded border-0 fw-bold">{{ $etapa }}</div>
+                        <div class="col-12">
+                            <div class="row g-2 mb-3">
+                                <div class="col-md-6">
+                                    <div class="p-3 bg-light rounded-3 border">
+                                        <label class="form-label small fw-bold text-muted text-uppercase mb-1">Nombre del Evento</label>
+                                        <div class="h6 mb-0 fw-bold text-dark">{{ $name }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="p-3 bg-light rounded-3 border">
+                                        <label class="form-label small fw-bold text-muted text-uppercase mb-1">Etapa / Fase</label>
+                                        <div class="h6 mb-0 fw-bold text-primary">{{ $etapa }}</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         
-                        <div class="col-md-12 mt-4">
+                        <div class="col-md-12 mt-2">
                             <p class="text-muted small">Seleccione exactamente <strong>2 equipos</strong> clasificados por cada grupo.</p>
                             
                             <div class="row g-4">
@@ -217,7 +225,7 @@
                                                                wire:model="selectedWinners.{{ $grupo }}"
                                                                id="winner-{{ $loop->parent->index }}-{{ $loop->index }}">
                                                         <label class="form-check-label d-flex align-items-center cursor-pointer ms-2" for="winner-{{ $loop->parent->index }}-{{ $loop->index }}">
-                                                            @if(!empty($opt['image']))
+                                                            @if(isset($opt['image']) && !empty($opt['image']))
                                                                 <img src="{{ Storage::disk('public')->url($opt['image']) }}" class="rounded me-2" style="width: 30px; height: 30px; object-fit: cover;">
                                                             @endif
                                                             <span>{{ $opt['text'] }}</span>
