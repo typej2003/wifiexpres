@@ -76,7 +76,7 @@
         </div>
         <div class="col-md-4">
             <div class="card border-0 shadow-sm rounded-4 p-4 text-center h-100 border-start border-4 border-success">
-                <h6 class="text-muted small fw-bold text-uppercase">Usuarios Acertaron Etapa</h6>
+                <h6 class="text-muted small fw-bold text-uppercase">Usuarios con al menos 1 acierto</h6>
                 <h2 class="fw-bold mb-0 text-success">{{ number_format($stats['usuarios_acertaron_etapa']) }}</h2>
             </div>
         </div>
@@ -86,7 +86,7 @@
         {{-- GRÁFICO --}}
         <div class="col-lg-5">
             <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
-                <h6 class="fw-bold mb-4 text-uppercase small">Distribución de Respuestas</h6>
+                <h6 class="fw-bold mb-4 text-uppercase small">Mejores promedios (Top 10)</h6>
                 <div style="position: relative; height:300px;" wire:ignore>
                     <canvas id="concursoChart"></canvas>
                 </div>
@@ -105,6 +105,7 @@
                             <tr>
                                 <th class="ps-4">Participante</th>
                                 <th>Respuesta</th>
+                                <th class="text-center">Puntos</th>
                                 <th>Router</th>
                                 <th class="pe-4 text-end">Fecha</th>
                             </tr>
@@ -149,11 +150,16 @@
                                         @endforeach
                                     </div>
                                 </td>
+                                <td class="text-center">
+                                    <span class="badge {{ ($data->points ?? 0) > 0 ? 'bg-success' : 'bg-light text-muted' }} rounded-pill px-3">
+                                        {{ $data->points ?? 0 }} pts
+                                    </span>
+                                </td>
                                 <td><small class="fw-bold">{{ $data->router_identity }}</small></td>
                                 <td class="pe-4 text-end small text-muted">{{ $data->created_at->format('d/m/y h:i A') }}</td>
                             </tr>
                             @empty
-                            <tr><td colspan="4" class="text-center py-5">No hay respuestas registradas</td></tr>
+                            <tr><td colspan="5" class="text-center py-5">No hay respuestas registradas</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -175,9 +181,9 @@
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Votos',
+                        label: 'Puntos',
                         data: values,
-                        backgroundColor: '#6700da',
+                        backgroundColor: '#f78634',
                         borderRadius: 10
                     }]
                 },
