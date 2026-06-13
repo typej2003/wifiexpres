@@ -14,7 +14,7 @@ class UserMikrotik extends Model
         'router_id',
         'mikrotik_id',
         'server',
-        'name',
+        'name', // ejem: 7A:D2:3B:4C:5E
         'password',
         'full_name',
         'gender',    
@@ -48,5 +48,10 @@ class UserMikrotik extends Model
     public function router()
     {
         return $this->belongsTo(Router::class, 'router_id');
+    }
+
+    public function visits()
+    {
+        return $this->hasMany(TicketLog::class, 'username', 'name');
     }
 }

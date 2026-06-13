@@ -10,7 +10,7 @@ class TicketLog extends Model
 {
     protected $fillable = [
         'router_id', 
-        'username', 
+        'username',  // ejem: T-7A:D2:3B:4C:5E
         'mac_address', // IP del usuario según aclaratoria
         'user_ip', 
         'disconnected_at', 

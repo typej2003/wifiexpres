@@ -109,14 +109,14 @@
                                                 <span class="text-secondary text-xs font-weight-bold px-3">{{ $visit->created_at->format('d/m/Y h:i A') }}</span>
                                             </td>
                                             <td class="align-middle">
-                                                <span class="text-secondary text-xs font-weight-bold">{{ $visit->uptime ?? '00:00:00' }}</span>
+                                                <span class="text-secondary text-xs font-weight-bold">{{ $visit->duracion_formateada }}</span>
                                             </td>
                                             <td class="align-middle">
                                                 <span class="text-secondary text-xs font-weight-bold">
                                                     @if(isset($visits[$index + 1]))
                                                         Vuelve cada {{ $visit->created_at->diffInDays($visits[$index + 1]->created_at) }} días
                                                     @else
-                                                        Primera visita registrada
+                                                        Primera visita
                                                     @endif
                                                 </span>
                                             </td>
