@@ -104,6 +104,72 @@
                         </table>
                     </div>
 
+                    <!-- Tabla de Detalle de Clientes (Permanencia y Fidelidad) -->
+                    <div class="mt-5">
+                        <h6 class="mb-3"><i class="bi bi-people-fill me-2"></i>Detalle de Permanencia y Fidelidad por Cliente</h6>
+                        
+                        @forelse($results as $res)
+                            <div class="card border shadow-none mb-4">
+                                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                                    <span class="text-xs font-weight-bold text-uppercase">Zona / Local: {{ $res['zona'] }}</span>
+                                    <span class="badge bg-secondary text-xxs">{{ count($detailedClients[$res['router_id']] ?? []) }} Clientes</span>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table align-items-center mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Cliente / Contacto</th>
+                                                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Fidelidad</th>
+                                                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Visitas</th>
+                                                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Permanencia Total</th>
+                                                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Estancia Promedio</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @if(isset($detailedClients[$res['router_id']]) && count($detailedClients[$res['router_id']]) > 0)
+                                                @foreach($detailedClients[$res['router_id']] as $client)
+                                                    <tr>
+                                                        <td class="px-4">
+                                                            <div class="d-flex flex-column">
+                                                                <h6 class="mb-0 text-sm">{{ $client['client_name'] }}</h6>
+                                                                <p class="text-xs text-secondary mb-0">
+                                                                    {{ $client['email'] != 'N/A' ? $client['email'] : 'Sin Email' }} | {{ $client['cellphone'] ?: 'Sin Teléfono' }}
+                                                                </p>
+                                                                <small class="text-xxs text-muted font-monospace">{{ $client['username'] }}</small>
+                                                            </div>
+                                                        </td>
+                                                        <td class="align-middle text-center text-sm">
+                                                            <span class="badge badge-sm {{ $client['is_new'] ? 'bg-gradient-success' : 'bg-gradient-info' }}">
+                                                                {{ $client['is_new'] ? 'Nuevo' : 'Recurrente' }}
+                                                            </span>
+                                                        </td>
+                                                        <td class="align-middle text-center">
+                                                            <span class="text-secondary text-xs font-weight-bold">{{ $client['total_visits_in_period'] }}</span>
+                                                        </td>
+                                                        <td class="align-middle text-center text-xs">
+                                                            {{ $client['total_duration_in_period'] }}
+                                                        </td>
+                                                        <td class="align-middle text-center">
+                                                            <span class="text-dark text-xs font-weight-bold">{{ $client['avg_duration_in_period'] }}</span>
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            @else
+                                                <tr>
+                                                    <td colspan="5" class="text-center py-3 text-xs text-secondary italic">No hay detalles registrados para esta zona.</td>
+                                                </tr>
+                                            @endif
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="text-center py-4 border rounded bg-light">
+                                <p class="text-secondary mb-0 text-sm">Realice una consulta para ver el desglose detallado.</p>
+                            </div>
+                        @endforelse
+                    </div>
+
                 </div>
             </div>
         </div>
