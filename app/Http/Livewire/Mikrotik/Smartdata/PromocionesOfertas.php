@@ -7,34 +7,37 @@ use Livewire\WithPagination;
 use Livewire\WithFileUploads;
 use App\Models\AdvertisingCampaign;
 use App\Models\Router;
+use App\Models\UserMikrotik;
+use App\Models\CampaignResponse;
+use App\Models\AgeRange;
 use App\Models\User;
+use Exception;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class PromocionesOfertas extends Component
 {
     use WithPagination, WithFileUploads;
 
-    protected $paginationTheme = 'bootstrap';
-
-    // Propiedades del Formulario
-    public $isModalOpen = false;
-    public $selected_id, $name, $description, $router_identity, $user_id;
-    public $media, $current_media_path;
-    
-    // Reglas de Envío
-    public $on_connect = false;
-    public $only_new = false;
-
-    // Filtros y Estado
     public $search = '';
     public $filterAliado = '';
     public $isAdmin = false;
+    
+    // Propiedades del Formulario
+    public $isModalOpen = false;
+    public $selected_id, $name, $description, $target_gender = 'todos', $router_identity;
+    public $age_range_id;
+    public $media_type = 'imagen', $media, $current_media_path;
+    public $question_text, $question_type = 'simple';
+    public $options = []; // Array para las opciones dinámicas
+    public $user_id;
 
     public function mount()
     {
         $this->isAdmin = Auth::user()->role === 'admin';
         $this->user_id = $this->isAdmin ? '' : Auth::id();
+        $this->age_range_id = 0;
     }
 
     public function openModal()
@@ -48,27 +51,91 @@ class PromocionesOfertas extends Component
         $this->isModalOpen = false;
     }
 
-    public function resetInputFields()
+    private function resetInputFields()
     {
         $this->name = '';
         $this->description = '';
+        $this->target_gender = 'todos';
         $this->router_identity = '';
-        $this->user_id = $this->isAdmin ? '' : Auth::id();
+        $this->age_range_id = 0;
+        $this->media_type = 'imagen';
         $this->media = null;
-        $this->current_media_path = null;
-        $this->on_connect = false;
-        $this->only_new = false;
+        $this->question_text = '';
+        $this->question_type = 'simple';
+        $this->options = [];
         $this->selected_id = null;
+        $this->current_media_path = null;
+        if ($this->isAdmin) {
+            $this->user_id = '';
+        } else {
+            $this->user_id = Auth::id();
+        }
+    }
+
+    public function updatedUserId($value)
+    {
+        $this->router_identity = '';
+        $this->age_range_id = 0;
+    }
+
+    // FUNCIÓN PARA CAMBIAR ESTADO ACTIVO/INACTIVO
+    public function toggleStatus($id)
+    {
+        $campaign = AdvertisingCampaign::findOrFail($id);
+        $campaign->active = !$campaign->active;
+        $campaign->save();
+    }
+
+    public function edit($id)
+    {
+        $campaign = AdvertisingCampaign::findOrFail($id);
+        $this->selected_id = $id;
+        $this->name = $campaign->name;
+        $this->description = $campaign->description;
+        $this->target_gender = $campaign->target_gender;
+        $this->router_identity = $campaign->router_identity;
+        $this->age_range_id = $campaign->age_range_id;
+        $this->media_type = $campaign->media_type;
+        $this->question_text = $campaign->question_text;
+        $this->question_type = $campaign->question_type;
+        $this->options = $campaign->options ?? [];
+        $this->user_id = $campaign->user_id;
+        $this->current_media_path = $campaign->media_path;
+        
+        $this->isModalOpen = true;
+    }
+
+    public function addOption()
+    {
+        $this->options[] = '';
+    }
+
+    public function removeOption($index)
+    {
+        unset($this->options[$index]);
+        $this->options = array_values($this->options);
+    }
+
+    public function delete($id)
+    {
+        $campaign = AdvertisingCampaign::findOrFail($id);
+        if ($campaign->media_path) {
+            Storage::disk('public')->delete($campaign->media_path);
+        }
+        $campaign->delete();
+        session()->flash('message', 'Campaña eliminada correctamente.');
     }
 
     public function save()
     {
         $this->validate([
-            'name' => 'required|min:3',
-            'description' => 'required',
+            'name' => 'required',
             'router_identity' => 'required',
             'user_id' => 'required',
-            'media' => $this->selected_id ? 'nullable|image|max:2048' : 'required|image|max:2048',
+            'age_range_id' => 'required',
+            'media' => $this->selected_id ? 'nullable|max:20480' : 'required|max:20480',
+            'question_text' => 'required',
+            'options' => $this->question_type != 'simple' ? 'required|array|min:2' : 'nullable',
         ]);
 
         $data = [
@@ -76,16 +143,14 @@ class PromocionesOfertas extends Component
             'description' => $this->description,
             'router_identity' => $this->router_identity,
             'user_id' => $this->user_id,
-            'target_gender' => 'todos', // Simplificado para promociones
-            'age_range_id' => 0,
-            'media_type' => 'imagen',
-            'question_text' => 'Promoción estándar', // Campo requerido por el modelo base
-            'question_type' => 'simple',
-            // Usamos campos existentes o extendemos la lógica
-            'active' => true,
+            'target_gender' => $this->target_gender,
+            'age_range_id' => $this->age_range_id ?: 0,
+            'media_type' => $this->media_type,
+            'question_text' => $this->question_text,
+            'question_type' => $this->question_type,
+            'options' => $this->question_type != 'simple' ? $this->options : null,
         ];
 
-        // Manejo de la imagen
         if ($this->media) {
             if ($this->selected_id && $this->current_media_path) {
                 Storage::disk('public')->delete($this->current_media_path);
@@ -95,80 +160,145 @@ class PromocionesOfertas extends Component
             $data['media_path'] = $path;
         }
 
-        // Guardamos las reglas en una estructura que el portal cautivo pueda leer
-        // (En este caso, aprovechamos el campo options para guardar las reglas de negocio)
-        $data['options'] = [
-            'on_connect' => $this->on_connect,
-            'only_new' => $this->only_new
-        ];
-
         AdvertisingCampaign::updateOrCreate(['id' => $this->selected_id], $data);
 
-        session()->flash('message', $this->selected_id ? 'Promoción actualizada.' : 'Promoción creada con éxito.');
+        session()->flash('message', $this->selected_id ? 'Campaña actualizada.' : 'Campaña creada.');
         $this->closeModal();
-        $this->resetInputFields();
-    }
-
-    public function edit($id)
-    {
-        $promo = AdvertisingCampaign::findOrFail($id);
-        $this->selected_id = $id;
-        $this->name = $promo->name;
-        $this->description = $promo->description;
-        $this->router_identity = $promo->router_identity;
-        $this->current_media_path = $promo->media_path;
-        $this->user_id = $promo->user_id;
-        
-        // Recuperar reglas de envío
-        $options = $promo->options ?? [];
-        $this->on_connect = $options['on_connect'] ?? false;
-        $this->only_new = $options['only_new'] ?? false;
-
-        $this->isModalOpen = true;
-    }
-
-    public function toggleStatus($id)
-    {
-        $promo = AdvertisingCampaign::findOrFail($id);
-        $promo->active = !$promo->active;
-        $promo->save();
-    }
-
-    public function delete($id)
-    {
-        $promo = AdvertisingCampaign::findOrFail($id);
-        if ($promo->media_path) {
-            Storage::disk('public')->delete($promo->media_path);
-        }
-        $promo->delete();
-        session()->flash('message', 'Promoción eliminada.');
     }
 
     public function render()
     {
-        $user = Auth::user();
-        
-        $query = AdvertisingCampaign::query()->with('user')
-            ->withCount('responses') // "A cuánta gente le ha llegado"
-            ->when(!$this->isAdmin, function($q) use ($user) {
-                return $q->where('user_id', $user->id);
-            })
-            ->when($this->isAdmin && $this->filterAliado, function($q) {
-                return $q->where('user_id', $this->filterAliado);
-            })
-            ->when($this->search, function($q) {
-                return $q->where('name', 'like', '%' . $this->search . '%');
-            });
+        $query = AdvertisingCampaign::query()->with('user');
+        if (!$this->isAdmin) {
+            $query->where('user_id', Auth::id());
+        } else {
+            if ($this->filterAliado) {
+                $query->where('user_id', $this->filterAliado);
+            }
+        }
+        if ($this->search) {
+            $query->where('name', 'like', '%' . $this->search . '%');
+        }
 
-        // Obtener routers del usuario seleccionado o del logueado
-        $targetUserId = ($this->isAdmin && $this->user_id) ? $this->user_id : $user->id;
-        
-        $routers = Router::where('user_id', $targetUserId)->get();
+        // Obtener rangos de edad filtrados por el aliado seleccionado (o el logueado)
+        // Esto asegura que al crear una campaña se vean solo los rangos del dueño de la misma.
+        $userIdForRanges = $this->isAdmin ? $this->user_id : Auth::id();
+        $ageRanges = $userIdForRanges 
+            ? AgeRange::where('user_id', $userIdForRanges)->get() 
+            : collect();
+
+        $routers = $userIdForRanges
+            ? Router::where('user_id', $userIdForRanges)->get()
+            : collect();
 
         return view('livewire.mikrotik.smartdata.promociones-ofertas', [
-            'promociones' => $query->latest()->paginate(15),
-            'routers' => $routers,
-            'aliados' => $this->isAdmin ? User::whereIn('role', ['aliado', 'aliadoSmartData'])->get() : []
-        ]);
+            'campaigns' => $query->latest()->paginate(10),
+            'aliados' => $this->isAdmin ? User::where('role', 'aliado')->orwhere('role', 'aliadoSmartData')->get() : [],
+            'ageRanges' => $ageRanges,
+            'routers' => $routers
+        ])->layout('layouts.app');
+    }
+
+    /**
+     * Obtiene únicamente la campaña activa para un router específico.
+     * Mantiene la sintaxis de Request para consistencia operativa.
+     */
+    public static function getActiveCampaignByIdentity(Request $request)
+    {
+        $identity = $request->query('identity');
+        $mac = $request->query('mac');
+
+        // Encontrar el router de forma flexible (MAC o Identity)
+        $router = Router::when($identity, function($q) use ($identity) {
+                return $q->where('identity', $identity);
+            })
+            ->when($mac, function($q) use ($mac) {
+                return $q->orWhere('macAddress', $mac);
+            })
+            ->first();
+
+        // Si el router existe, usamos su identidad oficial; de lo contrario, el parámetro
+        $campaign = AdvertisingCampaign::where('router_identity', $router ? $router->identity : $identity)
+            ->where('active', true)
+            ->first();
+
+        return [
+            'campaign' => $campaign
+        ];
+    }
+
+    /**
+     * Procesa y guarda la información del portal cautivo.
+     * Soporta tanto el registro estándar como las respuestas de campaña.
+     */
+    public static function savePortalData(Request $request)
+    {
+        try {
+            $mac = strtoupper($request->input('mac_cliente'));
+            $identity = $request->input('identity');
+            $isCampaign = $request->input('is_campaign', false);
+
+            $router = Router::where('identity', $identity)->orWhere('macAddress', $identity)->first();
+            if (!$router) {
+                return response()->json(['success' => false, 'message' => 'Router no identificado'], 404);
+            }
+
+            // 1. Gestionar UserMikrotik (Siempre se crea o actualiza por MAC)
+            $userData = [
+                'router_id' => $router->id,
+                'server'    => $identity,
+                'macaddress'=> $mac,
+                'password'  => '12345',
+                'active'    => true,
+            ];
+
+            // Si no es campaña, vienen los datos personales estándar
+            if (!$isCampaign) {
+                $userData = array_merge($userData, [
+                    'full_name'     => $request->input('full_name'),
+                    'gender'        => $request->input('gender'),
+                    'birthday'      => $request->input('birthday'),
+                    'email'         => $request->input('email'),
+                    'cellphonecode' => $request->input('cellphonecode'),
+                    'cellphone'     => $request->input('cellphone'),
+                    'profile'       => 'conexion_estandar'
+                ]);
+            }
+
+            $userMikrotik = UserMikrotik::updateOrCreate(['name' => $mac, 'router_id' => $router->id], $userData);
+
+            // 2. Gestionar Respuesta de Campaña si aplica
+            if ($isCampaign) {
+                $campaignId = $request->input('campaign_id');
+                $campaign = AdvertisingCampaign::find($campaignId);
+
+                if ($campaign) {
+                    CampaignResponse::create([
+                        'campaign_id'      => $campaignId,
+                        'user_mikrotik_id' => $userMikrotik->id,
+                        'mac_address'      => $mac,
+                        'router_identity'  => $identity,
+                        'answer'           => is_array($request->input('answer')) 
+                                              ? json_encode($request->input('answer')) 
+                                              : $request->input('answer'),
+                        'campaign_name'           => $campaign->name,
+                        'campaign_description'    => $campaign->description,
+                        'campaign_target_gender'  => $campaign->target_gender,
+                        'campaign_age_range_id'   => $campaign->age_range_id,
+                        'campaign_media_type'     => $campaign->media_type,
+                        'campaign_media_path'     => $campaign->media_path,
+                        'campaign_question_text'  => $campaign->question_text,
+                        'campaign_question_type'  => $campaign->question_type,
+                        'campaign_options'        => $campaign->options,
+                    ]);
+                }
+            }
+
+            return response()->json(['success' => true]);
+
+        } catch (Exception $e) {
+            \Log::error("Error al guardar data del portal: " . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error interno del servidor'], 500);
+        }
     }
 }
