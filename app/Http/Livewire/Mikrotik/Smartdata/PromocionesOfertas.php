@@ -19,7 +19,7 @@ class PromocionesOfertas extends Component
 
     // Propiedades del Formulario
     public $isModalOpen = false;
-    public $selected_id, $name, $description, $router_identity;
+    public $selected_id, $name, $description, $router_identity, $user_id;
     public $media, $current_media_path;
     
     // Reglas de Envío
@@ -28,11 +28,13 @@ class PromocionesOfertas extends Component
 
     // Filtros y Estado
     public $search = '';
+    public $filterAliado = '';
     public $isAdmin = false;
 
     public function mount()
     {
         $this->isAdmin = Auth::user()->role === 'admin';
+        $this->user_id = $this->isAdmin ? '' : Auth::id();
     }
 
     public function openModal()
@@ -51,6 +53,7 @@ class PromocionesOfertas extends Component
         $this->name = '';
         $this->description = '';
         $this->router_identity = '';
+        $this->user_id = $this->isAdmin ? '' : Auth::id();
         $this->media = null;
         $this->current_media_path = null;
         $this->on_connect = false;
@@ -64,6 +67,7 @@ class PromocionesOfertas extends Component
             'name' => 'required|min:3',
             'description' => 'required',
             'router_identity' => 'required',
+            'user_id' => 'required',
             'media' => $this->selected_id ? 'nullable|image|max:2048' : 'required|image|max:2048',
         ]);
 
@@ -71,7 +75,7 @@ class PromocionesOfertas extends Component
             'name' => $this->name,
             'description' => $this->description,
             'router_identity' => $this->router_identity,
-            'user_id' => Auth::id(),
+            'user_id' => $this->user_id,
             'target_gender' => 'todos', // Simplificado para promociones
             'age_range_id' => 0,
             'media_type' => 'imagen',
@@ -86,7 +90,8 @@ class PromocionesOfertas extends Component
             if ($this->selected_id && $this->current_media_path) {
                 Storage::disk('public')->delete($this->current_media_path);
             }
-            $path = $this->media->store('campaigns', 'public');
+            $originalName = $this->media->getClientOriginalName();
+            $path = $this->media->storeAs('campaign', $originalName, 'public');
             $data['media_path'] = $path;
         }
 
@@ -112,6 +117,7 @@ class PromocionesOfertas extends Component
         $this->description = $promo->description;
         $this->router_identity = $promo->router_identity;
         $this->current_media_path = $promo->media_path;
+        $this->user_id = $promo->user_id;
         
         // Recuperar reglas de envío
         $options = $promo->options ?? [];
@@ -142,23 +148,27 @@ class PromocionesOfertas extends Component
     {
         $user = Auth::user();
         
-        $query = AdvertisingCampaign::query()
+        $query = AdvertisingCampaign::query()->with('user')
             ->withCount('responses') // "A cuánta gente le ha llegado"
             ->when(!$this->isAdmin, function($q) use ($user) {
                 return $q->where('user_id', $user->id);
+            })
+            ->when($this->isAdmin && $this->filterAliado, function($q) {
+                return $q->where('user_id', $this->filterAliado);
             })
             ->when($this->search, function($q) {
                 return $q->where('name', 'like', '%' . $this->search . '%');
             });
 
-        $routers = Router::where('is_active', true)
-            ->when(!$this->isAdmin, function($q) use ($user) {
-                return $q->where('user_id', $user->id);
-            })->get();
+        // Obtener routers del usuario seleccionado o del logueado
+        $targetUserId = ($this->isAdmin && $this->user_id) ? $this->user_id : $user->id;
+        
+        $routers = Router::where('user_id', $targetUserId)->get();
 
         return view('livewire.mikrotik.smartdata.promociones-ofertas', [
             'promociones' => $query->latest()->paginate(15),
-            'routers' => $routers
+            'routers' => $routers,
+            'aliados' => $this->isAdmin ? User::whereIn('role', ['aliado', 'aliadoSmartData'])->get() : []
         ]);
     }
 }

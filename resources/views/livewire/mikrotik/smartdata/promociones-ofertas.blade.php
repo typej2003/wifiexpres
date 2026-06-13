@@ -11,7 +11,7 @@
     <div class="card border-0 shadow-sm rounded-4 mb-4">
         <div class="card-body p-4">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4 class="fw-bold mb-0">
+                <h4 class="fw-bold mb-0 text-dark">
                     <i class="bi bi-megaphone text-primary me-2"></i>Promociones y Ofertas
                 </h4>
                 <button wire:click="openModal" class="btn btn-primary rounded-pill px-4 shadow-sm">
@@ -28,6 +28,18 @@
                         <input type="text" wire:model="search" class="form-control border-start-0" placeholder="Buscar promoción...">
                     </div>
                 </div>
+
+                @if($isAdmin)
+                <div class="col-md-3">
+                    <select wire:model="filterAliado" class="form-select border-primary border-opacity-25">
+                        <option value="">Todos los Aliados</option>
+                        @foreach($aliados as $aliado)
+                            <option value="{{ $aliado->id }}">{{ $aliado->name }}</option>
+                        @endforeach
+                    </select>
+                    @if(!$filterAliado) <small class="text-danger">Seleccione un aliado para gestionar</small> @endif
+                </div>
+                @endif
             </div>
         </div>
     </div>
@@ -38,8 +50,8 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="bg-light text-muted small fw-bold text-uppercase">
                     <tr>
-                        <th class="px-4 py-3">Promoción</th>
-                        <th class="py-3 text-center">Reglas</th>
+                        <th class="px-4 py-3">Campaña de Promoción</th>
+                        <th class="py-3 text-center">Reglas de Envío</th>
                         <th class="py-3 text-center">Alcance</th>
                         <th class="py-3 text-center">Estado</th>
                         <th class="text-end px-4">Acciones</th>
@@ -51,18 +63,22 @@
                                     <td>
                                         <div class="d-flex px-3 py-1">
                                             <div>
-                                                <img src="{{ Storage::url($promo->media_path) }}" class="avatar avatar-sm me-3 border-radius-lg" alt="promo">
+                                                <img src="{{ asset('storage/' . $promo->media_path) }}" class="avatar avatar-sm me-3 border-radius-lg" alt="promo">
                                             </div>
                                             <div class="d-flex flex-column justify-content-center">
-                                                <h6 class="mb-0 text-sm">{{ $promo->name }}</h6>
-                                                <p class="text-xs text-secondary mb-0 text-truncate" style="max-width: 150px;">{{ $promo->router_identity }}</p>
+                                                <h6 class="mb-0 text-sm text-dark">{{ $promo->name }}</h6>
+                                                <p class="text-xs text-secondary mb-0 text-truncate" style="max-width: 200px;">
+                                                    <i class="bi bi-router me-1"></i>{{ $promo->router_identity }}
+                                                    @if($isAdmin) <span class="ms-1 text-primary fw-bold">| {{ $promo->user->name }}</span> @endif
+                                                </p>
                                             </div>
                                         </div>
                                     </td>
                                     <td class="align-middle text-center">
                                         @php $opts = $promo->options ?? []; @endphp
-                                        @if($opts['on_connect'] ?? false) <span class="badge badge-sm bg-info" title="Al conectar">AC</span> @endif
-                                        @if($opts['only_new'] ?? false) <span class="badge badge-sm bg-warning" title="Solo nuevos">SN</span> @endif
+                                        @if($opts['on_connect'] ?? false) <span class="badge bg-soft-info text-info rounded-pill px-2 small" title="Mandar al conectarse">AL CONECTAR</span> @endif
+                                        @if($opts['only_new'] ?? false) <span class="badge bg-soft-warning text-warning rounded-pill px-2 small" title="Mandar solo a clientes nuevos">SOLO NUEVOS</span> @endif
+                                        @if(!($opts['on_connect'] ?? false) && !($opts['only_new'] ?? false)) <span class="text-muted text-xs">Sin reglas</span> @endif
                                     </td>
                                     <td class="align-middle text-center">
                                         <span class="text-sm font-weight-bold"><i class="bi bi-people-fill me-1 text-primary"></i>{{ $promo->responses_count }}</span>
@@ -108,6 +124,19 @@
                 
                 <div class="modal-body p-4">
                     <div class="row g-3">
+                        @if($isAdmin)
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold text-muted">Aliado Propietario</label>
+                            <select wire:model="user_id" class="form-select @error('user_id') is-invalid @enderror">
+                                <option value="">Seleccionar...</option>
+                                @foreach($aliados as $aliado)
+                                    <option value="{{ $aliado->id }}">{{ $aliado->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('user_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                        @endif
+
                         <div class="col-md-12">
                             <label class="form-label small fw-bold text-muted">Título de la Promoción</label>
                             <input type="text" class="form-control" wire:model="name" placeholder="Ej: ¡Hora Feliz 2x1!">
@@ -116,16 +145,16 @@
 
                         <div class="col-md-12">
                             <label class="form-label small fw-bold text-muted">Texto / Descripción</label>
-                            <textarea class="form-control" wire:model="description" rows="3" placeholder="Escribe aquí el contenido de la oferta..."></textarea>
+                            <textarea class="form-control" wire:model="description" rows="2" placeholder="Escribe aquí el contenido de la oferta..."></textarea>
                             @error('description') <span class="text-danger text-xs">{{ $message }}</span> @enderror
                         </div>
 
                         <div class="col-md-12">
-                            <label class="form-label small fw-bold text-muted">Local / Router destino</label>
-                            <select class="form-select" wire:model="router_identity">
-                                <option value="">Seleccione Local...</option>
+                            <label class="form-label small fw-bold text-muted">Router de la Campaña</label>
+                            <select wire:model="router_identity" class="form-select @error('router_identity') is-invalid @enderror">
+                                <option value="">Seleccione un router...</option>
                                 @foreach($routers as $router)
-                                    <option value="{{ $router->identity }}">{{ $router->identity }} ({{ $router->comercio_nombre }})</option>
+                                    <option value="{{ $router->identity }}">{{ $router->comercio_nombre }} ({{ $router->identity }})</option>
                                 @endforeach
                             </select>
                             @error('router_identity') <span class="text-danger text-xs">{{ $message }}</span> @enderror
@@ -140,7 +169,7 @@
                                 @if ($media)
                                     <img src="{{ $media->temporaryUrl() }}" class="img-fluid rounded shadow-sm" style="max-height: 150px;">
                                 @elseif($current_media_path)
-                                    <img src="{{ Storage::url($current_media_path) }}" class="img-fluid rounded shadow-sm" style="max-height: 150px;">
+                                    <img src="{{ asset('storage/' . $current_media_path) }}" class="img-fluid rounded shadow-sm" style="max-height: 150px;">
                                 @else
                                     <span class="text-muted small">Sin archivo seleccionado</span>
                                 @endif
@@ -180,4 +209,6 @@
     .btn-white { background-color: #fff; color: #6c757d; }
     .btn-white:hover { background-color: #f8f9fa; }
     .bg-soft-info { background-color: rgba(13, 202, 240, 0.12); }
+    .bg-soft-warning { background-color: rgba(255, 193, 7, 0.12); }
+    .fw-800 { font-weight: 800; }
 </style>
