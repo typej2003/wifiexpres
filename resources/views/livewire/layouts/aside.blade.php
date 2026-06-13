@@ -360,26 +360,6 @@
                 <span class="menu-text">MIS ROUTERS</span>
             </a>
 
-            <a href="{{ route('mikrotik.data.show-charts') }}" class="sidebar-link {{ request()->routeIs('mikrotik.data.show-charts') ? 'active' : '' }}">
-                <i class="bi bi-speedometer2"></i> 
-                <span class="menu-text">RESUMEN MÉTRICAS</span>
-            </a>
-
-            <a href="{{ route('aliado.hour.analysis') }}" class="sidebar-link {{ request()->routeIs('aliado.hour.analysis') ? 'active' : '' }}">
-                <i class="bi bi-speedometer2"></i> 
-                <span class="menu-text">Métricas de conexiones</span>
-            </a>
-
-            <a href="{{ route('mikrotik.data.list-users') }}" class="sidebar-link {{ request()->routeIs('mikrotik.data.list-users') ? 'active' : '' }}">
-                <i class="bi bi-people"></i> 
-                <span class="menu-text">Métricas de Usuarios</span>
-            </a>
-
-            <a href="{{ route('mikrotik.metrica-concurso') }}" class="sidebar-link {{ request()->routeIs('mikrotik.metrica-concurso') ? 'active' : '' }}">
-                <i class="bi bi-pie-chart-fill"></i> 
-                <span class="menu-text">Métricas de Concursos</span>
-            </a>
-
             <a href="{{ route('smartdata.users-visits') }}" class="sidebar-link {{ request()->routeIs('smartdata.users-visits') ? 'active' : '' }}">
                 <i class="bi bi-people-fill"></i> 
                 <span class="menu-text">Clientes y Visitas</span>
@@ -398,6 +378,26 @@
             <a href="{{ route('smartdata.monitoreo') }}" class="sidebar-link {{ request()->routeIs('smartdata.monitoreo') ? 'active' : '' }}">
                 <i class="bi bi-activity"></i> 
                 <span class="menu-text">Monitoreo en Vivo</span>
+            </a>
+
+            <a href="{{ route('mikrotik.data.show-charts') }}" class="sidebar-link {{ request()->routeIs('mikrotik.data.show-charts') ? 'active' : '' }}">
+                <i class="bi bi-speedometer2"></i> 
+                <span class="menu-text">RESUMEN MÉTRICAS</span>
+            </a>
+
+            <a href="{{ route('aliado.hour.analysis') }}" class="sidebar-link {{ request()->routeIs('aliado.hour.analysis') ? 'active' : '' }}">
+                <i class="bi bi-speedometer2"></i> 
+                <span class="menu-text">Métricas de conexiones</span>
+            </a>
+
+            <a href="{{ route('mikrotik.data.list-users') }}" class="sidebar-link {{ request()->routeIs('mikrotik.data.list-users') ? 'active' : '' }}">
+                <i class="bi bi-people"></i> 
+                <span class="menu-text">Métricas de Usuarios</span>
+            </a>
+
+            <a href="{{ route('mikrotik.metrica-concurso') }}" class="sidebar-link {{ request()->routeIs('mikrotik.metrica-concurso') ? 'active' : '' }}">
+                <i class="bi bi-pie-chart-fill"></i> 
+                <span class="menu-text">Métricas de Concursos</span>
             </a>
             
         @endif
