@@ -18,6 +18,7 @@ class PromocionesOfertas extends Component
     protected $paginationTheme = 'bootstrap';
 
     // Propiedades del Formulario
+    public $isModalOpen = false;
     public $selected_id, $name, $description, $router_identity;
     public $media, $current_media_path;
     
@@ -32,6 +33,17 @@ class PromocionesOfertas extends Component
     public function mount()
     {
         $this->isAdmin = Auth::user()->role === 'admin';
+    }
+
+    public function openModal()
+    {
+        $this->resetInputFields();
+        $this->isModalOpen = true;
+    }
+
+    public function closeModal()
+    {
+        $this->isModalOpen = false;
     }
 
     public function resetInputFields()
@@ -88,6 +100,7 @@ class PromocionesOfertas extends Component
         AdvertisingCampaign::updateOrCreate(['id' => $this->selected_id], $data);
 
         session()->flash('message', $this->selected_id ? 'Promoción actualizada.' : 'Promoción creada con éxito.');
+        $this->closeModal();
         $this->resetInputFields();
     }
 
@@ -104,6 +117,8 @@ class PromocionesOfertas extends Component
         $options = $promo->options ?? [];
         $this->on_connect = $options['on_connect'] ?? false;
         $this->only_new = $options['only_new'] ?? false;
+
+        $this->isModalOpen = true;
     }
 
     public function toggleStatus($id)
