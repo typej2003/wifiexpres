@@ -7,26 +7,68 @@
                     <p class="text-sm">Busca un cliente para ver su historial de visitas y comportamiento.</p>
                 </div>
                 <div class="card-body">
-                    <!-- Buscador -->
-                    <div class="row mb-4">
-                        <div class="col-md-6 position-relative">
-                            <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
-                                <input type="text" class="form-control border-start-0 ps-0" placeholder="Escriba nombre o correo del cliente..." wire:model.debounce.500ms="search">
+                    @if(!$selectedUser)
+                        <!-- Buscador -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+                                    <input type="text" class="form-control border-start-0 ps-0" 
+                                        placeholder="Nombre o correo + Enter para buscar..." 
+                                        wire:model.defer="search" 
+                                        wire:keydown.enter="$refresh">
+                                    <button class="btn btn-primary mb-0" type="button" wire:click="$refresh">Buscar</button>
+                                </div>
                             </div>
-                            @if(strlen($search) > 2 && count($usersSearch) > 0)
-                                <ul class="list-group mt-1 position-absolute w-100 shadow" style="z-index: 1000;">
-                                    @foreach($usersSearch as $u)
-                                        <li class="list-group-item list-group-item-action cursor-pointer" wire:click="selectUser({{ $u->id }})" style="cursor: pointer;">
-                                            <i class="bi bi-person me-2"></i> {{ $u->name }} <small class="text-muted">({{ $u->email ?? 'Sin correo' }})</small>
-                                        </li>
-                                    @endforeach
-                                </ul>
-                            @endif
                         </div>
-                    </div>
 
-                    @if($selectedUser)
+                        <!-- Listado de Clientes -->
+                        <div class="table-responsive p-0">
+                            <table class="table align-items-center mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Cliente</th>
+                                        <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Email</th>
+                                        <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 text-center">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($users as $user)
+                                        <tr>
+                                            <td class="px-4">
+                                                <div class="d-flex flex-column">
+                                                    <h6 class="mb-0 text-sm">{{ $user->name }}</h6>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <p class="text-xs font-weight-bold mb-0">{{ $user->email ?? 'N/A' }}</p>
+                                            </td>
+                                            <td class="align-middle text-center">
+                                                <button class="btn btn-link text-info text-gradient px-3 mb-0" wire:click="selectUser({{ $user->id }})">
+                                                    <i class="bi bi-eye-fill me-2"></i>Ver Historial
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="3" class="text-center py-4 text-sm text-secondary">No se encontraron clientes.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-4 px-3">
+                            {{ $users->links() }}
+                        </div>
+                    @else
+                        <!-- Detalle del Cliente Seleccionado -->
+                        <div class="mb-3">
+                            <button class="btn btn-sm btn-link text-secondary ps-0" wire:click="deselectUser">
+                                <i class="bi bi-arrow-left"></i> Volver al listado completo
+                            </button>
+                        </div>
+
                         <!-- Ficha del Cliente -->
                         <div class="p-3 bg-light border-radius-lg mb-4">
                             <div class="row align-items-center">
@@ -39,7 +81,7 @@
                                     <div class="h-100">
                                         <h5 class="mb-1 text-dark">{{ $selectedUser->name }}</h5>
                                         <p class="mb-0 font-weight-bold text-sm">
-                                            <span class="text-info">{{ $selectedUser->name }}</span>, ha venido <span class="text-dark">{{ $totalVisits }}</span> veces en total.
+                                            El cliente ha venido <span class="text-info">{{ $totalVisits }}</span> veces en total.
                                         </p>
                                     </div>
                                 </div>
@@ -82,11 +124,6 @@
                                     @endforelse
                                 </tbody>
                             </table>
-                        </div>
-                    @else
-                        <div class="text-center py-5">
-                            <i class="bi bi-people text-secondary opacity-3" style="font-size: 4rem;"></i>
-                            <p class="mt-3 text-secondary">Inicie una búsqueda para ver los detalles y el historial de visitas del cliente.</p>
                         </div>
                     @endif
                 </div>
