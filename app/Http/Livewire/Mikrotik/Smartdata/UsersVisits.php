@@ -45,7 +45,11 @@ class UsersVisits extends Component
                   ->orWhere(DB::raw("CONCAT(COALESCE(cellphonecode,''), COALESCE(cellphone,''))"), 'like', $term);
         })->paginate(15);
 
-        $visits = $selectedUser ? $selectedUser->visits()->orderBy('created_at', 'desc')->get() : collect();
+        // Corregimos la consulta para que coincida con el formato 'T-MAC' de TicketLog
+        $visits = $selectedUser 
+            ? TicketLog::where('username', 'T-' . $selectedUser->name)->orderBy('created_at', 'desc')->get() 
+            : collect();
+            
         $totalVisits = $visits->count();
 
         return view('livewire.mikrotik.smartdata.users-visits', compact('users', 'selectedUser', 'visits', 'totalVisits'));
