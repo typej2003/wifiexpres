@@ -19,6 +19,8 @@ class Permanencia extends Component
     public $clientType = 'todos'; // todos, nuevos, recurrentes
 
     public $results = [];
+    public $detailedClients = [];
+    public $chartData = [];
 
     public function mount()
     {
