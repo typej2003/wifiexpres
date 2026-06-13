@@ -379,6 +379,26 @@
                 <i class="bi bi-pie-chart-fill"></i> 
                 <span class="menu-text">Métricas de Concursos</span>
             </a>
+
+            <a href="{{ route('smartdata.users-visits') }}" class="sidebar-link {{ request()->routeIs('smartdata.users-visits') ? 'active' : '' }}">
+                <i class="bi bi-people-fill"></i> 
+                <span class="menu-text">Clientes y Visitas</span>
+            </a>
+
+            <a href="{{ route('smartdata.permanencia') }}" class="sidebar-link {{ request()->routeIs('smartdata.permanencia') ? 'active' : '' }}">
+                <i class="bi bi-clock-history"></i> 
+                <span class="menu-text">Reportes de Permanencia</span>
+            </a>
+
+            <a href="{{ route('smartdata.promociones') }}" class="sidebar-link {{ request()->routeIs('smartdata.promociones') ? 'active' : '' }}">
+                <i class="bi bi-megaphone"></i> 
+                <span class="menu-text">Promociones y Ofertas</span>
+            </a>
+
+            <a href="{{ route('smartdata.monitoreo') }}" class="sidebar-link {{ request()->routeIs('smartdata.monitoreo') ? 'active' : '' }}">
+                <i class="bi bi-activity"></i> 
+                <span class="menu-text">Monitoreo en Vivo</span>
+            </a>
             
         @endif
 
