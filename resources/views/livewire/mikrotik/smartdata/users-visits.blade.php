@@ -28,6 +28,7 @@
                                 <thead>
                                     <tr>
                                         <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Cliente</th>
+                                        <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Teléfono</th>
                                         <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Email</th>
                                         <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 text-center">Acción</th>
                                     </tr>
@@ -37,8 +38,11 @@
                                         <tr>
                                             <td class="px-4">
                                                 <div class="d-flex flex-column">
-                                                    <h6 class="mb-0 text-sm">{{ $user->name }}</h6>
+                                                    <h6 class="mb-0 text-sm">{{ $user->full_name ?? $user->name }}</h6>
                                                 </div>
+                                            </td>
+                                            <td>
+                                                <p class="text-xs font-weight-bold mb-0">{{ $user->cellphonecode }}{{ $user->cellphone }}</p>
                                             </td>
                                             <td>
                                                 <p class="text-xs font-weight-bold mb-0">{{ $user->email ?? 'N/A' }}</p>
@@ -79,7 +83,7 @@
                                 </div>
                                 <div class="col my-auto">
                                     <div class="h-100">
-                                        <h5 class="mb-1 text-dark">{{ $selectedUser->name }}</h5>
+                                        <h5 class="mb-1 text-dark">{{ $selectedUser->full_name ?? $selectedUser->name }}</h5>
                                         <p class="mb-0 font-weight-bold text-sm">
                                             El cliente ha venido <span class="text-info">{{ $totalVisits }}</span> veces en total.
                                         </p>

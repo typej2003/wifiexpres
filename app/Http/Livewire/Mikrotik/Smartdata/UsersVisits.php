@@ -7,6 +7,7 @@ use Livewire\WithPagination;
 use App\Models\UserMikrotik;
 use App\Models\TicketLog;
 use App\Models\Router;
+use Illuminate\Support\Facades\DB;
 
 class UsersVisits extends Component
 {
@@ -35,9 +36,13 @@ class UsersVisits extends Component
     {
         $selectedUser = $this->selectedUserId ? UserMikrotik::find($this->selectedUserId) : null;
         
-        $users = UserMikrotik::where(function($query) {
-            $query->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhere('email', 'like', '%' . $this->search . '%');
+        $users = UserMikrotik::query()->where(function($query) {
+            $term = '%' . $this->search . '%';
+            $query->where('full_name', 'like', $term)
+                  ->orWhere('name', 'like', $term)
+                  ->orWhere('server', 'like', $term)
+                  ->orWhere('email', 'like', $term)
+                  ->orWhere(DB::raw("CONCAT(COALESCE(cellphonecode,''), COALESCE(cellphone,''))"), 'like', $term);
         })->paginate(15);
 
         $visits = $selectedUser ? TicketLog::where('username', $selectedUser->name)->orderBy('created_at', 'desc')->get() : collect();
