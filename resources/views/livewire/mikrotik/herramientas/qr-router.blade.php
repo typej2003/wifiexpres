@@ -46,7 +46,11 @@
                                 {!! QrCode::size(280)->margin(2)->generate("WIFI:S:$ssid;;") !!}
                             </div>
                             <h3 class="fw-bold text-dark mb-1">{{ $ssid }}</h3>
-                            <p class="text-muted">Escanee para conectarse automáticamente a la red y acceder al portal.</p>
+                            <div class="text-center mt-3">
+                                <p class="mb-1 text-muted small">1. Escanea el QR</p>
+                                <p class="mb-1 text-muted small">2. Haz clic al WiFi <strong>{{ $ssid }}</strong></p>
+                                <p class="mb-0 text-muted small">3. Llena el formulario y presiona el Boton <strong>CONECTAR AHORA</strong></p>
+                            </div>
                             
                             <button onclick="window.print()" class="btn btn-outline-primary rounded-pill px-4 mt-3">
                                 <i class="bi bi-printer me-2"></i> Imprimir Código
@@ -80,8 +84,9 @@
                     <h1 class="comercio-title">{{ $comercio_nombre }}</h1>
 
                     <div class="steps-box">
-                        <p>1. Conecta tu dispositivo a la WiFi: <strong>{{ $ssid }}</strong></p>
-                        <p>2. Llena el formulario y conectate</p>
+                        <p>1. Escanea el QR</p>
+                        <p>2. Haz clic al WiFi: <strong>{{ $ssid }}</strong></p>
+                        <p>3. Llena el formulario y presiona el Boton <strong>CONECTAR AHORA</strong></p>
                     </div>
                 </div>
             </div>
