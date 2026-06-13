@@ -17,6 +17,13 @@ class UsersVisits extends Component
     public $search = '';
     public $selectedUserId = null;
 
+    public function mount($userId = null)
+    {
+        if ($userId) {
+            $this->selectedUserId = $userId;
+        }
+    }
+
     public function updatingSearch()
     {
         $this->resetPage();

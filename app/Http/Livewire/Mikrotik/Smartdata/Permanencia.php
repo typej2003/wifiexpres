@@ -131,6 +131,7 @@ class Permanencia extends Component
                 $conteoValidoDuracion += $userValidDurationCount;
 
                 $this->detailedClients[$router->id][] = [
+                    'user_id' => $userMikrotik ? $userMikrotik->id : null,
                     'username' => $username,
                     'client_name' => $clientName,
                     'cellphone' => $clientCellphone,

@@ -131,7 +131,15 @@
                                                     <tr>
                                                         <td class="px-4">
                                                             <div class="d-flex flex-column">
-                                                                <h6 class="mb-0 text-sm">{{ $client['client_name'] }}</h6>
+                                                                <h6 class="mb-0 text-sm">
+                                                                    @if($client['user_id'])
+                                                                        <a href="{{ route('aliadoSmartData.users-visits', ['userId' => $client['user_id']]) }}" class="text-primary text-decoration-underline">
+                                                                            {{ $client['client_name'] }}
+                                                                        </a>
+                                                                    @else
+                                                                        {{ $client['client_name'] }}
+                                                                    @endif
+                                                                </h6>
                                                                 <p class="text-xs text-secondary mb-0">
                                                                     {{ $client['email'] != 'N/A' ? $client['email'] : 'Sin Email' }} | {{ $client['cellphone'] ?: 'Sin Teléfono' }}
                                                                 </p>
