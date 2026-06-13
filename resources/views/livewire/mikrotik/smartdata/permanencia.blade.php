@@ -11,16 +11,26 @@
                     <!-- Filtros Rápidos -->
                     <div class="row g-3 mb-4 align-items-end">
                         <div class="col-md-3">
+                            <label class="form-label text-xs font-weight-bold">Período</label>
+                            <select class="form-select form-select-sm" wire:model="selectedPeriod" wire:change="setDatesForPeriod($event.target.value)">
+                                <option value="dia">Hoy</option>
+                                <option value="semana">Últimos 7 días</option>
+                                <option value="mes">Últimos 30 días</option>
+                                <option value="trimestre">Últimos 3 meses</option>
+                                <option value="custom">Personalizado</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
                             <label class="form-label text-xs font-weight-bold">Desde</label>
-                            <input type="date" class="form-control form-control-sm" wire:model.defer="fromDate">
+                            <input type="date" class="form-control form-control-sm" wire:model.defer="fromDate" @if($selectedPeriod != 'custom') disabled @endif>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label text-xs font-weight-bold">Hasta</label>
-                            <input type="date" class="form-control form-control-sm" wire:model.defer="toDate">
+                            <input type="date" class="form-control form-control-sm" wire:model.defer="toDate" @if($selectedPeriod != 'custom') disabled @endif>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label text-xs font-weight-bold">Local / Router</label>
-                            <select class="form-select form-select-sm" wire:model.defer="selectedRouter">
+                            <select class="form-select form-select-sm" wire:model="selectedRouter">
                                 <option value="">Todos los locales</option>
                                 @foreach($routers as $r)
                                     <option value="{{ $r->id }}">{{ $r->identity }}</option>
@@ -28,7 +38,7 @@
                             </select>
                         </div>
                         <div class="col-md-3 d-flex gap-2">
-                            <button class="btn btn-sm btn-dark mb-0 w-100" wire:click="consultar">
+                            <button class="btn btn-sm btn-dark mb-0 w-100" wire:click="consultar" wire:loading.attr="disabled">
                                 <i class="bi bi-filter"></i> Filtrar
                             </button>
                         </div>
@@ -37,13 +47,13 @@
                     <div class="row mb-4">
                         <div class="col-12">
                             <div class="btn-group btn-group-sm w-100 shadow-none" role="group">
-                                <input type="radio" class="btn-check" name="btnType" id="type1" wire:model="clientType" value="todos" wire:click="consultar">
+                                <input type="radio" class="btn-check" name="btnType" id="type1" wire:model="clientType" value="todos" wire:click="consultar" autocomplete="off">
                                 <label class="btn btn-outline-primary" for="type1">Todos los Clientes</label>
 
-                                <input type="radio" class="btn-check" name="btnType" id="type2" wire:model="clientType" value="nuevos" wire:click="consultar">
+                                <input type="radio" class="btn-check" name="btnType" id="type2" wire:model="clientType" value="nuevos" wire:click="consultar" autocomplete="off">
                                 <label class="btn btn-outline-primary" for="type2">Solo Nuevos</label>
 
-                                <input type="radio" class="btn-check" name="btnType" id="type3" wire:model="clientType" value="recurrentes" wire:click="consultar">
+                                <input type="radio" class="btn-check" name="btnType" id="type3" wire:model="clientType" value="recurrentes" wire:click="consultar" autocomplete="off">
                                 <label class="btn btn-outline-primary" for="type3">Solo Recurrentes</label>
                             </div>
                         </div>

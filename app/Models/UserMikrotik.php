@@ -52,6 +52,8 @@ class UserMikrotik extends Model
 
     public function visits()
     {
-        return $this->hasMany(TicketLog::class, 'username', 'name');
+        // La relación directa no funciona por el prefijo 'T-', se maneja en el controlador
+        // Si se quisiera usar aquí, sería con un accessor o una relación personalizada.
+        return $this->hasMany(TicketLog::class, 'username', 'name')->whereRaw("username = CONCAT('T-', user_mikrotiks.name)");
     }
 }
