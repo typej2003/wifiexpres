@@ -65,9 +65,11 @@
                         <h2 class="fw-bold mb-0 text-muted fs-4">Sin Plan</h2>
                     @endforelse
                 </div>
+                @if($userPackages->where('pivot.allowed_routers', '<', 2)->isEmpty())
                 <button wire:click="openModal" class="btn btn-sm btn-link text-decoration-none p-0 fw-bold mt-auto">
                     <i class="bi bi-plus-circle me-1"></i> GESTIONAR
                 </button>
+                @endif
             </div>
         </div>
         <div class="col-md-4">
