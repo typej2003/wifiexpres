@@ -1,3 +1,101 @@
-<div>
-    {{-- If your happiness depends on money, you will never be happy with yourself. --}}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header pb-0">
+                    <h5 class="mb-1">Reporte de Permanencia</h5>
+                    <p class="text-sm">Analiza el tiempo promedio de estancia y la fidelidad de los clientes.</p>
+                </div>
+                <div class="card-body">
+                    
+                    <!-- Filtros Rápidos -->
+                    <div class="row g-3 mb-4 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label text-xs font-weight-bold">Desde</label>
+                            <input type="date" class="form-control form-control-sm" wire:model.defer="fromDate">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-xs font-weight-bold">Hasta</label>
+                            <input type="date" class="form-control form-control-sm" wire:model.defer="toDate">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-xs font-weight-bold">Local / Router</label>
+                            <select class="form-select form-select-sm" wire:model.defer="selectedRouter">
+                                <option value="">Todos los locales</option>
+                                @foreach($routers as $r)
+                                    <option value="{{ $r->id }}">{{ $r->identity }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex gap-2">
+                            <button class="btn btn-sm btn-dark mb-0 w-100" wire:click="consultar">
+                                <i class="bi bi-filter"></i> Filtrar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="btn-group btn-group-sm w-100 shadow-none" role="group">
+                                <input type="radio" class="btn-check" name="btnType" id="type1" wire:model="clientType" value="todos" wire:click="consultar">
+                                <label class="btn btn-outline-primary" for="type1">Todos los Clientes</label>
+
+                                <input type="radio" class="btn-check" name="btnType" id="type2" wire:model="clientType" value="nuevos" wire:click="consultar">
+                                <label class="btn btn-outline-primary" for="type2">Solo Nuevos</label>
+
+                                <input type="radio" class="btn-check" name="btnType" id="type3" wire:model="clientType" value="recurrentes" wire:click="consultar">
+                                <label class="btn btn-outline-primary" for="type3">Solo Recurrentes</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cuadro de Resumen -->
+                    <div class="table-responsive p-0">
+                        <table class="table align-items-center mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Local / Zona</th>
+                                    <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Nuevos Clientes</th>
+                                    <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Clientes Totales</th>
+                                    <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Tiempo Promedio de Estancia</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($results as $res)
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex px-3 py-1">
+                                                <div class="d-flex flex-column justify-content-center">
+                                                    <h6 class="mb-0 text-sm">{{ $res['zona'] }}</h6>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="align-middle text-center">
+                                            <span class="badge badge-sm bg-gradient-success">{{ $res['nuevos'] }}</span>
+                                        </td>
+                                        <td class="align-middle text-center">
+                                            <span class="text-secondary text-xs font-weight-bold">{{ $res['totales'] }}</span>
+                                        </td>
+                                        <td class="align-middle text-center">
+                                            <div class="d-flex align-items-center justify-content-center">
+                                                <i class="bi bi-clock-history me-2 text-info"></i>
+                                                <span class="text-dark text-sm font-weight-bold">{{ $res['promedio'] }}</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="text-center py-5">
+                                            <p class="text-secondary mb-0">No hay datos suficientes para el rango seleccionado.</p>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
