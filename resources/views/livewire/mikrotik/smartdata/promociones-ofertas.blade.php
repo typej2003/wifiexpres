@@ -12,10 +12,10 @@
         <div class="card-body p-4">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h4 class="fw-bold mb-0">
-                    <i class="bi bi-megaphone text-primary me-2"></i>Concurso de Encuestas
+                    <i class="bi bi-megaphone text-primary me-2"></i>Promociones y Ofertas
                 </h4>
                 <button wire:click="openModal" class="btn btn-primary rounded-pill px-4 shadow-sm">
-                    <i class="bi bi-plus-lg me-1"></i> Nueva Concurso
+                    <i class="bi bi-plus-lg me-1"></i> Nueva Promoción
                 </button>
             </div>
 
@@ -25,7 +25,7 @@
                         <span class="input-group-text bg-white border-end-0 text-muted">
                             <i class="bi bi-search"></i>
                         </span>
-                        <input type="text" wire:model="search" class="form-control border-start-0" placeholder="Buscar concurso...">
+                        <input type="text" wire:model="search" class="form-control border-start-0" placeholder="Buscar promoción...">
                     </div>
                 </div>
                 
@@ -49,10 +49,10 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="bg-light text-muted small fw-bold text-uppercase">
                     <tr>
-                        <th class="px-4 py-3">Concurso</th>
-                        <th class="py-3">Etapa</th>
+                        <th class="px-4 py-3">Campaña / Promoción</th>
                         <th class="py-3">Segmentación</th>
-                        <th class="py-3 text-center">Contenido</th>
+                        <th class="py-3 text-center">Reglas Envío</th>
+                        <th class="py-3 text-center">Alcance</th>
                         <th class="py-3 text-center">Estado</th>
                         <th class="text-end px-4">Acciones</th>
                     </tr>
@@ -65,21 +65,17 @@
                             @if($isAdmin) <small class="text-primary fw-semibold">{{ $camp->user->name }}</small> @endif
                         </td>
                         <td>
-                            <span class="badge bg-secondary rounded-pill px-3">
-                                {{ $camp->etapa ?? 'Sin Etapa' }}
-                            </span>
-                        </td>
-                        <td>
                             <span class="badge bg-soft-info text-info rounded-pill px-3">
                                 {{ strtoupper($camp->target_gender) }} | {{ $camp->ageRange->name ?? 'Cualquier edad' }}
                             </span>
                         </td>
                         <td class="text-center">
-                            @if($camp->media_type == 'imagen')
-                                <i class="bi bi-image text-primary fs-5"></i>
-                            @else
-                                <i class="bi bi-play-circle-fill text-danger fs-5"></i>
-                            @endif
+                            @php $opts = $camp->options ?? []; @endphp
+                            @if($opts['on_connect'] ?? false) <span class="badge bg-light text-dark border small">CONECTAR</span> @endif
+                            @if($opts['only_new'] ?? false) <span class="badge bg-light text-primary border small">NUEVOS</span> @endif
+                        </td>
+                        <td class="text-center">
+                            <span class="fw-bold"><i class="bi bi-people me-1"></i>{{ $camp->responses_count ?? 0 }}</span>
                         </td>
                         <td class="text-center">
                             <div class="form-check form-switch d-inline-block">
@@ -120,7 +116,7 @@
         <div class="modal-dialog modal-lg" style="margin-top: 6rem;">
             <div class="modal-content border-0 shadow-lg rounded-4">
                 <div class="modal-header border-0 p-4 pb-0">
-                    <h5 class="fw-bold mb-0 text-dark">{{ $selected_id ? 'Editar Concurso' : 'Nuevo Concurso' }}</h5>
+                    <h5 class="fw-bold mb-0 text-dark">{{ $selected_id ? 'Editar Promoción' : 'Nueva Promoción' }}</h5>
                     <button type="button" class="btn-close" wire:click="closeModal"></button>
                 </div>
                 
@@ -128,7 +124,7 @@
                     <div class="row g-3">
                         @if($isAdmin)
                         <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted">Aliado</label>
+                            <label class="form-label small fw-bold text-muted">Aliado Propietario</label>
                             <select wire:model="user_id" class="form-select @error('user_id') is-invalid @enderror">
                                 <option value="">Seleccionar...</option>
                                 @foreach($aliados as $aliado)
@@ -138,7 +134,7 @@
                         </div>
                         {{-- Selector de Routers --}}
                         <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted">Router del Concurso</label>
+                            <label class="form-label small fw-bold text-muted">Router Destino</label>
                             <select wire:model="router_identity" class="form-select @error('router_identity') is-invalid @enderror">
                                 <option value="">Seleccione un router...</option>
                                 @foreach($routers as $router)
@@ -149,7 +145,7 @@
                         </div>
                         @else
                         <div class="col-md-12">
-                            <label class="form-label small fw-bold text-muted">Router del Concurso</label>
+                            <label class="form-label small fw-bold text-muted">Router Destino</label>
                             <select wire:model="router_identity" class="form-select @error('router_identity') is-invalid @enderror">
                                 <option value="">Seleccione un router...</option>
                                 @foreach($routers as $router)
@@ -160,14 +156,14 @@
                         </div>
                         @endif
 
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted">Nombre del Concurso</label>
-                            <input type="text" wire:model="name" class="form-control" placeholder="Ej: Comcurso Mundial">
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold text-muted">Título de la Promoción</label>
+                            <input type="text" wire:model="name" class="form-control" placeholder="Ej: ¡Oferta 2x1 en Almuerzos!">
                         </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted">Etapa del Concurso</label>
-                            <input type="text" wire:model="etapa" class="form-control" placeholder="Ej: Fase 1 / Gran Final">
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold text-muted">Descripción de la Oferta</label>
+                            <textarea wire:model="description" class="form-control" rows="2" placeholder="Escribe aquí los detalles..."></textarea>
                         </div>
 
                         <div class="col-md-6">
@@ -211,64 +207,26 @@
                             </div>
                         </div>
 
-                        <div class="col-md-8">
-                            <label class="form-label small fw-bold text-muted">Pregunta de Encuesta</label>
-                            <input type="text" wire:model="question_text" class="form-control" placeholder="¿Qué te parece nuestro servicio?">
-                        </div>
-
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-muted">Tipo de Respuesta</label>
-                            <select wire:model="question_type" class="form-select">
-                                <option value="simple">Respuesta Abierta</option>
-                                <option value="single_choice">Opción Única (Radio)</option>
-                                <option value="multiple_choice">Múltiples Opciones (Check)</option>
-                            </select>
-                        </div>
-
-                        {{-- GESTIÓN DE OPCIONES --}}
-                        @if($question_type != 'simple')
                         <div class="col-12">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <label class="form-label small fw-bold text-primary mb-0">Opciones de Respuesta</label>
-                                <button type="button" wire:click="addOption" class="btn btn-sm btn-outline-primary rounded-pill">
-                                    <i class="bi bi-plus"></i> Agregar Opción
-                                </button>
-                            </div>
-                            @foreach($options as $index => $option)
-                            <div class="row g-2 mb-2 align-items-center">
-                                <div class="col">
-                                    <div class="input-group input-group-sm">
-                                        <span class="input-group-text fw-bold text-primary">#{{ $index + 1 }}</span>
-                                        <input type="text" wire:model.defer="options.{{ $index }}.text" class="form-control" placeholder="Nombre/Respuesta" style="flex: 2;">
-                                        <input type="text" wire:model.defer="options.{{ $index }}.grupo" class="form-control" placeholder="Grupo/Equipo" style="flex: 1;">
-                                        <input type="file" wire:model="temp_option_images.{{ $index }}" class="form-control" accept="image/*" style="max-width: 150px;">
-                                        <button type="button" wire:click="removeOption({{ $index }})" class="btn btn-outline-danger">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </div>
+                            <div class="bg-light p-3 rounded-4 border-0">
+                                <h6 class="text-xs text-uppercase text-muted fw-bold mb-3">Reglas de Envío</h6>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="on_connect" wire:model="on_connect">
+                                    <label class="form-check-label small fw-bold" for="on_connect">Mandar al conectarse</label>
                                 </div>
-                                <div class="col-auto">
-                                    {{-- Vista previa de la imagen de la opción --}}
-                                    @if(isset($temp_option_images[$index]))
-                                        <img src="{{ $temp_option_images[$index]->temporaryUrl() }}" class="rounded shadow-sm border" style="width: 38px; height: 38px; object-fit: cover;">
-                                    @elseif(isset($option['image']) && $option['image'])
-                                        <img src="{{ asset('storage/' . $option['image']) }}" class="rounded shadow-sm border" style="width: 38px; height: 38px; object-fit: cover;">
-                                    @else
-                                        <div class="rounded bg-light border d-flex align-items-center justify-content-center text-muted" style="width: 38px; height: 38px; font-size: 10px;">S/I</div>
-                                    @endif
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="only_new" wire:model="only_new">
+                                    <label class="form-check-label small fw-bold" for="only_new">Mandar solo a clientes nuevos</label>
                                 </div>
                             </div>
-                            @endforeach
-                            @error('options') <small class="text-danger">{{ $message }}</small> @enderror
                         </div>
-                        @endif
                     </div>
                 </div>
 
                 <div class="modal-footer border-0 p-4 pt-0">
                     <button wire:click="closeModal" class="btn btn-light rounded-pill px-4">Cerrar</button>
                     <button wire:click="save" class="btn btn-primary rounded-pill px-5 shadow-sm fw-bold">
-                        {{ $selected_id ? 'Guardar Cambios' : 'Crear Concurso' }}
+                        {{ $selected_id ? 'Guardar Cambios' : 'Activar Promoción' }}
                     </button>
                 </div>
             </div>

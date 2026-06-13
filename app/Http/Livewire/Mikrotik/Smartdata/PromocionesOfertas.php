@@ -29,8 +29,12 @@ class PromocionesOfertas extends Component
     public $selected_id, $name, $description, $target_gender = 'todos', $router_identity;
     public $age_range_id;
     public $media_type = 'imagen', $media, $current_media_path;
-    public $question_text, $question_type = 'simple';
-    public $options = []; // Array para las opciones dinámicas
+    public $question_text = 'Publicidad Estándar', $question_type = 'simple';
+    
+    // Reglas de Envío (Nuevos campos)
+    public $on_connect = false;
+    public $only_new = false;
+
     public $user_id;
 
     public function mount()
@@ -62,7 +66,8 @@ class PromocionesOfertas extends Component
         $this->media = null;
         $this->question_text = '';
         $this->question_type = 'simple';
-        $this->options = [];
+        $this->on_connect = false;
+        $this->only_new = false;
         $this->selected_id = null;
         $this->current_media_path = null;
         if ($this->isAdmin) {
@@ -98,7 +103,12 @@ class PromocionesOfertas extends Component
         $this->media_type = $campaign->media_type;
         $this->question_text = $campaign->question_text;
         $this->question_type = $campaign->question_type;
-        $this->options = $campaign->options ?? [];
+
+        // Recuperar reglas de envío desde el JSON options
+        $opts = $campaign->options ?? [];
+        $this->on_connect = $opts['on_connect'] ?? false;
+        $this->only_new = $opts['only_new'] ?? false;
+
         $this->user_id = $campaign->user_id;
         $this->current_media_path = $campaign->media_path;
         
@@ -107,13 +117,10 @@ class PromocionesOfertas extends Component
 
     public function addOption()
     {
-        $this->options[] = '';
     }
 
     public function removeOption($index)
     {
-        unset($this->options[$index]);
-        $this->options = array_values($this->options);
     }
 
     public function delete($id)
@@ -134,8 +141,6 @@ class PromocionesOfertas extends Component
             'user_id' => 'required',
             'age_range_id' => 'required',
             'media' => $this->selected_id ? 'nullable|max:20480' : 'required|max:20480',
-            'question_text' => 'required',
-            'options' => $this->question_type != 'simple' ? 'required|array|min:2' : 'nullable',
         ]);
 
         $data = [
@@ -146,9 +151,12 @@ class PromocionesOfertas extends Component
             'target_gender' => $this->target_gender,
             'age_range_id' => $this->age_range_id ?: 0,
             'media_type' => $this->media_type,
-            'question_text' => $this->question_text,
-            'question_type' => $this->question_type,
-            'options' => $this->question_type != 'simple' ? $this->options : null,
+            'question_text' => 'Promoción Hotspot',
+            'question_type' => 'simple',
+            'options' => [
+                'on_connect' => $this->on_connect,
+                'only_new' => $this->only_new
+            ],
         ];
 
         if ($this->media) {
@@ -192,7 +200,7 @@ class PromocionesOfertas extends Component
             : collect();
 
         return view('livewire.mikrotik.smartdata.promociones-ofertas', [
-            'campaigns' => $query->latest()->paginate(10),
+            'campaigns' => $query->latest()->paginate(15),
             'aliados' => $this->isAdmin ? User::where('role', 'aliado')->orwhere('role', 'aliadoSmartData')->get() : [],
             'ageRanges' => $ageRanges,
             'routers' => $routers
