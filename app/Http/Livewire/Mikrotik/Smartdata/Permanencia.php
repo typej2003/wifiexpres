@@ -62,6 +62,24 @@ class Permanencia extends Component
 
         $logs = $query->get();
 
+        // 1. Optimización: Pre-procesar todos los nombres de usuario y manejar el prefijo 'T-'
+        $allUsernames = $logs->pluck('username')->unique()->filter();
+        $macs = $allUsernames->map(fn($u) => Str::after($u, 'T-'))->toArray();
+
+        // Agrupamos usuarios por router y mac para búsqueda instantánea (O(1))
+        $mikrotikUsers = UserMikrotik::whereIn('name', $macs)
+            ->whereIn('router_id', $allowedRouterIds)
+            ->get()
+            ->groupBy(['router_id', 'name']);
+
+        // Identificar quiénes son recurrentes en una sola consulta
+        $recurrentUsernames = TicketLog::whereIn('username', $allUsernames)
+            ->whereIn('router_id', $allowedRouterIds)
+            ->where('created_at', '<', $start)
+            ->distinct()
+            ->pluck('username')
+            ->toArray();
+
         // Agrupamos por Router para mostrar "Locales/Zonas"
         $grouped = $logs->groupBy('router_id');
         $this->results = [];
@@ -82,20 +100,15 @@ class Permanencia extends Component
                 // Extraer la MAC address del username (ej. T-7A:D2:3B:4C:5E -> 7A:D2:3B:4C:5E)
                 $macAddress = Str::after($username, 'T-');
 
-                // Buscar el UserMikrotik asociado
-                $userMikrotik = UserMikrotik::where('name', $macAddress)
-                                            ->where('router_id', $routerId) // Importante: vincular al router
-                                            ->first();
+                // Buscar el UserMikrotik en la colección pre-cargada usando router_id y macAddress
+                $userMikrotik = $mikrotikUsers->get($routerId)?->get($macAddress)?->first();
 
                 $clientName = $userMikrotik->full_name ?? $userMikrotik->name ?? $macAddress;
                 $clientCellphone = ($userMikrotik->cellphonecode ?? '') . ($userMikrotik->cellphone ?? '');
                 $clientEmail = $userMikrotik->email ?? 'N/A';
 
-                $esRecurrente = TicketLog::where('username', $username)
-                    ->where('router_id', $routerId) // Verificar recurrencia para este router específico
-                    ->where('created_at', '<', $start)
-                    ->exists();
-
+                // Verificamos recurrencia contra el array pre-calculado
+                $esRecurrente = in_array($username, $recurrentUsernames);
                 $esNuevo = !$esRecurrente;
 
                 // Filtrado por tipo de cliente según el botón seleccionado

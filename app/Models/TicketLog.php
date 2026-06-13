@@ -23,12 +23,15 @@ class TicketLog extends Model
     }
 
     /**
-     * Relación con el usuario de MikroTik basado en el nombre de usuario.
+     * Relación con el usuario de MikroTik.
+     * NOTA: No se puede usar 'username' directamente debido al prefijo 'T-'.
+     * En este sistema, UserMikrotik.name es la MAC, y TicketLog.username es 'T-' + MAC.
      */
-    public function userMikrotik(): BelongsTo
+    public function userMikrotik()
     {
-        // Vinculamos por username -> name
-        return $this->belongsTo(UserMikrotik::class, 'username', 'name');
+        // Esta relación no funcionará para eager loading estándar. 
+        // Se recomienda buscar por MAC limpia manualmente.
+        return $this->belongsTo(UserMikrotik::class, 'router_id', 'router_id');
     }
 
     /**
