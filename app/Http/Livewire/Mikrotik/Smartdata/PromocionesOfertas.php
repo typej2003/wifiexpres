@@ -157,7 +157,7 @@ class PromocionesOfertas extends Component
             })->get();
 
         return view('livewire.mikrotik.smartdata.promociones-ofertas', [
-            'promociones' => $query->latest()->paginate(10),
+            'promociones' => $query->latest()->paginate(15),
             'routers' => $routers
         ]);
     }
