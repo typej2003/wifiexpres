@@ -86,8 +86,11 @@ class Permanencia extends Component
         $this->detailedClients = []; // Para la nueva tabla de clientes detallados
         $this->chartData = []; // Para los datos del gráfico
 
+        // Pre-cargar routers para evitar N+1 consultas
+        $routers = Router::whereIn('id', $grouped->keys())->get()->keyBy('id');
+
         foreach ($grouped as $routerId => $routerLogs) {
-            $router = Router::find($routerId);
+            $router = $routers->get($routerId);
             if (!$router) continue; // Si el router no existe o no está permitido, lo saltamos
             $uniqueUsernames = $routerLogs->pluck('username')->unique()->filter(); // Filtrar usernames vacíos
             
