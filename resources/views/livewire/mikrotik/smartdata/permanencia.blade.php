@@ -133,7 +133,7 @@
                                                             <div class="d-flex flex-column">
                                                                 <h6 class="mb-0 text-sm">
                                                                     @if($client['user_id'])
-                                                                        <a href="{{ route('smartdata.users-visits', ['userId' => $client['user_id']]) }}" class="text-primary text-decoration-underline">
+                                                                        <a href="{{ route('smartdata.users-visits', ['userId' => $client['user_id'], 'from' => 'permanencia']) }}" class="text-primary text-decoration-underline">
                                                                             {{ $client['client_name'] }}
                                                                         </a>
                                                                     @else

@@ -69,7 +69,7 @@
                         <!-- Detalle del Cliente Seleccionado -->
                         <div class="mb-3">
                             <button class="btn btn-sm btn-link text-secondary ps-0" wire:click="deselectUser">
-                                <i class="bi bi-arrow-left"></i> Volver al listado completo
+                                <i class="bi bi-arrow-left"></i> {{ $from === 'permanencia' ? 'Volver a Reporte de Permanencia' : 'Volver al listado completo' }}
                             </button>
                         </div>
 

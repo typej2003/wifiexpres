@@ -16,12 +16,14 @@ class UsersVisits extends Component
 
     public $search = '';
     public $selectedUserId = null;
+    public $from = null;
 
     public function mount($userId = null)
     {
         if ($userId) {
             $this->selectedUserId = $userId;
         }
+        $this->from = request()->query('from');
     }
 
     public function updatingSearch()
@@ -36,6 +38,9 @@ class UsersVisits extends Component
 
     public function deselectUser()
     {
+        if ($this->from === 'permanencia') {
+            return redirect()->route('smartdata.permanencia');
+        }
         $this->selectedUserId = null;
     }
 
