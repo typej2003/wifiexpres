@@ -109,9 +109,24 @@ class PromocionesOfertas extends Component
     {
         $campaign = AdvertisingCampaign::findOrFail($id);
 
-        // Desmarcar cualquier otra campaña del mismo aliado para envío manual
-        AdvertisingCampaign::where('user_id', $campaign->user_id)
-            ->update(['manualSending' => false]);
+        // Si la campaña ya está seleccionada, la desactivamos (Toggle OFF)
+        if ($campaign->manualSending) {
+            $campaign->update(['manualSending' => false]);
+            $this->selectedCampaignForSending = null;
+            $this->selectedUsers = [];
+            $this->deliveryMethods = [];
+            return;
+        }
+
+        // Verificar si ya existe otra campaña marcada para envío manual para este aliado
+        $hasAnotherActive = AdvertisingCampaign::where('user_id', $campaign->user_id)
+            ->where('manualSending', true)
+            ->exists();
+
+        if ($hasAnotherActive) {
+            session()->flash('error', 'No se puede enviar varias campañas a la vez. Desactive la anterior y active la que desea enviar.');
+            return;
+        }
 
         // Marcar la actual
         $campaign->update(['manualSending' => true]);
