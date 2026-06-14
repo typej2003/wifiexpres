@@ -293,7 +293,7 @@ class PromocionesOfertas extends Component
         }
 
         return view('livewire.mikrotik.smartdata.promociones-ofertas', [
-            'campaigns' => $query->latest()->paginate(15),
+            'campaigns' => $query->latest()->paginate(),
             'aliados' => $this->isAdmin ? User::where('role', 'aliado')->orwhere('role', 'aliadoSmartData')->get() : [],
             'ageRanges' => $ageRanges,
             'routers' => $routers,
