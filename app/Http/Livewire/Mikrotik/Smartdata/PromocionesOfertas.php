@@ -21,11 +21,8 @@ class PromocionesOfertas extends Component
     use WithPagination, WithFileUploads;
 
     protected $paginationTheme = 'bootstrap';
-
-    // Declaramos la propiedad para que Livewire rastree la página de usuarios
-    public $usersPage = 1;
-
-    protected $queryString = ['search' => ['except' => ''], 'filterAliado' => ['except' => ''], 'usersPage' => ['except' => 1]];
+    
+    protected $queryString = ['search' => ['except' => ''], 'filterAliado' => ['except' => '']];
 
     public $search = '';
     public $filterAliado = '';
@@ -69,7 +66,6 @@ class PromocionesOfertas extends Component
     public function updatingFilterAliado()
     {
         $this->resetPage();
-        $this->resetPage('usersPage');
         $this->selectedCampaignForSending = null;
     }
 
@@ -123,7 +119,6 @@ class PromocionesOfertas extends Component
         $this->selectedCampaignForSending = $campaign;
         $this->selectedUsers = [];
         $this->deliveryMethods = [];
-        $this->resetPage('usersPage'); // Resetear al seleccionar una nueva campaña
     }
 
     public function edit($id)
@@ -288,7 +283,7 @@ class PromocionesOfertas extends Component
             $router = Router::where('identity', $this->selectedCampaignForSending->router_identity)->first();
             if ($router) {
                 $usersToNotify = UserMikrotik::where('router_id', $router->id)
-                    ->paginate(10, ['*'], 'usersPage');
+                    ->get();
             }
         }
 

@@ -188,9 +188,6 @@
                     </tbody>
                 </table>
             </div>
-            <div class="mt-3">
-                {{ $usersToNotify->links() }}
-            </div>
         </div>
     </div>
     @endif
