@@ -373,7 +373,7 @@ Route::post('/auth-sendSms', function (Request $request) {
                     'name' => $user->name,
                     'email' => $user->email
                 ],
-                'routers' => $routers,
+                //'routers' => $routers,
             ], 200);
 
         } catch (\Exception $e) {
