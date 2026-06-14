@@ -66,7 +66,7 @@
                 </thead>
                 <tbody>
                     @forelse($campaigns as $camp)
-                    <tr>
+                    <tr wire:key="camp-row-{{ $camp->id }}">
                         <td class="px-4">
                             <span class="fw-bold d-block text-dark">{{ $camp->name }}</span>
                             @if($isAdmin) <small class="text-primary fw-semibold">{{ $camp->user->name }}</small> @endif
@@ -147,7 +147,7 @@
                     </thead>
                     <tbody>
                         @forelse($usersToNotify as $user)
-                        <tr>
+                        <tr wire:key="user-notify-row-{{ $user->id }}">
                             <td class="px-4">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" value="{{ $user->id }}" wire:model="selectedUsers">

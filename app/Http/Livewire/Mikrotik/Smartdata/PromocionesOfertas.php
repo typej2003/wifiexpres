@@ -22,6 +22,11 @@ class PromocionesOfertas extends Component
 
     protected $paginationTheme = 'bootstrap';
 
+    // Declaramos la propiedad para que Livewire rastree la página de usuarios
+    public $usersPage = 1;
+
+    protected $queryString = ['search' => ['except' => ''], 'filterAliado' => ['except' => ''], 'usersPage' => ['except' => 1]];
+
     public $search = '';
     public $filterAliado = '';
     public $isAdmin = false;
@@ -59,6 +64,12 @@ class PromocionesOfertas extends Component
     public function closeModal()
     {
         $this->isModalOpen = false;
+    }
+    
+    public function updatingFilterAliado()
+    {
+        $this->resetPage();
+        $this->resetPage('usersPage');
     }
 
     private function resetInputFields()
@@ -102,6 +113,7 @@ class PromocionesOfertas extends Component
         $this->selectedCampaignForSending = AdvertisingCampaign::find($id);
         $this->selectedUsers = [];
         $this->deliveryMethods = [];
+        $this->resetPage('usersPage'); // Resetear al seleccionar una nueva campaña
     }
 
     public function edit($id)
