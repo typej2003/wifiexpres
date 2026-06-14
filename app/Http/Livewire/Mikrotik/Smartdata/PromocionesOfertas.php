@@ -70,6 +70,7 @@ class PromocionesOfertas extends Component
     {
         $this->resetPage();
         $this->resetPage('usersPage');
+        $this->selectedCampaignForSending = null;
     }
 
     private function resetInputFields()
@@ -110,7 +111,16 @@ class PromocionesOfertas extends Component
     
     public function selectCampaignForSending($id)
     {
-        $this->selectedCampaignForSending = AdvertisingCampaign::find($id);
+        $campaign = AdvertisingCampaign::findOrFail($id);
+
+        // Desmarcar cualquier otra campaña del mismo aliado para envío manual
+        AdvertisingCampaign::where('user_id', $campaign->user_id)
+            ->update(['manualSending' => false]);
+
+        // Marcar la actual
+        $campaign->update(['manualSending' => true]);
+
+        $this->selectedCampaignForSending = $campaign;
         $this->selectedUsers = [];
         $this->deliveryMethods = [];
         $this->resetPage('usersPage'); // Resetear al seleccionar una nueva campaña
@@ -199,6 +209,16 @@ class PromocionesOfertas extends Component
         $this->closeModal();
     }
     
+    public function closeUserSelection()
+    {
+        if ($this->selectedCampaignForSending) {
+            $this->selectedCampaignForSending->update(['manualSending' => false]);
+        }
+        $this->selectedCampaignForSending = null;
+        $this->selectedUsers = [];
+        $this->deliveryMethods = [];
+    }
+
     public function sendPromotions()
     {
         if (!$this->selectedCampaignForSending || empty($this->selectedUsers)) {
@@ -251,6 +271,16 @@ class PromocionesOfertas extends Component
         $routers = $userIdForRanges
             ? Router::where('user_id', $userIdForRanges)->get()
             : collect();
+
+        // Recuperar campaña seleccionada desde la BD si no está en memoria (persistencia)
+        if (!$this->selectedCampaignForSending) {
+            $userIdForSelection = $this->isAdmin ? ($this->filterAliado ?: null) : Auth::id();
+            if ($userIdForSelection) {
+                $this->selectedCampaignForSending = AdvertisingCampaign::where('user_id', $userIdForSelection)
+                    ->where('manualSending', true)
+                    ->first();
+            }
+        }
 
         $usersToNotify = collect();
         if ($this->selectedCampaignForSending) {

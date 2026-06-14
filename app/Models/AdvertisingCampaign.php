@@ -22,11 +22,13 @@ class AdvertisingCampaign extends Model
         'question_type',
         'options',
         'active',
+        'manualSending',
     ];
 
     protected $casts = [
         'options' => 'array',
         'active' => 'boolean',
+        'manualSending' => 'boolean',
     ];
 
     /**

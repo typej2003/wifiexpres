@@ -95,7 +95,7 @@
                         <td class="text-end px-4">
                             <div class="btn-group shadow-sm rounded-3">
                                 <button wire:click="selectCampaignForSending({{ $camp->id }})" 
-                                        class="btn btn-sm btn-white border {{ $selectedCampaignForSending && $selectedCampaignForSending->id == $camp->id ? 'bg-primary text-white' : '' }}" title="Seleccionar para envío manual">
+                                        class="btn btn-sm btn-white border {{ $camp->manualSending ? 'bg-primary text-white' : '' }}" title="Seleccionar para envío manual">
                                     <i class="bi bi-send"></i>
                                 </button>
                                 <button wire:click="edit({{ $camp->id }})" class="btn btn-sm btn-white border">
@@ -128,9 +128,12 @@
                 <h5 class="fw-bold mb-0">
                     <i class="bi bi-people text-info me-2"></i>Usuarios del Router: <span class="text-primary">{{ $selectedCampaignForSending->router_identity }}</span>
                 </h5>
-                <button wire:click="sendPromotions" class="btn btn-success rounded-pill px-4 shadow-sm" {{ empty($selectedUsers) ? 'disabled' : '' }}>
-                    <i class="bi bi-send-check me-1"></i> Enviar Promoción Seleccionada
-                </button>
+                <div>
+                    <button wire:click="sendPromotions" class="btn btn-success rounded-pill px-4 shadow-sm me-2" {{ empty($selectedUsers) ? 'disabled' : '' }}>
+                        <i class="bi bi-send-check me-1"></i> Enviar Promoción
+                    </button>
+                    <button wire:click="closeUserSelection" class="btn btn-light btn-sm rounded-circle" title="Cerrar selección"><i class="bi bi-x-lg"></i></button>
+                </div>
             </div>
 
             <div class="table-responsive">

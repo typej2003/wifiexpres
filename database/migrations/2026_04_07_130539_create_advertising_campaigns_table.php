@@ -34,6 +34,7 @@ class CreateAdvertisingCampaignsTable extends Migration
             $table->json('options')->nullable(); // Guardará las opciones en caso de ser selección
             
             $table->boolean('active')->default(true);
+            $table->boolean('manualSending')->default(false);
             $table->timestamps();
         });
     }
