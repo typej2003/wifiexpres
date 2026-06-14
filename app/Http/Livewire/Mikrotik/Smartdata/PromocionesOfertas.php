@@ -41,6 +41,7 @@ class PromocionesOfertas extends Component
     
     public $selectedCampaignForSending = null;
     public $selectedUsers = [];
+    public $selectAll = false;
     public $deliveryMethods = []; // Estructura: [user_id => ['sms' => bool, 'whatsapp' => bool, 'email' => bool]]
 
     public $user_id;
@@ -134,6 +135,32 @@ class PromocionesOfertas extends Component
         $this->selectedCampaignForSending = $campaign;
         $this->selectedUsers = [];
         $this->deliveryMethods = [];
+        $this->selectAll = false;
+    }
+
+    public function updatedSelectAll($value)
+    {
+        if ($value && $this->selectedCampaignForSending) {
+            $router = Router::where('identity', $this->selectedCampaignForSending->router_identity)->first();
+            if ($router) {
+                // Seleccionamos solo IDs de usuarios que tengan algo en el campo cellphone
+                $this->selectedUsers = UserMikrotik::where('router_id', $router->id)
+                    ->where(function($query) {
+                        $query->whereNotNull('cellphone')->where('cellphone', '!=', '');
+                    })
+                    ->pluck('id')
+                    ->map(fn($id) => (string) $id)
+                    ->toArray();
+            }
+        } else {
+            $this->selectedUsers = [];
+        }
+    }
+
+    public function updatedSelectedUsers()
+    {
+        // Si el usuario desmarca manualmente uno, quitamos el check de "Seleccionar todos"
+        $this->selectAll = false;
     }
 
     public function edit($id)
@@ -227,6 +254,7 @@ class PromocionesOfertas extends Component
         $this->selectedCampaignForSending = null;
         $this->selectedUsers = [];
         $this->deliveryMethods = [];
+        $this->selectAll = false;
     }
 
     public function sendPromotions()

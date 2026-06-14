@@ -136,6 +136,17 @@
                 </div>
             </div>
 
+            {{-- Checkbox de Selección Masiva --}}
+            <div class="mb-3 p-3 bg-light rounded-4 border-start border-4 border-info d-flex align-items-center">
+                <div class="form-check mb-0">
+                    <input class="form-check-input" type="checkbox" id="selectAllWithPhone" wire:model="selectAll" style="width: 1.25em; height: 1.25em; cursor: pointer;">
+                    <label class="form-check-label fw-bold text-dark ms-2" for="selectAllWithPhone" style="cursor: pointer;">
+                        Seleccionar todos los usuarios con número de teléfono
+                    </label>
+                </div>
+                <small class="text-muted ms-auto"><i class="bi bi-info-circle me-1"></i>Esto filtrará automáticamente a los clientes sin contacto telefónico registrado.</small>
+            </div>
+
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
                     <thead class="bg-light text-muted small fw-bold text-uppercase">
