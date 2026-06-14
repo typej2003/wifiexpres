@@ -20,6 +20,8 @@ class PromocionesOfertas extends Component
 {
     use WithPagination, WithFileUploads;
 
+    protected $paginationTheme = 'bootstrap';
+
     public $search = '';
     public $filterAliado = '';
     public $isAdmin = false;
