@@ -34,6 +34,10 @@ class PromocionesOfertas extends Component
     // Reglas de Envío (Nuevos campos)
     public $on_connect = false;
     public $only_new = false;
+    
+    public $selectedCampaignForSending = null;
+    public $selectedUsers = [];
+    public $deliveryMethods = []; // Estructura: [user_id => ['sms' => bool, 'whatsapp' => bool, 'email' => bool]]
 
     public $user_id;
 
@@ -89,6 +93,13 @@ class PromocionesOfertas extends Component
         $campaign = AdvertisingCampaign::findOrFail($id);
         $campaign->active = !$campaign->active;
         $campaign->save();
+    }
+    
+    public function selectCampaignForSending($id)
+    {
+        $this->selectedCampaignForSending = AdvertisingCampaign::find($id);
+        $this->selectedUsers = [];
+        $this->deliveryMethods = [];
     }
 
     public function edit($id)
@@ -173,6 +184,34 @@ class PromocionesOfertas extends Component
         session()->flash('message', $this->selected_id ? 'Campaña actualizada.' : 'Campaña creada.');
         $this->closeModal();
     }
+    
+    public function sendPromotions()
+    {
+        if (!$this->selectedCampaignForSending || empty($this->selectedUsers)) {
+            session()->flash('error', 'Seleccione una campaña y al menos un usuario.');
+            return;
+        }
+
+        foreach ($this->selectedUsers as $userId) {
+            $methods = $this->deliveryMethods[$userId] ?? [];
+            $userMikrotik = UserMikrotik::find($userId);
+            
+            if (!$userMikrotik) continue;
+
+            \App\Models\PromocionesUser::create([
+                'user_id' => Auth::id(), // Aliado que realiza el envío
+                'campaign_id' => $this->selectedCampaignForSending->id,
+                'name' => $userMikrotik->full_name ?? $userMikrotik->name,
+                'phone' => ($userMikrotik->cellphonecode ?? '') . ($userMikrotik->cellphone ?? ''),
+                'email' => $userMikrotik->email,
+                'enviado' => true, // Aquí se dispararía el Job de envío real
+            ]);
+        }
+
+        session()->flash('message', 'Promociones procesadas y registradas correctamente.');
+        $this->selectedUsers = [];
+        $this->deliveryMethods = [];
+    }
 
     public function render()
     {
@@ -199,11 +238,22 @@ class PromocionesOfertas extends Component
             ? Router::where('user_id', $userIdForRanges)->get()
             : collect();
 
+        $usersToNotify = collect();
+        if ($this->selectedCampaignForSending) {
+            // Buscamos el router por su identidad para obtener los usuarios
+            $router = Router::where('identity', $this->selectedCampaignForSending->router_identity)->first();
+            if ($router) {
+                $usersToNotify = UserMikrotik::where('router_id', $router->id)
+                    ->paginate(10, ['*'], 'usersPage');
+            }
+        }
+
         return view('livewire.mikrotik.smartdata.promociones-ofertas', [
             'campaigns' => $query->latest()->paginate(15),
             'aliados' => $this->isAdmin ? User::where('role', 'aliado')->orwhere('role', 'aliadoSmartData')->get() : [],
             'ageRanges' => $ageRanges,
-            'routers' => $routers
+            'routers' => $routers,
+            'usersToNotify' => $usersToNotify
         ])->layout('layouts.app');
     }
 

@@ -385,4 +385,14 @@ Route::post('/auth-sendSms', function (Request $request) {
     return response()->json(['message' => 'Credenciales incorrectas'], 401);
 });
 
+Route::middleware('auth:sanctum')->get('/get-smsPromociones', function (Request $request) {
+     
+    $user_id = $request->input('user_id');
+    $promociones = PromocionesUser::where('user_id', $user_id)
+        ->get();
+
+    return response()->json([
+        'promociones' => $promociones
+    ]);
+});
 // ** Fin de App para Sms ** //
