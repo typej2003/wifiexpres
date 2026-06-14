@@ -8,6 +8,8 @@ use App\Http\Livewire\Mikrotik\Herramientas\UsersOnline;
 
 use App\Http\Livewire\Mikrotik\Herramientas\CambiarTrialUserprofile;
 
+use App\Http\Livewire\Mikrotik\Herramientas\TextBee;
+
 use App\Http\Livewire\Mikrotik\Herramientas\QrRouter;
 
 use App\Http\Controllers\ApkController;
@@ -36,4 +38,7 @@ Route::middleware(['role:admin,aliado,aliadoSmartData'])->group(function () {
 
     Route::get('/mikrotik/herramientas/qr/{router_id?}', QrRouter::class)
         ->name('mikrotik.herramientas.qr');
+
+    Route::get('/mikrotik/herramientas/textbee', TextBee::class)
+        ->name('mikrotik.herramientas.textbee');
 });
