@@ -128,8 +128,17 @@
                 <h5 class="fw-bold mb-0">
                     <i class="bi bi-people text-info me-2"></i>Usuarios del Router: <span class="text-primary">{{ $selectedCampaignForSending->router_identity }}</span>
                 </h5>
-                <div>
-                    <button wire:click="sendPromotions" class="btn btn-success rounded-pill px-4 shadow-sm me-2" {{ empty($selectedUsers) ? 'disabled' : '' }}>
+                <div class="d-flex align-items-center">
+                    <select wire:model="deliveryMethod" class="form-select form-select-sm rounded-pill me-2" style="width: auto; min-width: 180px;">
+                        <option value="">Medio de envío...</option>
+                        <option value="sms">SMS Masivo</option>
+                        <option value="whatsapp">WhatsApp Directo</option>
+                        <option value="email">Correo Electrónico</option>
+                    </select>
+
+                    <button wire:click="sendPromotions" 
+                        class="btn btn-success rounded-pill px-4 shadow-sm me-2" 
+                        {{ empty($selectedUsers) || !$deliveryMethod ? 'disabled' : '' }}>
                         <i class="bi bi-send-check me-1"></i> Enviar Promoción
                     </button>
                     <button wire:click="closeUserSelection" class="btn btn-light btn-sm rounded-circle" title="Cerrar selección"><i class="bi bi-x-lg"></i></button>
@@ -154,9 +163,6 @@
                             <th width="40" class="px-4"></th>
                             <th>Usuario</th>
                             <th>Contacto</th>
-                            <th class="text-center">SMS</th>
-                            <th class="text-center">WhatsApp</th>
-                            <th class="text-center">Email</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -175,21 +181,6 @@
                                 <div class="small">
                                     <i class="bi bi-phone me-1"></i>{{ $user->cellphonecode }}{{ $user->cellphone }}<br>
                                     <i class="bi bi-envelope me-1"></i>{{ $user->email ?? 'N/A' }}
-                                </div>
-                            </td>
-                            <td class="text-center">
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="checkbox" wire:model="deliveryMethods.{{ $user->id }}.sms">
-                                </div>
-                            </td>
-                            <td class="text-center">
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="checkbox" wire:model="deliveryMethods.{{ $user->id }}.whatsapp">
-                                </div>
-                            </td>
-                            <td class="text-center">
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="checkbox" wire:model="deliveryMethods.{{ $user->id }}.email">
                                 </div>
                             </td>
                         </tr>

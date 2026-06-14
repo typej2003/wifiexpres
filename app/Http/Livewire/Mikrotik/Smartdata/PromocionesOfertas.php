@@ -42,7 +42,7 @@ class PromocionesOfertas extends Component
     public $selectedCampaignForSending = null;
     public $selectedUsers = [];
     public $selectAll = false;
-    public $deliveryMethods = []; // Estructura: [user_id => ['sms' => bool, 'whatsapp' => bool, 'email' => bool]]
+    public $deliveryMethod = ''; // 'sms', 'whatsapp', o 'email'
 
     public $user_id;
 
@@ -134,7 +134,7 @@ class PromocionesOfertas extends Component
 
         $this->selectedCampaignForSending = $campaign;
         $this->selectedUsers = [];
-        $this->deliveryMethods = [];
+        $this->deliveryMethod = '';
         $this->selectAll = false;
     }
 
@@ -253,19 +253,18 @@ class PromocionesOfertas extends Component
         }
         $this->selectedCampaignForSending = null;
         $this->selectedUsers = [];
-        $this->deliveryMethods = [];
+        $this->deliveryMethod = '';
         $this->selectAll = false;
     }
 
     public function sendPromotions()
     {
-        if (!$this->selectedCampaignForSending || empty($this->selectedUsers)) {
-            session()->flash('error', 'Seleccione una campaña y al menos un usuario.');
+        if (!$this->selectedCampaignForSending || empty($this->selectedUsers) || !$this->deliveryMethod) {
+            session()->flash('error', 'Seleccione una campaña, al menos un usuario y el medio de envío.');
             return;
         }
 
         foreach ($this->selectedUsers as $userId) {
-            $methods = $this->deliveryMethods[$userId] ?? [];
             $userMikrotik = UserMikrotik::find($userId);
             
             if (!$userMikrotik) continue;
@@ -276,13 +275,13 @@ class PromocionesOfertas extends Component
                 'name' => $userMikrotik->full_name ?? $userMikrotik->name,
                 'phone' => ($userMikrotik->cellphonecode ?? '') . ($userMikrotik->cellphone ?? ''),
                 'email' => $userMikrotik->email,
-                'enviado' => true, // Aquí se dispararía el Job de envío real
+                'enviado' => true, // El Job de envío usaría $this->deliveryMethod
             ]);
         }
 
         session()->flash('message', 'Promociones procesadas y registradas correctamente.');
         $this->selectedUsers = [];
-        $this->deliveryMethods = [];
+        $this->deliveryMethod = '';
     }
 
     public function render()
