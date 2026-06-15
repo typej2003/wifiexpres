@@ -402,4 +402,18 @@ Route::middleware('auth:sanctum')->get('/get-smsPromociones', function (Request 
         'promocionesUser' => $promocionesUser
     ]);
 });
+
+Route::middleware('auth:sanctum')->get('/set-smsPromociones', function (Request $request) {
+     
+    // Intentamos obtener el user_id del request, si no, usamos el del usuario autenticado
+    $id = $request->input('userPromocionesId');
+
+    $promocionesUser = PromocionesUser::update($id, [
+        'enviado' => true
+    ]);
+
+    return response()->json([
+        'response' => true,
+    ]);
+});
 // ** Fin de App para Sms ** //
