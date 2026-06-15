@@ -391,8 +391,7 @@ Route::middleware('auth:sanctum')->get('/get-smsPromociones', function (Request 
     // Intentamos obtener el user_id del request, si no, usamos el del usuario autenticado
     $user_id = $request->input('user_id') ?? $request->user()->id;
 
-    $promociones = PromocionesUser::with('campaign')
-        ->where('user_id', $user_id)
+    $promociones = AdvertisingCampaign::where('user_id', $user_id)
         ->get();
 
     return response()->json([
