@@ -3,7 +3,7 @@
         <div class="row mb-4">
             <div class="col-12">
                 <h3 class="fw-bold"><i class="fas fa-satellite-dish me-2 text-primary"></i>Monitoreo en Vivo</h3>
-                <p class="text-muted">Actividad en tiempo real de tus puntos de conexión..</p>
+                <p class="text-muted">Actividad en tiempo real de tus puntos de conexión.</p>
             </div>
         </div>
 
