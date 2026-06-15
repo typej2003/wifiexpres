@@ -69,6 +69,7 @@ class Monitoreo extends Component
             return [
                 'time' => $log->created_at->format('H:i'),
                 'user' => $clientName,
+                'action_type' => ($log->duration_seconds > 0) ? 'disconnect' : 'connect',
                 'action' => $action,
                 'location' => $log->router->identity ?? $log->router->location ?? 'Antena Principal'
             ];
