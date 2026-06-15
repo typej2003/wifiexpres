@@ -20,6 +20,7 @@ use App\Http\Livewire\Mikrotik\Aliado\ListAdvertisingConcursos;
 use App\Http\Controllers\Api\V2\UserController;
 use App\Models\NotificationApp;
 use App\Models\HotspotVersion;
+use App\Models\AdvertisingCampaign;
 use App\Models\PromocionesUser;
 use App\Models\User;
 use App\Models\Pagomovil;
