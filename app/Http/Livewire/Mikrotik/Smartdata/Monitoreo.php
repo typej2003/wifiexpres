@@ -25,9 +25,9 @@ class Monitoreo extends Component
         $todayEnd = Carbon::now()->endOfDay();
 
         // 1. Estadísticas de hoy
-        // Conectados Ahora: Usuarios marcados como activos en UserMikrotik para estos routers
-        $connectedNow = UserMikrotik::whereIn('router_id', $allowedRouterIds)
-            ->where('active', true)
+        // Conectados Ahora: Registros en TicketLog que no tienen fecha de desconexión
+        $connectedNow = TicketLog::whereIn('router_id', $allowedRouterIds)
+            ->whereNull('disconnected_at')
             ->count();
 
         // Entradas Hoy: Registros de TicketLog creados hoy
@@ -61,17 +61,16 @@ class Monitoreo extends Component
             
             $clientName = $u ? ($u->full_name ?? $u->name) : $mac;
             
-            // Determinar acción basada en la duración (heurística simple)
-            $action = ($log->duration_seconds > 0) 
+            $action = $log->disconnected_at 
                 ? "se desconectó (salió del local)" 
                 : "se acaba de conectar";
 
             return [
                 'time' => $log->created_at->format('H:i'),
                 'user' => $clientName,
-                'action_type' => ($log->duration_seconds > 0) ? 'disconnect' : 'connect',
+                'action_type' => $log->disconnected_at ? 'disconnect' : 'connect',
                 'action' => $action,
-                'location' => $log->router->identity ?? $log->router->location ?? 'Antena Principal'
+                'location' => $log->ubicacion_fisica
             ];
         });
 
