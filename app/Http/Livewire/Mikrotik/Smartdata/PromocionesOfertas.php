@@ -43,6 +43,7 @@ class PromocionesOfertas extends Component
     public $selectedUsers = [];
     public $selectAll = false;
     public $deliveryMethod = ''; // 'sms', 'whatsapp', o 'email'
+    public $smsMessage = '';
 
     public $user_id;
 
@@ -84,6 +85,7 @@ class PromocionesOfertas extends Component
         $this->on_connect = false;
         $this->only_new = false;
         $this->selected_id = null;
+        $this->smsMessage = '';
         $this->current_media_path = null;
         if ($this->isAdmin) {
             $this->user_id = '';
@@ -115,7 +117,8 @@ class PromocionesOfertas extends Component
             $campaign->update(['manualSending' => false]);
             $this->selectedCampaignForSending = null;
             $this->selectedUsers = [];
-            $this->deliveryMethods = [];
+            $this->deliveryMethod = '';
+            $this->smsMessage = '';
             return;
         }
 
@@ -134,6 +137,7 @@ class PromocionesOfertas extends Component
 
         $this->selectedCampaignForSending = $campaign;
         $this->selectedUsers = [];
+        $this->smsMessage = $campaign->description;
         $this->deliveryMethod = '';
         $this->selectAll = false;
     }
@@ -253,6 +257,7 @@ class PromocionesOfertas extends Component
         }
         $this->selectedCampaignForSending = null;
         $this->selectedUsers = [];
+        $this->smsMessage = '';
         $this->deliveryMethod = '';
         $this->selectAll = false;
     }
@@ -279,6 +284,8 @@ class PromocionesOfertas extends Component
                 'enviado' => false, // El Job de envío usaría $this->deliveryMethod
             ]);
         }
+        
+        $this->smsMessage = '';
 
         session()->flash('message', 'Promociones procesadas y registradas correctamente.');
         $this->selectedUsers = [];

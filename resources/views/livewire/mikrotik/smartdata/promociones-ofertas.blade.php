@@ -145,6 +145,15 @@
                 </div>
             </div>
 
+            {{-- TEXTAREA DINÁMICO PARA SMS --}}
+            @if($deliveryMethod === 'sms')
+            <div class="mb-4 animate__animated animate__fadeIn">
+                <label class="form-label small fw-bold text-muted">Contenido del Mensaje SMS</label>
+                <textarea wire:model="smsMessage" class="form-control rounded-4 border-0 shadow-sm" rows="3" placeholder="Escribe el mensaje promocional aquí..."></textarea>
+                <div class="form-text text-end small text-muted"><i class="bi bi-info-circle me-1"></i>Este texto será el que reciban los clientes en sus dispositivos.</div>
+            </div>
+            @endif
+
             {{-- Checkbox de Selección Masiva --}}
             <div class="mb-3 p-3 bg-light rounded-4 border-start border-4 border-info d-flex align-items-center">
                 <div class="form-check mb-0">

@@ -405,15 +405,17 @@ Route::middleware('auth:sanctum')->get('/get-smsPromociones', function (Request 
 
 Route::middleware('auth:sanctum')->get('/set-smsPromociones', function (Request $request) {
      
-    // Intentamos obtener el user_id del request, si no, usamos el del usuario autenticado
     $id = $request->input('userPromocionesId');
 
-    $promocionesUser = PromocionesUser::update($id, [
-        'enviado' => true
-    ]);
+    if (!$id) {
+        return response()->json(['response' => false, 'message' => 'ID no proporcionado'], 400);
+    }
+
+    // Corregido: update() en Eloquent se llama sobre una instancia o un query builder filtrado
+    $updated = PromocionesUser::where('id', $id)->update(['enviado' => true]);
 
     return response()->json([
-        'response' => true,
+        'response' => (bool)$updated,
     ]);
 });
 // ** Fin de App para Sms ** //
