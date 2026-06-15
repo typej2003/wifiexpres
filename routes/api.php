@@ -20,6 +20,7 @@ use App\Http\Livewire\Mikrotik\Aliado\ListAdvertisingConcursos;
 use App\Http\Controllers\Api\V2\UserController;
 use App\Models\NotificationApp;
 use App\Models\HotspotVersion;
+use App\Models\PromocionesUser;
 use App\Models\User;
 use App\Models\Pagomovil;
 use App\Models\Router;
@@ -387,8 +388,11 @@ Route::post('/auth-sendSms', function (Request $request) {
 
 Route::middleware('auth:sanctum')->get('/get-smsPromociones', function (Request $request) {
      
-    $user_id = $request->input('user_id');
-    $promociones = PromocionesUser::where('user_id', $user_id)
+    // Intentamos obtener el user_id del request, si no, usamos el del usuario autenticado
+    $user_id = $request->input('user_id') ?? $request->user()->id;
+
+    $promociones = PromocionesUser::with('campaign')
+        ->where('user_id', $user_id)
         ->get();
 
     return response()->json([
