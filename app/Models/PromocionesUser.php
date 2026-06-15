@@ -15,6 +15,7 @@ class PromocionesUser extends Model
         'name',
         'phone',
         'email',
+        'deliveryMethod',
         'enviado',
     ];
 

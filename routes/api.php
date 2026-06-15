@@ -394,9 +394,12 @@ Route::middleware('auth:sanctum')->get('/get-smsPromociones', function (Request 
 
     $promociones = AdvertisingCampaign::where('user_id', $user_id)
         ->get();
+    $promocionesUser = PromocionesUser::where('user_id', $user_id)
+        ->get();
 
     return response()->json([
-        'promociones' => $promociones
+        'promociones' => $promociones,
+        'promocionesUser' => $promocionesUser
     ]);
 });
 // ** Fin de App para Sms ** //

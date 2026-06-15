@@ -275,6 +275,7 @@ class PromocionesOfertas extends Component
                 'name' => $userMikrotik->full_name ?? $userMikrotik->name,
                 'phone' => ($userMikrotik->cellphonecode ?? '') . ($userMikrotik->cellphone ?? ''),
                 'email' => $userMikrotik->email,
+                'deliveryMethod' => $this->deliveryMethod,
                 'enviado' => true, // El Job de envío usaría $this->deliveryMethod
             ]);
         }
