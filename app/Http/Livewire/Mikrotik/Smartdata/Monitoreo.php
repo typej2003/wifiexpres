@@ -35,10 +35,10 @@ class Monitoreo extends Component
             ->whereBetween('created_at', [$todayStart, $todayEnd])
             ->count();
 
-        // Salidas Hoy: Registros de TicketLog que terminaron (tienen duración) hoy
+        // Salidas Hoy: Registros de TicketLog que ya se desconectaron hoy
         $exitsToday = TicketLog::whereIn('router_id', $allowedRouterIds)
             ->whereBetween('created_at', [$todayStart, $todayEnd])
-            ->where('duration_seconds', '>', 0)
+            ->whereNotNull('disconnected_at')
             ->count();
 
         // 2. Lista de Movimientos (últimos 20 eventos)

@@ -54,9 +54,9 @@
                         </h5>
                     </div>
                     <div class="card-body p-0">
-                        <div class="list-group list-group-flush" style="max-height: 500px; overflow-y: auto;">
+                        <div class="list-group p-3 bg-light" style="max-height: 500px; overflow-y: auto;">
                             @forelse($movements as $m)
-                                <div class="list-group-item list-group-item-action py-3 border-start border-4 {{ $m['action_type'] === 'connect' ? 'border-success' : 'border-danger' }}">
+                                <div class="list-group-item list-group-item-action py-3 mb-2 border-start border-4 shadow-sm rounded-3 {{ $m['action_type'] === 'connect' ? 'bg-white border-success' : 'bg-transparent border-danger opacity-75' }}">
                                     <div class="d-flex w-100 justify-content-between align-items-center">
                                         <div>
                                             <span class="badge bg-light text-dark border me-2">{{ $m['time'] }}</span>
