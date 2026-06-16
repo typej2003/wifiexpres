@@ -35,6 +35,8 @@ class CreateAdvertisingCampaignsTable extends Migration
             
             $table->boolean('active')->default(true);
             $table->boolean('manualSending')->default(false);
+            $table->integer('alcance')->default(0); // Número de veces que se mostrará la campaña
+            $table->longText('messagebody')->nullable(); // Cuerpo del mensaje
             $table->timestamps();
         });
     }

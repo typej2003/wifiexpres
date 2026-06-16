@@ -82,7 +82,7 @@
                             @if($opts['only_new'] ?? false) <span class="badge bg-light text-primary border small">NUEVOS</span> @endif
                         </td>
                         <td class="text-center">
-                            <span class="fw-bold"><i class="bi bi-people me-1"></i>{{ $camp->responses_count ?? 0 }}</span>
+                            <span class="fw-bold" title="Envíos realizados"><i class="bi bi-send-check me-1"></i>{{ $camp->alcance ?? 0 }}</span>
                         </td>
                         <td class="text-center">
                             <div class="form-check form-switch d-inline-block">

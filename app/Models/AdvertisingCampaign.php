@@ -23,6 +23,8 @@ class AdvertisingCampaign extends Model
         'options',
         'active',
         'manualSending',
+        'alcance',
+        'messagebody',
     ];
 
     protected $casts = [

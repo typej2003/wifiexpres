@@ -137,7 +137,8 @@ class PromocionesOfertas extends Component
 
         $this->selectedCampaignForSending = $campaign;
         $this->selectedUsers = [];
-        $this->smsMessage = $campaign->description;
+        // Cargamos el cuerpo del mensaje guardado anteriormente o la descripción por defecto
+        $this->smsMessage = $campaign->messagebody ?: $campaign->description;
         $this->deliveryMethod = '';
         $this->selectAll = false;
     }
@@ -267,6 +268,12 @@ class PromocionesOfertas extends Component
         if (!$this->selectedCampaignForSending || empty($this->selectedUsers) || !$this->deliveryMethod) {
             session()->flash('error', 'Seleccione una campaña, al menos un usuario y el medio de envío.');
             return;
+        }
+
+        // Incrementar el contador de alcance (número de envíos) y guardar el cuerpo del mensaje si es SMS
+        $this->selectedCampaignForSending->increment('alcance');
+        if ($this->deliveryMethod === 'sms') {
+            $this->selectedCampaignForSending->update(['messagebody' => $this->smsMessage]);
         }
 
         foreach ($this->selectedUsers as $userId) {
