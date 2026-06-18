@@ -14,17 +14,20 @@ class AntennaMappingManager extends Component
     public $router_id;
     public $ip_address;
     public $location_name;
+    public $hotspot_url; // Nuevo campo
     public $description;
     public $mapping_id; // Para edición
 
     public $isEditing = false;
     public $aliados = [];
+    // Initialize routers as a collection to prevent errors with pluck if it's empty
     public $routers = [];
 
     protected $rules = [
         'router_id' => 'required',
         'ip_address' => 'required|ip',
         'location_name' => 'required|min:3',
+        'hotspot_url' => 'nullable|url', // Nueva regla de validación
     ];
 
     public function mount($router_id = 0)
@@ -75,6 +78,7 @@ class AntennaMappingManager extends Component
                 'ip_address' => $this->ip_address,
                 'location_name' => $this->location_name,
                 'description' => $this->description,
+                'hotspot_url' => $this->hotspot_url, // Guardar el nuevo campo
             ]
         );
 
@@ -89,6 +93,7 @@ class AntennaMappingManager extends Component
         $this->router_id = $mapping->router_id;
         $this->ip_address = $mapping->ip_address;
         $this->location_name = $mapping->location_name;
+        $this->hotspot_url = $mapping->hotspot_url; // Cargar el nuevo campo
         $this->description = $mapping->description;
         $this->isEditing = true;
 
@@ -108,7 +113,7 @@ class AntennaMappingManager extends Component
 
     public function resetInput()
     {
-        $this->reset(['ip_address', 'location_name', 'description', 'mapping_id', 'isEditing']);
+        $this->reset(['ip_address', 'location_name', 'hotspot_url', 'description', 'mapping_id', 'isEditing']);
     }
 
     public function render()

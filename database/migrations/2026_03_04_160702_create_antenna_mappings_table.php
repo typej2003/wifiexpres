@@ -17,6 +17,7 @@ class CreateAntennaMappingsTable extends Migration
             $table->id();
             $table->foreignId('router_id')->constrained()->onDelete('cascade');
             $table->string('ip_address'); 
+            $table->string('hotspot_url')->nullable();
             $table->string('location_name');
             $table->string('description')->nullable();
             $table->dateTime('created_at')->nullable();

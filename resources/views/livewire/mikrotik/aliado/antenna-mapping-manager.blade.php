@@ -58,6 +58,13 @@
                     </div>
 
                     <div class="mb-3">
+                        <label class="form-label small fw-bold text-uppercase">URL del Hotspot (Opcional)</label>
+                        <input type="text" wire:model="hotspot_url" class="form-control border-primary" placeholder="Ej: http://portal.miwifi.com">
+                        <div class="form-text small">URL a la que se redirigirá el usuario al conectarse.</div>
+                        @error('hotspot_url') <span class="text-danger small">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div class="mb-3">
                         <label class="form-label small fw-bold text-uppercase">Nombre Ubicación</label>
                         <input type="text" wire:model="location_name" class="form-control border-primary" placeholder="Ej: Pasillo Norte / PB">
                         @error('location_name') <span class="text-danger small">{{ $message }}</span> @enderror

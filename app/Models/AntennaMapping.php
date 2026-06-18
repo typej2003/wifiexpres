@@ -13,7 +13,8 @@ class AntennaMapping extends Model
         'router_id',
         'ip_address', // La IP o prefijo (ej: 10.0.5.20 o 10.0.5.0/24)
         'location_name', // Ej: "Pasillo Norte", "Piso 2 - Tienda 40"
-        'description'
+        'description',
+        'hotspot_url',
     ];
 
     public function router()
