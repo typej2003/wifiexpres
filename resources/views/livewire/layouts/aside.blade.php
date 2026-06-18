@@ -172,6 +172,12 @@
                 <span class="menu-text">Panel Admin</span>
             </a>
 
+            <a href="{{ route('routers.index') }}" class="sidebar-link">
+                <i class="bi bi-router me-2"></i>
+                <span class="menu-text">Listar Routers</span>
+                <span class="badge rounded-pill bg-info text-dark ms-2">{{ $totalRouters ?? '0' }}</span>
+            </a>
+
             <a href="{{ route('habladores.index') }}" class="sidebar-link {{ request()->routeIs('habladores.index') ? 'active' : '' }}">
                 <i class="bi bi-tv"></i> 
                 <span class="menu-text">Habladores Digitales</span>
@@ -231,12 +237,6 @@
                 <i class="bi bi-calendar-event"></i> 
                 <span class="menu-text">Listar Citas</span>
                 <span class="badge rounded-pill bg-info text-dark ms-2">{{ $totalCitas ?? '0' }}</span>
-            </a>
-
-            <a href="{{ route('routers.index') }}" class="sidebar-link">
-                <i class="bi bi-router me-2"></i>
-                <span class="menu-text">Listar Routers</span>
-                <span class="badge rounded-pill bg-info text-dark ms-2">{{ $totalRouters ?? '0' }}</span>
             </a>
 
             <a href="{{ route('tickets.index') }}" class="sidebar-link">
