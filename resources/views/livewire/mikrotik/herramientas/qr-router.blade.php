@@ -45,7 +45,7 @@
                                     <option value="main">SSID Principal del Router</option>
                                     @foreach($antennas as $antenna)
                                         <option value="{{ $antenna->id }}">
-                                            {{ $antenna->location_name }} ({{ $antenna->ip_address }})
+                                            {{ $antenna->location_name }} ({{ $antenna->ip_address }}): {{ $antenna->hostspot_url ? 'Hotspot: ' . $antenna->hotspot_url : 'SSID: ' . $antenna->ssid  }} 
                                         </option>
                                     @endforeach
                                 </select>
