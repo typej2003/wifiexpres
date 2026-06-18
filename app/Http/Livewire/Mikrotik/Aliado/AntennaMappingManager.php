@@ -27,7 +27,7 @@ class AntennaMappingManager extends Component
         'router_id' => 'required|not_in:0',
         'ip_address' => 'required|ip',
         'location_name' => 'required|min:3',
-        'hotspot_url' => 'nullable|url', // Nueva regla de validación
+        'hotspot_url' => 'nullable|string', // Ahora acepta cualquier cadena para el SSID
     ];
 
     public function mount($router_id = 0)
