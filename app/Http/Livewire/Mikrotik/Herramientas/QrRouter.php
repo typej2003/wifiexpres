@@ -104,7 +104,7 @@ class QrRouter extends Component
 
     public function render()
     {
-        $aliados = Auth::user()->role === 'admin' ? User::where('role', 'aliado')->get() : [];
+        $aliados = Auth::user()->role === 'admin' ? User::where('role', 'aliado')->orwhere('role', 'aliadoSmartData')->get() : [];
         $routers = $this->selectedAliado ? Router::where('user_id', $this->selectedAliado)->get() : [];
 
         return view('livewire.mikrotik.herramientas.qr-router', [
