@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Auth;
 class AntennaMappingManager extends Component
 {
     public $aliadoId;
-    public $router_id;
+    public $router_id = 0;
     public $ip_address;
     public $location_name;
     public $hotspot_url; // Nuevo campo
@@ -24,7 +24,7 @@ class AntennaMappingManager extends Component
     public $routers = [];
 
     protected $rules = [
-        'router_id' => 'required',
+        'router_id' => 'required|not_in:0',
         'ip_address' => 'required|ip',
         'location_name' => 'required|min:3',
         'hotspot_url' => 'nullable|url', // Nueva regla de validación
@@ -64,7 +64,7 @@ class AntennaMappingManager extends Component
         } else {
             $this->routers = collect();
         }
-        $this->router_id = null;
+        $this->router_id = 0;
     }
 
     public function save()
