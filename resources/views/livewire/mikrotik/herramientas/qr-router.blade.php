@@ -37,6 +37,20 @@
                                 @endforeach
                             </select>
                         </div>
+
+                        @if(count($antennas) > 0)
+                            <div class="col-12 animate__animated animate__fadeIn">
+                                <label class="form-label fw-bold small text-muted text-uppercase">Punto de Acceso / Antena</label>
+                                <select wire:model="antenna_id" class="form-select border-0 bg-light rounded-3 shadow-sm py-2">
+                                    <option value="main">SSID Principal del Router</option>
+                                    @foreach($antennas as $antenna)
+                                        <option value="{{ $antenna->id }}">
+                                            {{ $antenna->location_name }} ({{ $antenna->ip_address }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @endif
                     </div>
 
                     @if($ssid)
@@ -46,6 +60,11 @@
                                 {!! QrCode::size(280)->margin(2)->generate("WIFI:S:$ssid;;") !!}
                             </div>
                             <h3 class="fw-bold text-dark mb-1">{{ $ssid }}</h3>
+                            <div class="mb-3">
+                                <span class="badge bg-info-subtle text-info border border-info-subtle px-3 py-2">
+                                    <i class="bi bi-broadcast me-1"></i> IP: {{ $selected_ip }}
+                                </span>
+                            </div>
                             <div class="text-center mt-3">
                                 <p class="mb-1 text-muted small">1. Escanea el QR</p>
                                 <p class="mb-1 text-muted small">2. Haz clic al WiFi <strong>{{ $ssid }}</strong></p>

@@ -5,6 +5,7 @@ namespace App\Http\Livewire\Mikrotik\Herramientas;
 use Livewire\Component;
 use App\Models\User;
 use App\Models\Router;
+use App\Models\AntennaMapping;
 use Illuminate\Support\Facades\Auth;
 
 class QrRouter extends Component
@@ -12,6 +13,9 @@ class QrRouter extends Component
     public $selectedAliado = null;
     public $router_id = null;
     public $ssid = null;
+    public $antenna_id = null; // Nuevo: ID de la antena seleccionada
+    public $antennas = [];     // Nuevo: Lista de antenas del router
+    public $selected_ip = null; // Nuevo: IP que se muestra en la vista
     public $comercio_nombre = null;
 
     public function mount($router_id = null)
@@ -63,20 +67,38 @@ class QrRouter extends Component
     public function updatedSelectedAliado()
     {
         $this->router_id = null;
-        $this->ssid = null;
-        $this->comercio_nombre = null;
+        $this->reset(['ssid', 'comercio_nombre', 'antennas', 'antenna_id', 'selected_ip']);
     }
 
     public function updatedRouterId($value)
     {
+        $this->reset(['ssid', 'comercio_nombre', 'antennas', 'antenna_id', 'selected_ip']);
+
         if ($value) {
             $router = Router::find($value);
-            // Según tu requerimiento, el campo hotspot_url contiene el SSID de la red
-            $this->ssid = $router ? $router->hotspot_url : null;
-            $this->comercio_nombre = $router ? $router->comercio_nombre : null;
+            if ($router) {
+                $this->ssid = $router->hotspot_url;
+                $this->comercio_nombre = $router->comercio_nombre;
+                $this->selected_ip = $router->ip;
+                // Cargamos las antenas asociadas
+                $this->antennas = AntennaMapping::where('router_id', $value)->get();
+            }
+        }
+    }
+
+    public function updatedAntennaId($value)
+    {
+        $router = Router::find($this->router_id);
+        
+        if ($value === 'main' || !$value) {
+            $this->ssid = $router->hotspot_url;
+            $this->selected_ip = $router->ip;
         } else {
-            $this->ssid = null;
-            $this->comercio_nombre = null;
+            $antenna = AntennaMapping::find($value);
+            if ($antenna) {
+                $this->ssid = $antenna->hotspot_url;
+                $this->selected_ip = $antenna->ip_address;
+            }
         }
     }
 
