@@ -37,7 +37,7 @@ class AntennaMappingManager extends Component
 
         // Si es admin ve todos, si es aliado solo se ve a sí mismo
         if (Auth::user()->role === 'admin') {
-            $this->aliados = User::where('role', 'aliado')->orderBy('name')->get();
+            $this->aliados = User::where('role', 'aliado')->orwhere('role', 'aliado')->orderBy('name')->get();
 
             // Si se pasa un router_id específico, cargamos el contexto de ese equipo
             if ($router_id != 0) {
