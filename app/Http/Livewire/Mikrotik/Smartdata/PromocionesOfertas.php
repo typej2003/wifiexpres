@@ -218,6 +218,8 @@ class PromocionesOfertas extends Component
             'user_id' => 'required',
             'age_range_id' => 'required',
             'media' => $this->selected_id ? 'nullable|max:20480' : 'required|max:20480',
+            'question_text' => 'required',
+            'options' => $this->question_type != 'simple' ? 'required|array|min:2' : 'nullable',
         ]);
 
         $data = [
@@ -228,12 +230,9 @@ class PromocionesOfertas extends Component
             'target_gender' => $this->target_gender,
             'age_range_id' => $this->age_range_id ?: 0,
             'media_type' => $this->media_type,
-            'question_text' => 'Promoción Hotspot',
-            'question_type' => 'simple',
-            'options' => [
-                'on_connect' => $this->on_connect,
-                'only_new' => $this->only_new
-            ],
+            'question_text' => $this->question_text,
+            'question_type' => $this->question_type,
+            'options' => $this->question_type != 'simple' ? $this->options : null,
         ];
 
         if ($this->media) {

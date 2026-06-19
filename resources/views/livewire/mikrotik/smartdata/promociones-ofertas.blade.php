@@ -50,6 +50,138 @@
         </div>
     </div>
 
+    {{-- MODAL DINÁMICO --}}
+    @if($isModalOpen)
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.6); backdrop-filter: blur(5px);">
+        {{-- MARGIN TOP 6REM APLICADO AQUÍ --}}
+        <div class="modal-dialog modal-lg" style="margin-top: 6rem;">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header border-0 p-4 pb-0">
+                    <h5 class="fw-bold mb-0 text-dark">{{ $selected_id ? 'Editar Campaña' : 'Nueva Campaña' }}</h5>
+                    <button type="button" class="btn-close" wire:click="closeModal"></button>
+                </div>
+                
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        @if($isAdmin)
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold text-muted">Aliado</label>
+                            <select wire:model="user_id" class="form-select @error('user_id') is-invalid @enderror">
+                                <option value="">Seleccionar...</option>
+                                @foreach($aliados as $aliado)
+                                    <option value="{{ $aliado->id }}">{{ $aliado->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @endif
+
+                        {{-- Selector de Routers --}}
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold text-muted">Router de la Campaña</label>
+                            <select wire:model="router_identity" class="form-select @error('router_identity') is-invalid @enderror">
+                                <option value="">Seleccione un router...</option>
+                                @foreach($routers as $router)
+                                    <option value="{{ $router->identity }}">{{ $router->comercio_nombre }} ({{ $router->identity }})</option>
+                                @endforeach
+                            </select>
+                            @error('router_identity') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold text-muted">Nombre</label>
+                            <input type="text" wire:model="name" class="form-control" placeholder="Ej: Promo Verano">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted">Género</label>
+                            <select wire:model="target_gender" class="form-select">
+                                <option value="todos">Todos</option>
+                                <option value="masculino">Masculino</option>
+                                <option value="femenino">Femenino</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted">Rango de Edad</label>
+                            <select wire:model="age_range_id" class="form-select">
+                                <option value="0">Cualquier edad</option>
+                                @foreach($ageRanges as $range)
+                                    <option value="{{ $range->id }}">{{ $range->name }} ({{ $range->min_age }}-{{ $range->max_age }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold text-muted">Multimedia</label>
+                            <input type="file" wire:model="media" class="form-control">
+                            
+                            {{-- VISTA PREVIA --}}
+                            <div class="mt-3 p-3 border rounded-4 bg-light text-center" style="border-style: dashed !important;">
+                                @if ($media) 
+                                    @if($media_type == 'imagen')
+                                        <img src="{{ $media->temporaryUrl() }}" class="img-fluid rounded shadow-sm" style="max-height: 150px;">
+                                    @else
+                                        <div class="small text-primary">Video: {{ $media->getClientOriginalName() }}</div>
+                                    @endif
+                                @elseif($selected_id && $current_media_path)
+                                    @if($media_type == 'imagen')
+                                        <img src="{{ asset('storage/' . $current_media_path) }}" class="img-fluid rounded shadow-sm" style="max-height: 150px;">
+                                    @endif
+                                @else
+                                    <span class="text-muted small">Sin archivo seleccionado</span>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold text-muted">Pregunta de Encuesta</label>
+                            <input type="text" wire:model="question_text" class="form-control" placeholder="¿Qué te parece nuestro servicio?">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted">Tipo de Respuesta</label>
+                            <select wire:model="question_type" class="form-select">
+                                <option value="simple">Respuesta Abierta</option>
+                                <option value="single_choice">Opción Única (Radio)</option>
+                                <option value="multiple_choice">Múltiples Opciones (Check)</option>
+                            </select>
+                        </div>
+
+                        {{-- GESTIÓN DE OPCIONES --}}
+                        @if($question_type != 'simple')
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label small fw-bold text-primary mb-0">Opciones de Respuesta</label>
+                                <button type="button" wire:click="addOption" class="btn btn-sm btn-outline-primary rounded-pill">
+                                    <i class="bi bi-plus"></i> Agregar Opción
+                                </button>
+                            </div>
+                            @foreach($options as $index => $option)
+                            <div class="input-group mb-2">
+                                <span class="input-group-text">{{ $index + 1 }}</span>
+                                <input type="text" wire:model.defer="options.{{ $index }}" class="form-control" placeholder="Texto de la opción">
+                                <button type="button" wire:click="removeOption({{ $index }})" class="btn btn-outline-danger">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                            @endforeach
+                            @error('options') <small class="text-danger">{{ $message }}</small> @enderror
+                        </div>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button wire:click="closeModal" class="btn btn-light rounded-pill px-4">Cerrar</button>
+                    <button wire:click="save" class="btn btn-primary rounded-pill px-5 shadow-sm fw-bold">
+                        {{ $selected_id ? 'Guardar Cambios' : 'Crear Campaña' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- TABLA DE DATOS --}}
     <div class="card border-0 shadow-sm rounded-4">
         <div class="table-responsive">
