@@ -49,10 +49,7 @@
                                                 <p class="text-xs font-weight-bold mb-0">{{ $user->email ?? 'N/A' }}</p>
                                             </td>
                                             <td>
-                                                <p class="text-xs font-weight-bold mb-0">{{ $user->email ?? 'N/A' }}</p>
-                                            </td>
-                                            <td>
-                                                <p class="text-xs font-weight-bold mb-0">{{ $user->created_at->format('d/m/Y') }}</p>
+                                                <p class="text-xs font-weight-bold mb-0">{{ $user->created_at->format('d/m/Y H:i') }}</p>
                                             </td>
                                             <td class="align-middle text-center">
                                                 <button class="btn btn-link text-info text-gradient px-3 mb-0" wire:click="selectUser({{ $user->id }})">
