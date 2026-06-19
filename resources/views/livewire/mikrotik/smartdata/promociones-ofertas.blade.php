@@ -253,7 +253,8 @@
     </div>
 
     {{-- SECCIÓN DE ENVÍO MANUAL A USUARIOS --}}
-    @if($selectedCampaignForSending)
+    {{-- MODAL DINÁMICO --}}
+    @if($isModalOpen)
     <div class="card border-0 shadow-sm rounded-4 mt-4 animate__animated animate__fadeIn">
         <div class="card-body p-4">
             <div class="d-flex justify-content-between align-items-center mb-4">
@@ -332,132 +333,7 @@
                 </table>
             </div>
         </div>
-    </div>
-    @endif
-
-    {{-- MODAL DINÁMICO --}}
-    @if($isModalOpen)
-    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.6); backdrop-filter: blur(5px);">
-        {{-- MARGIN TOP 6REM APLICADO AQUÍ --}}
-        <div class="modal-dialog modal-lg" style="margin-top: 6rem;">
-            <div class="modal-content border-0 shadow-lg rounded-4">
-                <div class="modal-header border-0 p-4 pb-0">
-                    <h5 class="fw-bold mb-0 text-dark">{{ $selected_id ? 'Editar Promoción' : 'Nueva Promoción' }}</h5>
-                    <button type="button" class="btn-close" wire:click="closeModal"></button>
-                </div>
-                
-                <div class="modal-body p-4">
-                    <div class="row g-3">
-                        @if($isAdmin)
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted">Aliado Propietario</label>
-                            <select wire:model="user_id" class="form-select @error('user_id') is-invalid @enderror">
-                                <option value="">Seleccionar...</option>
-                                @foreach($aliados as $aliado)
-                                    <option value="{{ $aliado->id }}">{{ $aliado->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        {{-- Selector de Routers --}}
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted">Router Destino</label>
-                            <select wire:model="router_identity" class="form-select @error('router_identity') is-invalid @enderror">
-                                <option value="">Seleccione un router...</option>
-                                @foreach($routers as $router)
-                                    <option value="{{ $router->identity }}">{{ $router->comercio_nombre }} ({{ $router->identity }})</option>
-                                @endforeach
-                            </select>
-                            @error('router_identity') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
-                        @else
-                        <div class="col-md-12">
-                            <label class="form-label small fw-bold text-muted">Router Destino</label>
-                            <select wire:model="router_identity" class="form-select @error('router_identity') is-invalid @enderror">
-                                <option value="">Seleccione un router...</option>
-                                @foreach($routers as $router)
-                                    <option value="{{ $router->identity }}">{{ $router->comercio_nombre }} ({{ $router->identity }})</option>
-                                @endforeach
-                            </select>
-                            @error('router_identity') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
-                        @endif
-
-                        <div class="col-md-12">
-                            <label class="form-label small fw-bold text-muted">Título de la Promoción</label>
-                            <input type="text" wire:model="name" class="form-control" placeholder="Ej: ¡Oferta 2x1 en Almuerzos!">
-                        </div>
-
-                        <div class="col-md-12">
-                            <label class="form-label small fw-bold text-muted">Descripción de la Oferta</label>
-                            <textarea wire:model="description" class="form-control" rows="2" placeholder="Escribe aquí los detalles..."></textarea>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted">Género</label>
-                            <select wire:model="target_gender" class="form-select">
-                                <option value="todos">Todos</option>
-                                <option value="masculino">Masculino</option>
-                                <option value="femenino">Femenino</option>
-                            </select>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted">Rango de Edad</label>
-                            <select wire:model="age_range_id" class="form-select">
-                                <option value="0">Cualquier edad</option>
-                                @foreach($ageRanges as $range)
-                                    <option value="{{ $range->id }}">{{ $range->name }} ({{ $range->min_age }}-{{ $range->max_age }})</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div class="col-md-12">
-                            <label class="form-label small fw-bold text-muted">Multimedia</label>
-                            <input type="file" wire:model="media" class="form-control">
-                            
-                            {{-- VISTA PREVIA --}}
-                            <div class="mt-3 p-3 border rounded-4 bg-light text-center" style="border-style: dashed !important;">
-                                @if ($media) 
-                                    @if($media_type == 'imagen')
-                                        <img src="{{ $media->temporaryUrl() }}" class="img-fluid rounded shadow-sm" style="max-height: 150px;">
-                                    @else
-                                        <div class="small text-primary">Video: {{ $media->getClientOriginalName() }}</div>
-                                    @endif
-                                @elseif($selected_id && $current_media_path)
-                                    @if($media_type == 'imagen')
-                                        <img src="{{ asset('storage/' . $current_media_path) }}" class="img-fluid rounded shadow-sm" style="max-height: 150px;">
-                                    @endif
-                                @else
-                                    <span class="text-muted small">Sin archivo seleccionado</span>
-                                @endif
-                            </div>
-                        </div>
-
-                        <div class="col-12">
-                            <div class="bg-light p-3 rounded-4 border-0">
-                                <h6 class="text-xs text-uppercase text-muted fw-bold mb-3">Reglas de Envío</h6>
-                                <div class="form-check form-switch mb-2">
-                                    <input class="form-check-input" type="checkbox" id="on_connect" wire:model="on_connect">
-                                    <label class="form-check-label small fw-bold" for="on_connect">Mandar al conectarse</label>
-                                </div>
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="only_new" wire:model="only_new">
-                                    <label class="form-check-label small fw-bold" for="only_new">Mandar solo a clientes nuevos</label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="modal-footer border-0 p-4 pt-0">
-                    <button wire:click="closeModal" class="btn btn-light rounded-pill px-4">Cerrar</button>
-                    <button wire:click="save" class="btn btn-primary rounded-pill px-5 shadow-sm fw-bold">
-                        {{ $selected_id ? 'Guardar Cambios' : 'Activar Promoción' }}
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
+    </div>    
     @endif
 </div>
 
