@@ -195,10 +195,13 @@ class PromocionesOfertas extends Component
 
     public function addOption()
     {
+        $this->options[] = '';
     }
 
     public function removeOption($index)
     {
+        unset($this->options[$index]);
+        $this->options = array_values($this->options);  
     }
 
     public function delete($id)
