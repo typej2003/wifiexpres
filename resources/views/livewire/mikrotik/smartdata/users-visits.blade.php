@@ -30,6 +30,7 @@
                                         <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Cliente</th>
                                         <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Teléfono</th>
                                         <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Email</th>
+                                        <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Fecha</th>
                                         <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 text-center">Acción</th>
                                     </tr>
                                 </thead>
@@ -46,6 +47,12 @@
                                             </td>
                                             <td>
                                                 <p class="text-xs font-weight-bold mb-0">{{ $user->email ?? 'N/A' }}</p>
+                                            </td>
+                                            <td>
+                                                <p class="text-xs font-weight-bold mb-0">{{ $user->email ?? 'N/A' }}</p>
+                                            </td>
+                                            <td>
+                                                <p class="text-xs font-weight-bold mb-0">{{ $user->created_at->format('d/m/Y') }}</p>
                                             </td>
                                             <td class="align-middle text-center">
                                                 <button class="btn btn-link text-info text-gradient px-3 mb-0" wire:click="selectUser({{ $user->id }})">
