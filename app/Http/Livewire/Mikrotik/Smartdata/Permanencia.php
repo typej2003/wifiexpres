@@ -49,8 +49,7 @@ class Permanencia extends Component
         $end = Carbon::parse($this->toDate)->endOfDay();
         
         $user = auth()->user();
-        $allowedRouterIds = Router::where('is_active', true)
-            ->when($user->role !== 'admin', function($q) use ($user) {
+        $allowedRouterIds = Router::when($user->role !== 'admin', function($q) use ($user) {
                 return $q->where('user_id', $user->id);
             })->pluck('id');
 
