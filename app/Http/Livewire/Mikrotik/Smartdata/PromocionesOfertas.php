@@ -76,7 +76,7 @@ class PromocionesOfertas extends Component
         $this->name = '';
         $this->description = '';
         $this->target_gender = 'todos';
-        $this->router_identity = '';
+        //$this->router_identity = '';
         $this->age_range_id = 0;
         $this->media_type = 'imagen';
         $this->media = null;
