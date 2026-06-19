@@ -210,7 +210,7 @@
         <div class="modal-dialog modal-lg" style="margin-top: 6rem;">
             <div class="modal-content border-0 shadow-lg rounded-4">
                 <div class="modal-header border-0 p-4 pb-0">
-                    <h5 class="fw-bold mb-0 text-dark">{{ $selected_id ? 'Editar Campaña' : 'Nueva Campaña' }}</h5>
+                    <h5 class="fw-bold mb-0 text-dark">{{ $selected_id ? 'Editar Promoción' : 'Nueva Promoción' }}</h5>
                     <button type="button" class="btn-close" wire:click="closeModal"></button>
                 </div>
                 
