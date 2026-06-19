@@ -50,6 +50,159 @@
         </div>
     </div>
 
+    {{-- TABLA DE DATOS --}}
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-muted small fw-bold text-uppercase">
+                    <tr>
+                        <th class="px-4 py-3">Campaña / Promoción</th>
+                        <th class="py-3">Segmentación</th>
+                        <th class="py-3 text-center">Reglas Envío</th>
+                        <th class="py-3 text-center">Alcance</th>
+                        <th class="py-3 text-center">Estado</th>
+                        <th class="text-end px-4">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($campaigns as $camp)
+                    <tr wire:key="camp-row-{{ $camp->id }}">
+                        <td class="px-4">
+                            <span class="fw-bold d-block text-dark">{{ $camp->name }}</span>
+                            @if($isAdmin) <small class="text-primary fw-semibold">{{ $camp->user->name }}</small> @endif
+                        </td>
+                        <td>
+                            <span class="badge bg-soft-info text-info rounded-pill px-3">
+                                {{ strtoupper($camp->target_gender) }} | {{ $camp->ageRange->name ?? 'Cualquier edad' }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            @php $opts = $camp->options ?? []; @endphp
+                            @if($opts['on_connect'] ?? false) <span class="badge bg-light text-dark border small">CONECTAR</span> @endif
+                            @if($opts['only_new'] ?? false) <span class="badge bg-light text-primary border small">NUEVOS</span> @endif
+                        </td>
+                        <td class="text-center">
+                            <span class="fw-bold" title="Envíos realizados"><i class="bi bi-send-check me-1"></i>{{ $camp->alcance ?? 0 }}</span>
+                        </td>
+                        <td class="text-center">
+                            <div class="form-check form-switch d-inline-block">
+                                {{-- SWITCH CORREGIDO --}}
+                                <input class="form-check-input" type="checkbox" role="switch" 
+                                    wire:click="toggleStatus({{ $camp->id }})" {{ $camp->active ? 'checked' : '' }}
+                                    style="cursor: pointer;">
+                            </div>
+                        </td>
+                        <td class="text-end px-4">
+                            <div class="btn-group shadow-sm rounded-3">
+                                <button wire:click="selectCampaignForSending({{ $camp->id }})" 
+                                        class="btn btn-sm btn-white border {{ $camp->manualSending ? 'bg-primary text-white' : '' }}" title="Seleccionar para envío manual">
+                                    <i class="bi bi-send"></i>
+                                </button>
+                                <button wire:click="edit({{ $camp->id }})" class="btn btn-sm btn-white border">
+                                    <i class="bi bi-pencil text-primary"></i>
+                                </button>
+                                <button onclick="confirm('¿Estás seguro?') || event.stopImmediatePropagation()" 
+                                        wire:click="delete({{ $camp->id }})" 
+                                        class="btn btn-sm btn-white border">
+                                    <i class="bi bi-trash text-danger"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr><td colspan="5" class="text-center py-5 text-muted">No se encontraron concursos.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer bg-white border-0 p-3">
+            {{ $campaigns->links() }}
+        </div>
+    </div>
+
+    {{-- SECCIÓN DE ENVÍO MANUAL A USUARIOS --}}
+    @if($selectedCampaignForSending)
+    <div class="card border-0 shadow-sm rounded-4 mt-4 animate__animated animate__fadeIn">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold mb-0">
+                    <i class="bi bi-people text-info me-2"></i>Usuarios del Router: <span class="text-primary">{{ $selectedCampaignForSending->router_identity }}</span>
+                </h5>
+                <div class="d-flex align-items-center">
+                    <select wire:model="deliveryMethod" class="form-select form-select-sm rounded-pill me-2" style="width: auto; min-width: 180px;">
+                        <option value="">Medio de envío...</option>
+                        <option value="sms">SMS Masivo</option>
+                        <option value="whatsapp">WhatsApp Directo</option>
+                        <option value="email">Correo Electrónico</option>
+                    </select>
+
+                    <button wire:click="sendPromotions" 
+                        class="btn btn-success rounded-pill px-4 shadow-sm me-2" 
+                        {{ empty($selectedUsers) || !$deliveryMethod ? 'disabled' : '' }}>
+                        <i class="bi bi-send-check me-1"></i> Enviar Promoción
+                    </button>
+                    <button wire:click="closeUserSelection" class="btn btn-light btn-sm rounded-circle" title="Cerrar selección"><i class="bi bi-x-lg"></i></button>
+                </div>
+            </div>
+
+            {{-- TEXTAREA DINÁMICO PARA SMS --}}
+            @if($deliveryMethod === 'sms')
+            <div class="mb-4 animate__animated animate__fadeIn">
+                <label class="form-label small fw-bold text-muted">Contenido del Mensaje SMS</label>
+                <textarea wire:model="smsMessage" class="form-control rounded-4 border-0 shadow-sm" rows="3" placeholder="Escribe el mensaje promocional aquí..."></textarea>
+                <div class="form-text text-end small text-muted"><i class="bi bi-info-circle me-1"></i>Este texto será el que reciban los clientes en sus dispositivos.</div>
+            </div>
+            @endif
+
+            {{-- Checkbox de Selección Masiva --}}
+            <div class="mb-3 p-3 bg-light rounded-4 border-start border-4 border-info d-flex align-items-center">
+                <div class="form-check mb-0">
+                    <input class="form-check-input" type="checkbox" id="selectAllWithPhone" wire:model="selectAll" style="width: 1.25em; height: 1.25em; cursor: pointer;">
+                    <label class="form-check-label fw-bold text-dark ms-2" for="selectAllWithPhone" style="cursor: pointer;">
+                        Seleccionar todos los usuarios con número de teléfono
+                    </label>
+                </div>
+                <small class="text-muted ms-auto"><i class="bi bi-info-circle me-1"></i>Esto filtrará automáticamente a los clientes sin contacto telefónico registrado.</small>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light text-muted small fw-bold text-uppercase">
+                        <tr>
+                            <th width="40" class="px-4"></th>
+                            <th>Usuario</th>
+                            <th>Contacto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($usersToNotify as $user)
+                        <tr wire:key="user-notify-row-{{ $user->id }}">
+                            <td class="px-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="{{ $user->id }}" wire:model="selectedUsers">
+                                </div>
+                            </td>
+                            <td>
+                                <span class="fw-bold d-block">{{ $user->full_name ?? $user->name }}</span>
+                                <small class="text-muted font-monospace">{{ $user->name }}</small>
+                            </td>
+                            <td>
+                                <div class="small">
+                                    <i class="bi bi-phone me-1"></i>{{ $user->cellphonecode }}{{ $user->cellphone }}<br>
+                                    <i class="bi bi-envelope me-1"></i>{{ $user->email ?? 'N/A' }}
+                                </div>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr><td colspan="6" class="text-center py-4 text-muted">No se encontraron usuarios vinculados a este router.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- MODAL DINÁMICO --}}
     @if($isModalOpen)
     <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.6); backdrop-filter: blur(5px);">
@@ -177,160 +330,6 @@
                         {{ $selected_id ? 'Guardar Cambios' : 'Crear Campaña' }}
                     </button>
                 </div>
-            </div>
-        </div>
-    </div>
-    @endif
-
-    {{-- TABLA DE DATOS --}}
-    <div class="card border-0 shadow-sm rounded-4">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="bg-light text-muted small fw-bold text-uppercase">
-                    <tr>
-                        <th class="px-4 py-3">Campaña / Promoción</th>
-                        <th class="py-3">Segmentación</th>
-                        <th class="py-3 text-center">Reglas Envío</th>
-                        <th class="py-3 text-center">Alcance</th>
-                        <th class="py-3 text-center">Estado</th>
-                        <th class="text-end px-4">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($campaigns as $camp)
-                    <tr wire:key="camp-row-{{ $camp->id }}">
-                        <td class="px-4">
-                            <span class="fw-bold d-block text-dark">{{ $camp->name }}</span>
-                            @if($isAdmin) <small class="text-primary fw-semibold">{{ $camp->user->name }}</small> @endif
-                        </td>
-                        <td>
-                            <span class="badge bg-soft-info text-info rounded-pill px-3">
-                                {{ strtoupper($camp->target_gender) }} | {{ $camp->ageRange->name ?? 'Cualquier edad' }}
-                            </span>
-                        </td>
-                        <td class="text-center">
-                            @php $opts = $camp->options ?? []; @endphp
-                            @if($opts['on_connect'] ?? false) <span class="badge bg-light text-dark border small">CONECTAR</span> @endif
-                            @if($opts['only_new'] ?? false) <span class="badge bg-light text-primary border small">NUEVOS</span> @endif
-                        </td>
-                        <td class="text-center">
-                            <span class="fw-bold" title="Envíos realizados"><i class="bi bi-send-check me-1"></i>{{ $camp->alcance ?? 0 }}</span>
-                        </td>
-                        <td class="text-center">
-                            <div class="form-check form-switch d-inline-block">
-                                {{-- SWITCH CORREGIDO --}}
-                                <input class="form-check-input" type="checkbox" role="switch" 
-                                    wire:click="toggleStatus({{ $camp->id }})" {{ $camp->active ? 'checked' : '' }}
-                                    style="cursor: pointer;">
-                            </div>
-                        </td>
-                        <td class="text-end px-4">
-                            <div class="btn-group shadow-sm rounded-3">
-                                <button wire:click="selectCampaignForSending({{ $camp->id }})" 
-                                        class="btn btn-sm btn-white border {{ $camp->manualSending ? 'bg-primary text-white' : '' }}" title="Seleccionar para envío manual">
-                                    <i class="bi bi-send"></i>
-                                </button>
-                                <button wire:click="edit({{ $camp->id }})" class="btn btn-sm btn-white border">
-                                    <i class="bi bi-pencil text-primary"></i>
-                                </button>
-                                <button onclick="confirm('¿Estás seguro?') || event.stopImmediatePropagation()" 
-                                        wire:click="delete({{ $camp->id }})" 
-                                        class="btn btn-sm btn-white border">
-                                    <i class="bi bi-trash text-danger"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr><td colspan="5" class="text-center py-5 text-muted">No se encontraron concursos.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-        <div class="card-footer bg-white border-0 p-3">
-            {{ $campaigns->links() }}
-        </div>
-    </div>
-
-    {{-- SECCIÓN DE ENVÍO MANUAL A USUARIOS --}}
-    {{-- MODAL DINÁMICO --}}
-    @if($isModalOpen)
-    <div class="card border-0 shadow-sm rounded-4 mt-4 animate__animated animate__fadeIn">
-        <div class="card-body p-4">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="fw-bold mb-0">
-                    <i class="bi bi-people text-info me-2"></i>Usuarios del Router: <span class="text-primary">{{ $selectedCampaignForSending->router_identity }}</span>
-                </h5>
-                <div class="d-flex align-items-center">
-                    <select wire:model="deliveryMethod" class="form-select form-select-sm rounded-pill me-2" style="width: auto; min-width: 180px;">
-                        <option value="">Medio de envío...</option>
-                        <option value="sms">SMS Masivo</option>
-                        <option value="whatsapp">WhatsApp Directo</option>
-                        <option value="email">Correo Electrónico</option>
-                    </select>
-
-                    <button wire:click="sendPromotions" 
-                        class="btn btn-success rounded-pill px-4 shadow-sm me-2" 
-                        {{ empty($selectedUsers) || !$deliveryMethod ? 'disabled' : '' }}>
-                        <i class="bi bi-send-check me-1"></i> Enviar Promoción
-                    </button>
-                    <button wire:click="closeUserSelection" class="btn btn-light btn-sm rounded-circle" title="Cerrar selección"><i class="bi bi-x-lg"></i></button>
-                </div>
-            </div>
-
-            {{-- TEXTAREA DINÁMICO PARA SMS --}}
-            @if($deliveryMethod === 'sms')
-            <div class="mb-4 animate__animated animate__fadeIn">
-                <label class="form-label small fw-bold text-muted">Contenido del Mensaje SMS</label>
-                <textarea wire:model="smsMessage" class="form-control rounded-4 border-0 shadow-sm" rows="3" placeholder="Escribe el mensaje promocional aquí..."></textarea>
-                <div class="form-text text-end small text-muted"><i class="bi bi-info-circle me-1"></i>Este texto será el que reciban los clientes en sus dispositivos.</div>
-            </div>
-            @endif
-
-            {{-- Checkbox de Selección Masiva --}}
-            <div class="mb-3 p-3 bg-light rounded-4 border-start border-4 border-info d-flex align-items-center">
-                <div class="form-check mb-0">
-                    <input class="form-check-input" type="checkbox" id="selectAllWithPhone" wire:model="selectAll" style="width: 1.25em; height: 1.25em; cursor: pointer;">
-                    <label class="form-check-label fw-bold text-dark ms-2" for="selectAllWithPhone" style="cursor: pointer;">
-                        Seleccionar todos los usuarios con número de teléfono
-                    </label>
-                </div>
-                <small class="text-muted ms-auto"><i class="bi bi-info-circle me-1"></i>Esto filtrará automáticamente a los clientes sin contacto telefónico registrado.</small>
-            </div>
-
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light text-muted small fw-bold text-uppercase">
-                        <tr>
-                            <th width="40" class="px-4"></th>
-                            <th>Usuario</th>
-                            <th>Contacto</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($usersToNotify as $user)
-                        <tr wire:key="user-notify-row-{{ $user->id }}">
-                            <td class="px-4">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" value="{{ $user->id }}" wire:model="selectedUsers">
-                                </div>
-                            </td>
-                            <td>
-                                <span class="fw-bold d-block">{{ $user->full_name ?? $user->name }}</span>
-                                <small class="text-muted font-monospace">{{ $user->name }}</small>
-                            </td>
-                            <td>
-                                <div class="small">
-                                    <i class="bi bi-phone me-1"></i>{{ $user->cellphonecode }}{{ $user->cellphone }}<br>
-                                    <i class="bi bi-envelope me-1"></i>{{ $user->email ?? 'N/A' }}
-                                </div>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr><td colspan="6" class="text-center py-4 text-muted">No se encontraron usuarios vinculados a este router.</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
             </div>
         </div>
     </div>    
