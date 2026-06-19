@@ -55,7 +55,9 @@ class UsersVisits extends Component
                   ->orWhere('server', 'like', $term)
                   ->orWhere('email', 'like', $term)
                   ->orWhere(DB::raw("CONCAT(COALESCE(cellphonecode,''), COALESCE(cellphone,''))"), 'like', $term);
-        })->paginate(15);
+        })
+        ->latest()
+        ->paginate(15);
 
         // Corregimos la consulta para que coincida con el formato 'T-MAC' de TicketLog
         $visits = $selectedUser 
