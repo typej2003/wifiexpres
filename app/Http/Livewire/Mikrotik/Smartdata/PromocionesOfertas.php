@@ -34,6 +34,7 @@ class PromocionesOfertas extends Component
     public $age_range_id;
     public $media_type = 'imagen', $media, $current_media_path;
     public $question_text = 'Publicidad Estándar', $question_type = 'simple';
+    public $options = []; // Array para las opciones dinámicas
     
     // Reglas de Envío (Nuevos campos)
     public $on_connect = false;
