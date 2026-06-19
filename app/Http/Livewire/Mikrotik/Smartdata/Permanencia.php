@@ -205,8 +205,7 @@ class Permanencia extends Component
 
     public function render()
     {
-        $routers = Router::where('is_active', true)
-            ->when(auth()->user()->role !== 'admin', function($q) {
+        $routers = Router::when(auth()->user()->role !== 'admin', function($q) {
                 return $q->where('user_id', auth()->id());
             })->get();
 
