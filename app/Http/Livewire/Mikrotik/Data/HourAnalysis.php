@@ -43,7 +43,6 @@ class HourAnalysis extends Component
 
         $user = auth()->user();
         $this->routers = Router::with('user')
-            ->where('is_active', true)
             ->when($user->role !== 'admin' && $user->role !== 'root', function($q) use ($user) {
                 return $q->where('user_id', $user->id);
             })->get();
