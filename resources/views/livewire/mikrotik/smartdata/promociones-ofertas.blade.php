@@ -230,7 +230,7 @@
 
                         {{-- Selector de Routers --}}
                         <div class="col-md-12">
-                            <label class="form-label small fw-bold text-muted">Router de la Campaña</label>
+                            <label class="form-label small fw-bold text-muted">Router de la Promoción</label>
                             <select wire:model="router_identity" class="form-select @error('router_identity') is-invalid @enderror">
                                 <option value="">Seleccione un router...</option>
                                 @foreach($routers as $router)
